@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LàSilk — Quản Lý Kho</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -119,6 +120,7 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
 
 /* SCAN */
 .scan-box{background:var(--bg);border:2px dashed var(--border);border-radius:12px;padding:24px;text-align:center;margin-bottom:16px}
+@keyframes scanLine{0%{top:10%}100%{top:90%}}
 .scan-icon{font-size:48px;margin-bottom:10px}
 .scan-anim{display:none}
 .scan-anim.active{display:block}
@@ -560,12 +562,28 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
 <!-- Modal: Quét QR -->
 <div class="modal-overlay" id="modal-scan">
   <div class="modal" style="max-width:440px">
-    <div class="modal-title">Quét QR xuất hàng <span class="modal-close" onclick="closeModal('modal-scan')">×</span></div>
+    <div class="modal-title">Quét QR xuất hàng <span class="modal-close" onclick="closeModal('modal-scan');stopCamera()">×</span></div>
     <div id="scan-step-1">
-      <div class="scan-box">
-        <div class="scan-icon">📷</div>
-        <div style="font-size:13px;font-weight:500;margin-bottom:6px">Chọn sản phẩm bên dưới</div>
-        <div style="font-size:12px;color:var(--med)">Trong web app thật, camera sẽ tự quét QR trên tag hàng</div>
+      <div class="scan-box" id="scan-box-area">
+        <!-- Camera view -->
+        <div id="camera-container" style="display:none;position:relative;width:100%;max-width:300px;margin:0 auto 10px">
+          <video id="camera-video" style="width:100%;border-radius:8px;display:block" autoplay playsinline muted></video>
+          <canvas id="camera-canvas" style="display:none"></canvas>
+          <div style="position:absolute;inset:0;border:3px solid #185FA5;border-radius:8px;pointer-events:none;opacity:.6"></div>
+          <div id="scan-line" style="position:absolute;left:0;right:0;height:2px;background:#185FA5;animation:scanLine 1.5s linear infinite;opacity:.8"></div>
+        </div>
+        <div id="camera-placeholder">
+          <div style="font-size:40px;margin-bottom:10px">📷</div>
+          <div style="font-size:13px;font-weight:500;margin-bottom:6px">Bấm để mở camera quét QR</div>
+          <div style="font-size:12px;color:var(--med);margin-bottom:12px">Cần cấp quyền camera khi trình duyệt hỏi</div>
+          <button class="btn btn-blue" onclick="startCamera()" style="font-size:13px">📷 Mở camera</button>
+        </div>
+        <div id="scan-status" style="font-size:12px;color:var(--med);margin-top:8px;display:none"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <span style="font-size:11px;color:var(--med)">hoặc chọn tay</span>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
       </div>
       <div style="font-size:12px;font-weight:500;color:var(--med);margin-bottom:8px">Chọn sản phẩm:</div>
       <div id="scan-prod-list" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:240px;overflow-y:auto;margin-bottom:12px"></div>
@@ -1279,19 +1297,92 @@ async function editImage(code, currentUrl, name){
 }
 
 // ── SCAN MODAL ──
+let cameraStream=null, scanInterval=null;
+
 function showScanModal(){
   const list=document.getElementById('scan-prod-list');
   const prods=allProducts.length?allProducts:[];
   const stock=computeStock(prods,allTx);
   list.innerHTML=stock.map((p,i)=>`
     <div onclick="selectScanProd(${i})" id="spl-${i}" style="padding:10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:all .15s;${p.current<=0?'opacity:.4;cursor:not-allowed':''}">
+      ${p.image_url?`<img src="${p.image_url}" style="width:100%;height:50px;object-fit:cover;border-radius:5px;margin-bottom:4px" onerror="this.style.display='none'">`:''}
       <div style="font-size:10px;font-family:monospace;color:var(--med)">${p.code}</div>
       <div style="font-size:12px;font-weight:500">${p.name} ${p.size}</div>
       <div style="font-size:11px;color:var(--med)">${p.color} · <span class="${stockClass(p.current)}">${p.current} cái</span></div>
     </div>`).join('');
   document.getElementById('scan-selected').style.display='none';
+  document.getElementById('camera-placeholder').style.display='block';
+  document.getElementById('camera-container').style.display='none';
+  if(document.getElementById('scan-status')) document.getElementById('scan-status').style.display='none';
   scanSelectedProd=null;
   openModal('modal-scan');
+}
+
+async function startCamera(){
+  try {
+    const status=document.getElementById('scan-status');
+    status.style.display='block';
+    status.textContent='Đang mở camera...';
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}
+    });
+    cameraStream=stream;
+    const video=document.getElementById('camera-video');
+    video.srcObject=stream;
+    await video.play();
+    document.getElementById('camera-placeholder').style.display='none';
+    document.getElementById('camera-container').style.display='block';
+    status.textContent='Đưa mã QR vào khung...';
+
+    // Start scanning
+    scanInterval=setInterval(()=>scanFrame(video,status),300);
+  } catch(e){
+    const status=document.getElementById('scan-status');
+    status.style.display='block';
+    if(e.name==='NotAllowedError'){
+      status.innerHTML='❌ Bị từ chối quyền camera.<br><span style="font-size:11px">Bấm vào icon 🔒 trên thanh địa chỉ → cho phép camera → thử lại</span>';
+    } else {
+      status.textContent='Lỗi camera: '+e.message;
+    }
+  }
+}
+
+function scanFrame(video, status){
+  try {
+    if(video.readyState!==video.HAVE_ENOUGH_DATA) return;
+    const canvas=document.getElementById('camera-canvas');
+    canvas.width=video.videoWidth;
+    canvas.height=video.videoHeight;
+    const ctx=canvas.getContext('2d');
+    ctx.drawImage(video,0,0,canvas.width,canvas.height);
+    const imageData=ctx.getImageData(0,0,canvas.width,canvas.height);
+    const code=jsQR(imageData.data,imageData.width,imageData.height,{inversionAttempts:'dontInvert'});
+    if(code){
+      const qrText=code.data.trim();
+      stopCamera();
+      status.textContent='✅ Đã quét: '+qrText;
+      // Match product by code (QR chứa mã SP như P001)
+      const stock=computeStock(allProducts,allTx);
+      const idx=stock.findIndex(p=>p.code===qrText||qrText.startsWith(p.code+'|'));
+      if(idx>=0){
+        selectScanProd(idx);
+        toast('Quét thành công: '+qrText);
+      } else {
+        status.textContent='⚠️ Không tìm thấy sản phẩm: '+qrText;
+      }
+    }
+  } catch(e){}
+}
+
+function stopCamera(){
+  if(scanInterval){clearInterval(scanInterval);scanInterval=null;}
+  if(cameraStream){cameraStream.getTracks().forEach(t=>t.stop());cameraStream=null;}
+  const video=document.getElementById('camera-video');
+  if(video) video.srcObject=null;
+  const container=document.getElementById('camera-container');
+  const placeholder=document.getElementById('camera-placeholder');
+  if(container) container.style.display='none';
+  if(placeholder) placeholder.style.display='block';
 }
 
 function selectScanProd(i){
@@ -1306,7 +1397,7 @@ function selectScanProd(i){
   document.getElementById('scan-selected').style.display='block';
 }
 
-function resetScan(){ document.getElementById('scan-selected').style.display='none'; scanSelectedProd=null; document.querySelectorAll('[id^=spl-]').forEach(el=>el.style.borderColor=''); }
+function resetScan(){ stopCamera(); document.getElementById('scan-selected').style.display='none'; scanSelectedProd=null; document.querySelectorAll('[id^=spl-]').forEach(el=>el.style.borderColor=''); }
 
 async function confirmScan(){
   if(!scanSelectedProd){toast('Vui lòng chọn sản phẩm',true);return;}
