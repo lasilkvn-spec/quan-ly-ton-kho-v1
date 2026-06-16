@@ -1407,15 +1407,32 @@ function scanFrame(video, status){
     if(code){
       const qrText=code.data.trim();
       stopCamera();
+      status.style.display='block';
       status.textContent='✅ Đã quét: '+qrText;
-      // Match product by code (QR chứa mã SP như P001)
+      // Match product by code
       const stock=computeStock(allProducts,allTx);
       const idx=stock.findIndex(p=>p.code===qrText||qrText.startsWith(p.code+'|'));
       if(idx>=0){
-        selectScanProd(idx);
-        toast('Quét thành công: '+qrText);
+        // Highlight selected in list
+        document.querySelectorAll('[id^=spl-]').forEach((el,j)=>{
+          el.style.borderColor = j===idx ? '#185FA5' : '';
+          el.style.background  = j===idx ? '#E6F1FB' : '';
+        });
+        // Set selected prod and show form
+        const p = stock[idx];
+        scanSelectedProd = p;
+        document.getElementById('sc-code').value  = p.code;
+        document.getElementById('sc-stock').value = p.current + ' cái';
+        document.getElementById('sc-name').value  = p.name + ' ' + p.size + ' · ' + p.color;
+        document.getElementById('scan-selected').style.display = 'block';
+        // Scroll to form
+        setTimeout(()=>{
+          const sel = document.getElementById('scan-selected');
+          if(sel) sel.scrollIntoView({behavior:'smooth', block:'start'});
+        }, 100);
+        toast('Quét thành công: ' + qrText);
       } else {
-        status.textContent='⚠️ Không tìm thấy sản phẩm: '+qrText;
+        status.textContent='⚠️ Không tìm thấy sản phẩm: '+qrText+'. Thử chọn tay bên dưới.';
       }
     }
   } catch(e){}
