@@ -1096,9 +1096,9 @@ async function loadReport(){
 
     document.getElementById('report-metrics').innerHTML=`
       <div class="metric"><div class="metric-label">Tổng xuất</div><div class="metric-val">${totalOut}</div><div class="metric-sub">cái</div></div>
-      <div class="metric"><div class="metric-label" style="color:var(--green-t)">Tổng nhập</div><div class="metric-val" style="color:var(--green-t)">${totalIn}</div><div class="metric-sub">cái</div></div>
       <div class="metric"><div class="metric-label" style="color:var(--teal-t)">Đơn online</div><div class="metric-val" style="color:var(--teal-t)">${outTx.filter(t=>t.channel&&t.channel.toLowerCase().includes('online')).reduce((s,t)=>s+(t.quantity||0),0)}</div><div class="metric-sub">cái</div></div>
       <div class="metric"><div class="metric-label" style="color:var(--purple-t)">Gửi KOL</div><div class="metric-val" style="color:var(--purple-t)">${outTx.filter(t=>t.channel&&t.channel.toLowerCase().includes('kol')).reduce((s,t)=>s+(t.quantity||0),0)}</div><div class="metric-sub">cái</div></div>
+      <div class="metric"><div class="metric-label" style="color:#712B13">Đơn Shopee</div><div class="metric-val" style="color:#712B13">${outTx.filter(t=>t.channel&&t.channel.toLowerCase().includes('shoppe')).reduce((s,t)=>s+(t.quantity||0),0)}</div><div class="metric-sub">cái</div></div>
       <div class="metric"><div class="metric-label" style="color:var(--pink-t)">TikTok</div><div class="metric-val" style="color:var(--pink-t)">${outTx.filter(t=>t.channel&&t.channel.toLowerCase().includes('tiktok')).reduce((s,t)=>s+(t.quantity||0),0)}</div><div class="metric-sub">cái</div></div>
     `;
 
@@ -1225,28 +1225,37 @@ function printOneQR(qbId, code, name, color, size){
       else if(img) src = img.src;
       document.body.removeChild(tmp);
       if(!src){ toast('Không lấy được QR, thử lại!', true); return; }
-      const w = window.open('','_blank','width=420,height=560');
+      const w = window.open('','_blank','width=300,height=400');
       w.document.write(`<!DOCTYPE html><html><head><title>QR - ${code}</title>
         <style>
           *{box-sizing:border-box;margin:0;padding:0}
-          body{font-family:Arial,sans-serif;text-align:center;padding:32px 24px;background:#fff}
-          .brand{font-size:10px;letter-spacing:3px;color:#aaa;margin-bottom:16px;text-transform:uppercase}
-          img{width:200px;height:200px;display:block;margin:0 auto;border:1px solid #eee;border-radius:6px;padding:6px;background:#fff}
-          .code{font-size:12px;font-family:monospace;color:#888;margin-top:14px;margin-bottom:4px}
-          .name{font-size:17px;font-weight:700;color:#2A211C;margin-bottom:5px}
-          .detail{font-size:13px;color:#5B4636;margin-bottom:24px}
-          .print-btn{padding:10px 28px;background:#2A211C;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:500}
-          .print-btn:hover{background:#5B4636}
-          @media print{.print-btn{display:none}body{padding:10px}}
+          body{font-family:Arial,sans-serif;background:#f5f5f5;display:flex;flex-direction:column;align-items:center;padding:20px;gap:12px}
+          .label{width:50mm;height:50mm;padding:2.5mm;border:0.5px solid #ccc;border-radius:1.5mm;text-align:center;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.8mm}
+          .brand{font-size:6.5px;letter-spacing:2px;color:#aaa;text-transform:uppercase}
+          img{width:36mm;height:36mm;display:block}
+          .code{font-size:7px;font-family:monospace;color:#999}
+          .name{font-size:8.5px;font-weight:700;color:#2A211C;line-height:1.2}
+          .detail{font-size:7.5px;color:#5B4636}
+          .print-btn{padding:8px 20px;background:#2A211C;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500}
+          .hint{font-size:11px;color:#888;text-align:center;max-width:200px;line-height:1.5}
+          @media print{
+            .print-btn,.hint{display:none}
+            body{background:#fff;padding:0;margin:0}
+            @page{size:50mm 50mm;margin:0}
+            .label{border:none;width:50mm;height:50mm;padding:2.5mm}
+          }
         </style></head>
         <body>
-          <div class="brand">LàSilk</div>
-          <img src="${src}" alt="QR ${code}">
-          <div class="code">${code}</div>
-          <div class="name">${name}</div>
-          <div class="detail">${color} · Size ${size}</div>
-          <button class="print-btn" onclick="window.print()">🖨 In ngay</button>
-        </body></html>`);
+          <div class="label">
+            <div class="brand">LàSilk</div>
+            <img src="${src}" alt="QR ${code}">
+            <div class="code">${code}</div>
+            <div class="name">${name}</div>
+            <div class="detail">${color} · Size ${size}</div>
+          </div>
+          <button class="print-btn" onclick="window.print()">🖨 In 50×50mm</button>
+          <div class="hint">Khi in: chọn khổ giấy <b>50×50mm</b> và tắt "Headers and footers"</div>
+        </body></html>\`);
       w.document.close();
     }, 300);
   } catch(e) {
