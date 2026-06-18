@@ -84,6 +84,8 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
 .p-tiktok{background:var(--pink-bg);color:var(--pink-t)}
 .p-kol{background:var(--purple-bg);color:var(--purple-t)}
 .p-tang{background:#F1EFE8;color:#444441}
+.p-blue{background:#E6F1FB;color:#0C447C}
+.p-ship{background:#FFF0D6;color:#7A4800}
 .p-in{background:var(--green-bg);color:var(--green-t)}
 .p-out{background:var(--red-bg);color:var(--red-t)}
 .p-ok{background:var(--green-bg);color:var(--green-t)}
@@ -497,18 +499,32 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
 <div class="modal-overlay" id="modal-order">
   <div class="modal">
     <div class="modal-title">Tạo đơn hàng mới <span class="modal-close" onclick="closeModal('modal-order')">×</span></div>
+    <!-- PASTE ZONE -->
+    <div style="background:#E6F1FB;border:1.5px dashed #378ADD;border-radius:10px;padding:12px 14px;margin-bottom:14px">
+      <div style="font-size:12px;font-weight:600;color:#0C447C;margin-bottom:6px">📋 Dán thông tin khách từ Zalo / copy đơn</div>
+      <textarea id="o-paste" rows="3" placeholder="Dán vào đây rồi bấm Tự điền ↓&#10;VD:&#10;79/14 Thống Nhất, Gò Vấp&#10;Lâm Thuỷ Vy&#10;0356080403" style="width:100%;padding:8px 10px;border:1px solid #B5D4F4;border-radius:7px;font-size:12px;resize:none;color:#2A211C;background:#fff;font-family:inherit"></textarea>
+      <button onclick="autoParse()" style="margin-top:8px;width:100%;padding:7px;background:#185FA5;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">✨ Tự điền thông tin</button>
+      <div id="o-parse-preview" style="display:none;margin-top:8px;background:#EAF3DE;border-radius:6px;padding:8px 10px;line-height:1.8"></div>
+    </div>
     <div class="field2">
       <div class="field"><label>Tên khách *</label><input id="o-name" placeholder="Nguyễn Thị An"></div>
-      <div class="field"><label>SĐT *</label><input id="o-phone" placeholder="09xx xxx xxx"></div>
+      <div class="field" id="o-phone-wrap"><label>SĐT</label><input id="o-phone" placeholder="09xx xxx xxx"></div>
     </div>
-    <div class="field"><label>Địa chỉ giao hàng</label><input id="o-addr" placeholder="123 Lê Lợi, Q.1, TP.HCM"></div>
+    <div class="field" id="o-addr-wrap"><label>Địa chỉ giao hàng</label><input id="o-addr" placeholder="123 Lê Lợi, Q.1, TP.HCM"></div>
     <div class="field2">
       <div class="field"><label>Sản phẩm *</label><select id="o-prod"><option value="">-- Chọn --</option></select></div>
       <div class="field"><label>Số lượng</label><input id="o-qty" type="number" value="1" min="1"></div>
     </div>
     <div class="field2">
-      <div class="field"><label>Kênh bán *</label><select id="o-channel"><option>Online</option><option>Shopee</option><option>TikTok</option><option>KOL</option><option>Tặng</option></select></div>
-      <div class="field"><label>Mã vận đơn</label><input id="o-mvd" placeholder="VN..."></div>
+      <div class="field"><label>Kênh vận chuyển *</label><select id="o-channel" onchange="toggleOrderFields(this.value)">
+        <option value="GHN">📦 Đơn GHN</option>
+        <option value="Grab">🛵 Đơn Grab</option>
+        <option value="Shopee">🟠 Đơn Shopee</option>
+        <option value="TikTok">🎵 Đơn TikTok</option>
+        <option value="KOL">⭐ Gửi KOL</option>
+        <option value="Tặng">🎁 Tặng</option>
+      </select></div>
+      <div class="field" id="o-mvd-wrap"><label>Mã vận đơn</label><input id="o-mvd" placeholder="VN..."></div>
     </div>
     <div class="field"><label>Nhân viên</label><input id="o-staff" placeholder="Tên nhân viên"></div>
     <div class="field"><label>Ghi chú</label><input id="o-note" placeholder="Ghi chú thêm..."></div>
@@ -562,7 +578,51 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
   </div>
 </div>
 
-<!-- Modal: Quét QR -->
+<!-- Modal: Sửa đơn hàng -->
+<div class="modal-overlay" id="modal-edit-order">
+  <div class="modal">
+    <div class="modal-title">✏️ Sửa đơn hàng <span id="edit-order-code" style="font-size:12px;color:var(--med);font-weight:400"></span> <span class="modal-close" onclick="closeModal('modal-edit-order')">×</span></div>
+    <input type="hidden" id="edit-order-id">
+    <div class="field2">
+      <div class="field"><label>Tên khách</label><input id="edit-o-name" placeholder="Nguyễn Thị An"></div>
+      <div class="field"><label>SĐT</label><input id="edit-o-phone" placeholder="09xx xxx xxx"></div>
+    </div>
+    <div class="field"><label>Địa chỉ giao hàng</label><input id="edit-o-addr" placeholder="123 Lê Lợi, Q.1"></div>
+    <div class="field2">
+      <div class="field"><label>Sản phẩm</label><select id="edit-o-prod"></select></div>
+      <div class="field"><label>Số lượng</label><input id="edit-o-qty" type="number" min="1" value="1"></div>
+    </div>
+    <div class="field2">
+      <div class="field"><label>Kênh vận chuyển</label>
+        <select id="edit-o-channel">
+          <option value="GHN">📦 Đơn GHN</option>
+          <option value="Grab">🛵 Đơn Grab</option>
+          <option value="Shopee">🟠 Đơn Shopee</option>
+          <option value="TikTok">🎵 Đơn TikTok</option>
+          <option value="KOL">⭐ Gửi KOL</option>
+          <option value="Tặng">🎁 Tặng</option>
+        </select>
+      </div>
+      <div class="field"><label>Mã vận đơn</label><input id="edit-o-mvd" placeholder="VN..."></div>
+    </div>
+    <div class="field2">
+      <div class="field"><label>Trạng thái</label>
+        <select id="edit-o-status">
+          <option>Chờ lấy</option><option>Đang giao</option><option>Đã giao</option><option>Hoàn hàng</option>
+        </select>
+      </div>
+      <div class="field"><label>Nhân viên</label><input id="edit-o-staff" placeholder="Tên nhân viên"></div>
+    </div>
+    <div class="field"><label>Ghi chú</label><input id="edit-o-note" placeholder="Ghi chú..."></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" onclick="deleteOrder()">🗑 Xoá đơn</button>
+      <button class="btn" onclick="closeModal('modal-edit-order')">Huỷ</button>
+      <button class="btn btn-primary" onclick="saveEditOrder()">💾 Lưu thay đổi</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Sửa đơn hàng -->
 <div class="modal-overlay" id="modal-scan">
   <div class="modal" style="max-width:440px">
     <div class="modal-title">Quét QR xuất hàng <span class="modal-close" onclick="closeModal('modal-scan');stopCamera()">×</span></div>
@@ -600,14 +660,22 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
           <div class="field"><label>Sản phẩm</label><input id="sc-name" readonly></div>
         </div>
         <div class="field2">
-          <div class="field"><label>Kênh xuất *</label><select id="sc-channel"><option>Online</option><option>Shopee</option><option>TikTok</option><option>KOL</option><option>Tặng</option></select></div>
+          <div class="field"><label>Kênh xuất *</label><select id="sc-channel" onchange="toggleScanFields(this.value)">
+  <option value="GHN">📦 Đơn GHN</option>
+  <option value="Grab">🛵 Đơn Grab</option>
+  <option value="Shopee">🟠 Đơn Shopee</option>
+  <option value="TikTok">🎵 Đơn TikTok</option>
+  <option value="KOL">⭐ Gửi KOL</option>
+  <option value="Tặng">🎁 Tặng</option>
+</select></div>
           <div class="field"><label>Số lượng *</label><input id="sc-qty" type="number" value="1" min="1"></div>
         </div>
         <div class="field2">
           <div class="field"><label>Tên khách</label><input id="sc-cust" placeholder="Nguyễn Thị An"></div>
-          <div class="field"><label>SĐT</label><input id="sc-phone" placeholder="09xx..."></div>
+          <div class="field" id="sc-phone-wrap"><label>SĐT</label><input id="sc-phone" placeholder="09xx..."></div>
         </div>
-        <div class="field"><label>Mã vận đơn</label><input id="sc-mvd" placeholder="VN..."></div>
+        <div class="field" id="sc-addr-wrap"><label>Địa chỉ giao</label><input id="sc-addr" placeholder="123 Lê Lợi..."></div>
+        <div class="field" id="sc-mvd-wrap"><label>Mã vận đơn</label><input id="sc-mvd" placeholder="VN..."></div>
         <div class="field"><label>Nhân viên</label><input id="sc-staff" placeholder="Tên nhân viên"></div>
         <div class="modal-actions">
           <button class="btn" onclick="resetScan()">← Chọn lại</button>
@@ -657,7 +725,7 @@ function fmtDateShort(d){ if(!d)return'—'; const dt=new Date(d); return`${Stri
 function todayStr(){ const d=new Date(); return d.toISOString().split('T')[0]; }
 function initials(n){ return (n||'?').split(' ').slice(-2).map(w=>w[0]).join('').toUpperCase().slice(0,2); }
 function pillSt(s){ const m={'Chờ lấy':'p-wait','Đang giao':'p-ship','Đã giao':'p-done','Hoàn hàng':'p-ret'}; return`<span class="pill ${m[s]||'p-wait'}">${s||'—'}</span>`; }
-function pillCh(c){ const m={Online:'p-online',Shopee:'p-shopee',TikTok:'p-tiktok',KOL:'p-kol','Tặng':'p-tang','Hàng mới về':'p-in','Hàng trả về':'p-in','Gửi kol':'p-kol','Đơn online':'p-online','Đơn shoppe':'p-shopee','Đơn tiktok':'p-tiktok'}; const k=Object.keys(m).find(k=>c&&c.toLowerCase().includes(k.toLowerCase()))||c; return`<span class="pill ${m[k]||'p-tang'}">${c||'—'}</span>`; }
+function pillCh(c){ const m={Online:'p-online',Shopee:'p-shopee',TikTok:'p-tiktok',KOL:'p-kol','Tặng':'p-tang','Grab':'p-ship','GHN':'p-blue','Hàng mới về':'p-in','Hàng trả về':'p-in','Gửi kol':'p-kol','Đơn online':'p-online','Đơn shoppe':'p-shopee','Đơn tiktok':'p-tiktok','Đơn GHN':'p-blue','Đơn Grab':'p-ship'}; const k=Object.keys(m).find(k=>c&&c.toLowerCase().includes(k.toLowerCase()))||c; return`<span class="pill ${m[k]||'p-tang'}">${c||'—'}</span>`; }
 function stockClass(n){ return n<=0?'stock-out':n<=5?'stock-low':'stock-ok'; }
 function stockPill(n){ if(n<=0)return`<span class="pill p-out2">🔴 Hết hàng</span>`; if(n<=5)return`<span class="pill p-low">🟡 Sắp hết</span>`; return`<span class="pill p-ok">🟢 Còn hàng</span>`; }
 
@@ -879,8 +947,9 @@ function selectOrder(id){
   renderOrders();
   if(!o){return;}
   document.getElementById('order-detail').innerHTML=`
-    <div style="font-size:13px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px">
-      📋 Chi tiết đơn
+    <div style="font-size:13px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
+      <span>📋 Chi tiết đơn</span>
+      <button onclick="openEditOrder(${o.id})" style="font-size:11px;padding:5px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--med);cursor:pointer;display:flex;align-items:center;gap:4px">✏️ Sửa đơn</button>
     </div>
     <div class="d-row"><span class="d-lbl">Mã đơn</span><span class="d-val" style="font-family:monospace">${o.order_code||'#'+o.id}</span></div>
     <div class="d-row"><span class="d-lbl">Khách hàng</span><span class="d-val" style="font-weight:600">${o.customer_name||'—'}</span></div>
@@ -914,6 +983,200 @@ async function updateOrderStatus(id,status){
   } catch(e){ toast('Lỗi: '+e.message,true); }
 }
 
+function openEditOrder(id){
+  const o = allOrders.find(x=>x.id===id);
+  if(!o) return;
+  document.getElementById('edit-order-id').value = id;
+  document.getElementById('edit-order-code').textContent = o.order_code||'#'+id;
+  document.getElementById('edit-o-name').value   = o.customer_name||'';
+  document.getElementById('edit-o-phone').value  = o.phone||'';
+  document.getElementById('edit-o-addr').value   = o.address||'';
+  document.getElementById('edit-o-qty').value    = o.quantity||1;
+  document.getElementById('edit-o-mvd').value    = o.tracking_code||'';
+  document.getElementById('edit-o-note').value   = o.note||'';
+  document.getElementById('edit-o-staff').value  = o.staff||'';
+  // Set channel
+  const chSel = document.getElementById('edit-o-channel');
+  for(const opt of chSel.options){ if(opt.value===o.channel){ opt.selected=true; break; } }
+  // Set status
+  const stSel = document.getElementById('edit-o-status');
+  for(const opt of stSel.options){ if(opt.value===o.status){ opt.selected=true; break; } }
+  // Populate products
+  const prodSel = document.getElementById('edit-o-prod');
+  prodSel.innerHTML = allProducts.map(p=>`<option value="${p.code}" ${o.product_code===p.code?'selected':''}>${p.code} · ${p.name} ${p.size||''} · ${p.color||''}</option>`).join('');
+  openModal('modal-edit-order');
+}
+
+async function saveEditOrder(){
+  const id = parseInt(document.getElementById('edit-order-id').value);
+  const prodCode = document.getElementById('edit-o-prod').value;
+  const prod = allProducts.find(p=>p.code===prodCode);
+  const updates = {
+    customer_name: document.getElementById('edit-o-name').value.trim(),
+    phone:         document.getElementById('edit-o-phone').value.trim(),
+    address:       document.getElementById('edit-o-addr').value.trim(),
+    product_code:  prodCode,
+    product_name:  prod ? `${prod.name} ${prod.size||''} · ${prod.color||''}` : '',
+    quantity:      parseInt(document.getElementById('edit-o-qty').value)||1,
+    channel:       document.getElementById('edit-o-channel').value,
+    tracking_code: document.getElementById('edit-o-mvd').value.trim(),
+    status:        document.getElementById('edit-o-status').value,
+    staff:         document.getElementById('edit-o-staff').value.trim(),
+    note:          document.getElementById('edit-o-note').value.trim(),
+  };
+  try {
+    await db.updateOrder(id, updates);
+    const idx = allOrders.findIndex(x=>x.id===id);
+    if(idx>=0) allOrders[idx] = {...allOrders[idx], ...updates};
+    closeModal('modal-edit-order');
+    toast('Đã lưu thay đổi ✓');
+    selectOrder(id); renderOrders();
+  } catch(e){ toast('Lỗi: '+e.message, true); }
+}
+
+async function deleteOrder(){
+  const id = parseInt(document.getElementById('edit-order-id').value);
+  const o = allOrders.find(x=>x.id===id);
+  if(!confirm(`Xoá đơn ${o?.order_code||'#'+id} của ${o?.customer_name||'khách'}?
+Hành động này không thể hoàn tác!`)) return;
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${id}`,{
+      method:'DELETE',
+      headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
+    });
+    allOrders = allOrders.filter(x=>x.id!==id);
+    selectedOrderId = null;
+    closeModal('modal-edit-order');
+    document.getElementById('order-detail').innerHTML=`<div class="d-empty"><span style="font-size:12px;color:var(--med)">Đã xoá đơn hàng</span></div>`;
+    toast(`Đã xoá đơn ${o?.order_code||'#'+id}`);
+    renderOrders();
+  } catch(e){ toast('Lỗi: '+e.message, true); }
+}
+
+function autoParse(){
+  const raw = (document.getElementById('o-paste').value||'').trim();
+  if(!raw){ alert('Vui lòng dán thông tin khách vào ô trên trước!'); return; }
+
+  // Chuẩn hoá: bỏ prefix thường gặp trước khi parse
+  const stripPrefix = l => l
+    .replace(/^(ship về|ship đến|giao tới|giao về|giao đến|địa chỉ|đc|add|address)\s*:?\s*/i, '')
+    .replace(/^(sdt|số đt|số điện thoại|phone|tel|điện thoại|liên hệ)\s*:?\s*/i, '')
+    .trim();
+  const lines = raw.split(/\n/).map(l=>stripPrefix(l.trim())).filter(l=>l && !l.startsWith('http'));
+  const phoneReg = /(?:\+84|84|0)[0-9\s\-\.]{9,12}(?=[^0-9]|$)/;
+  const addrKeys = /đường|phường|phố|quận|huyện|tỉnh|thành phố|q\.|p\.|xã|thị trấn|hcm|hà nội|ngõ|ngách|hẻm|tổ |khu |lô |kdc|kp |tầng |block|ấp |toà|tòa|gateway|chung cư|masteri|vinhomes|landmark|the |river|city|park|plaza|căn hộ|apartment|đà nẵng|đà lạt|hải phòng|cần thơ|nha trang|huế|vinh|bình dương|đồng nai|long an|tiền giang|an giang|cẩm lệ|liên chiểu|ngũ hành sơn|hải châu|sơn trà|thanh khê|hoà vang|hoà xuân|bình thạnh|gò vấp|tân bình|tân phú|phú nhuận|bình chánh|củ chi|hóc môn|nhà bè|cần giờ|thủ đức|dĩ an|thuận an|biên hoà|vũng tàu/i;
+
+  // Key:value pattern — nhận dạng "Tên: ...", "SĐT: ...", "Địa chỉ: ..."
+  const kvReg = /^(bạn|tên|họ tên|name|sdt|số điện thoại|phone|địa chỉ|address|đc|căn hộ|phòng|số phòng|apt|apartment)\s*[:：]\s*(.+)/i;
+
+  let phone='', addr='', name='', addrExtra='';
+
+  // ── Bước 1: Parse key:value (ưu tiên nhất) ──
+  for(const line of lines){
+    const kv = line.match(kvReg);
+    if(!kv) continue;
+    const key = kv[1].toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')  // bỏ dấu
+      .replace(/\s+/g,'');
+    const val = kv[2].trim();
+    if(/^(ban|ten|hoten|name)$/.test(key) && !name) name = val;
+    else if(/^(sdt|sodienthoai|phone)$/.test(key) && !phone){
+      const pm = val.replace(/[\s\-\.]/g,'').match(/(?:\+?84|0)[0-9]{9,10}/);
+      if(pm) phone = pm[0].replace(/^\+?84/,'0');
+    }
+    else if(/^(diachi|address|dc)$/.test(key) && !addr) addr = val;
+    else if(/^(canho|phong|sophong|apt|apartment)$/.test(key)) addrExtra = val;
+  }
+
+  // ── Bước 2: Parse dòng tự do (không có key:value) ──
+  const freeLines = lines.filter(l=>!kvReg.test(l) && !l.startsWith('['));
+
+  if(!phone){
+    const fullText = freeLines.join(' ');
+    const pm = fullText.match(phoneReg);
+    if(pm) phone = pm[0].replace(/[\s\-\.]/g,'').replace(/^\+?84/,'0');
+  }
+
+  if(!addr){
+    const addrCandidates = freeLines.filter(l=>addrKeys.test(l)||/^\d+[\/\-\s]/.test(l));
+    if(addrCandidates.length>0){
+      // Ghép các dòng địa chỉ liên tiếp nếu có (vd: số nhà + tên đường riêng dòng)
+      addr = addrCandidates.sort((a,b)=>b.length-a.length)[0];
+    }
+  }
+
+  // Ghép căn hộ/phòng vào địa chỉ chính
+  if(addrExtra) addr = addr ? addr+', '+addrExtra : addrExtra;
+
+  if(!name){
+    for(const line of freeLines){
+      if(line===addr) continue;
+      if(phoneReg.test(line)){
+        // Dòng dính SĐT + tên → tách tên ra
+        const namePart = line.replace(phoneReg,'').replace(/[0-9\-_:.]/g,'').trim();
+        if(namePart.length>=2 && !name) name = namePart.replace(/\s+/g,' ');
+        continue;
+      }
+      if(!name && !/\d{3,}/.test(line) && line.length>=2 && line.length<=50){
+        const skip = /danh thiếp|zalo|facebook|shop|store|cửa hàng|order|đơn hàng/i;
+        if(!skip.test(line)) name = line;
+      }
+    }
+  }
+
+  // Điền vào form
+  if(name)  document.getElementById('o-name').value  = name;
+  if(phone) document.getElementById('o-phone').value = phone;
+  if(addr)  document.getElementById('o-addr').value  = addr;
+
+  // Preview
+  const prev = document.getElementById('o-parse-preview');
+  if(prev){
+    prev.style.display='block';
+    prev.innerHTML=`
+      <div style="font-size:11px;font-weight:600;color:#27500A;margin-bottom:5px">✅ Đã nhận diện:</div>
+      ${name  ?`<div style="font-size:11px;color:#2A211C">👤 <b>${name}</b></div>`:'<div style="font-size:11px;color:#e24b4a">⚠️ Không tìm được tên — điền tay nhé</div>'}
+      ${phone ?`<div style="font-size:11px;color:#2A211C">📞 <b>${phone}</b></div>`:'<div style="font-size:11px;color:#e24b4a">⚠️ Không tìm được SĐT</div>'}
+      ${addr  ?`<div style="font-size:11px;color:#2A211C">📍 <b>${addr}</b></div>`:'<div style="font-size:11px;color:#999">— Không tìm được địa chỉ</div>'}
+    `;
+  }
+  const btn=document.querySelector('[onclick="autoParse()"]');
+  if(btn){btn.textContent='✅ Đã điền!';btn.style.background='#27500A';setTimeout(()=>{btn.textContent='✨ Tự điền thông tin';btn.style.background='#185FA5';},2500);}
+  document.getElementById('o-paste').value='';
+}
+
+function toggleOrderFields(ch){
+  const noPhone = ['Shopee','TikTok','KOL','Tặng'];
+  const noAddr  = ['Shopee','TikTok','KOL','Tặng'];
+  const noMvd   = ['Grab','KOL','Tặng'];
+  const phoneWrap = document.getElementById('o-phone-wrap');
+  const addrWrap  = document.getElementById('o-addr-wrap');
+  const mvdWrap   = document.getElementById('o-mvd-wrap');
+  if(phoneWrap) phoneWrap.style.display = noPhone.includes(ch)?'none':'block';
+  if(addrWrap)  addrWrap.style.display  = noAddr.includes(ch) ?'none':'block';
+  if(mvdWrap)   mvdWrap.style.display   = noMvd.includes(ch)  ?'none':'block';
+  // Update MVD placeholder
+  const mvd = document.getElementById('o-mvd');
+  if(mvd){
+    if(ch==='GHN') mvd.placeholder='GHN...';
+    else if(ch==='Shopee') mvd.placeholder='Mã đơn Shopee...';
+    else if(ch==='TikTok') mvd.placeholder='Mã đơn TikTok...';
+    else mvd.placeholder='Mã vận đơn...';
+  }
+}
+
+function toggleScanFields(ch){
+  const noPhone = ['Shopee','TikTok','KOL','Tặng'];
+  const noAddr  = ['Shopee','TikTok','KOL','Tặng'];
+  const noMvd   = ['Grab','KOL','Tặng'];
+  const phoneWrap = document.getElementById('sc-phone-wrap');
+  const addrWrap  = document.getElementById('sc-addr-wrap');
+  const mvdWrap   = document.getElementById('sc-mvd-wrap');
+  if(phoneWrap) phoneWrap.style.display = noPhone.includes(ch)?'none':'block';
+  if(addrWrap)  addrWrap.style.display  = noAddr.includes(ch) ?'none':'block';
+  if(mvdWrap)   mvdWrap.style.display   = noMvd.includes(ch)  ?'none':'block';
+}
+
 async function createOrder(){
   const name=document.getElementById('o-name').value.trim();
   const phone=document.getElementById('o-phone').value.trim();
@@ -924,7 +1187,7 @@ async function createOrder(){
   const data={
     order_code:`DH${Date.now().toString().slice(-6)}`,
     date:todayStr(), customer_name:name, phone,
-    address:document.getElementById('o-addr').value,
+    address:document.getElementById('o-addr-wrap')?.style.display==='none'?'':document.getElementById('o-addr').value,
     product_code:prodCode,
     product_name:prod?`${prod.name} ${prod.size} · ${prod.color}`:'—',
     quantity:qty, channel:document.getElementById('o-channel').value,
@@ -986,7 +1249,7 @@ function openNXKModal(type){
   document.getElementById('nxk-modal-title').innerHTML=`${type==='Nhập'?'Nhập hàng vào kho':'Xuất hàng khỏi kho'} <span class="modal-close" onclick="closeModal('modal-nxk')">×</span>`;
   const sel=document.getElementById('nxk-channel');
   if(type==='Nhập') sel.innerHTML=`<option>Hàng mới về</option><option>Hàng trả về</option>`;
-  else sel.innerHTML=`<option>Đơn online</option><option>Đơn shoppe</option><option>Đơn tiktok</option><option>Gửi kol</option><option>Tặng</option>`;
+  else sel.innerHTML=`<option value="GHN">📦 Đơn GHN</option><option value="Grab">🛵 Đơn Grab</option><option value="Shopee">🟠 Đơn Shopee</option><option value="TikTok">🎵 Đơn TikTok</option><option value="KOL">⭐ Gửi KOL</option><option value="Tặng">🎁 Tặng</option>`;
   openModal('modal-nxk');
 }
 
@@ -1098,7 +1361,7 @@ async function loadReport(){
       <div class="metric"><div class="metric-label">Tổng xuất</div><div class="metric-val">${totalOut}</div><div class="metric-sub">cái</div></div>
       <div class="metric"><div class="metric-label" style="color:var(--teal-t)">Đơn online</div><div class="metric-val" style="color:var(--teal-t)">${outTx.filter(t=>t.channel&&t.channel.toLowerCase().includes('online')).reduce((s,t)=>s+(t.quantity||0),0)}</div><div class="metric-sub">cái</div></div>
       <div class="metric"><div class="metric-label" style="color:var(--purple-t)">Gửi KOL</div><div class="metric-val" style="color:var(--purple-t)">${outTx.filter(t=>t.channel&&t.channel.toLowerCase().includes('kol')).reduce((s,t)=>s+(t.quantity||0),0)}</div><div class="metric-sub">cái</div></div>
-      <div class="metric"><div class="metric-label" style="color:#712B13">Đơn Shopee</div><div class="metric-val" style="color:#712B13">${outTx.filter(t=>t.channel&&t.channel.toLowerCase().includes('shoppe')).reduce((s,t)=>s+(t.quantity||0),0)}</div><div class="metric-sub">cái</div></div>
+      <div class="metric"><div class="metric-label" style="color:#712B13">Đơn Shopee</div><div class="metric-val" style="color:#712B13">${outTx.filter(t=>t.channel&&(t.channel.toLowerCase().includes('shoppe')||t.channel.toLowerCase().includes('shop'))).reduce((s,t)=>s+(t.quantity||0),0)}</div><div class="metric-sub">cái</div></div>
       <div class="metric"><div class="metric-label" style="color:var(--pink-t)">TikTok</div><div class="metric-val" style="color:var(--pink-t)">${outTx.filter(t=>t.channel&&t.channel.toLowerCase().includes('tiktok')).reduce((s,t)=>s+(t.quantity||0),0)}</div><div class="metric-sub">cái</div></div>
     `;
 
@@ -1470,14 +1733,15 @@ async function confirmScan(){
   const p=scanSelectedProd;
   const channel=document.getElementById('sc-channel').value;
   const cust=document.getElementById('sc-cust').value||'Khách lẻ';
-  const phone=document.getElementById('sc-phone').value;
-  const mvd=document.getElementById('sc-mvd').value;
+  const phone=document.getElementById('sc-phone-wrap')?.style.display==='none'?'':document.getElementById('sc-phone').value;
+  const addr=document.getElementById('sc-addr-wrap')?.style.display==='none'?'':((document.getElementById('sc-addr')||{}).value||'');
+  const mvd=document.getElementById('sc-mvd-wrap')?.style.display==='none'?'':document.getElementById('sc-mvd').value;
   const staff=document.getElementById('sc-staff').value;
   try {
     const orderCode=`DH${Date.now().toString().slice(-6)}`;
     await Promise.all([
       db.insertTx({date:todayStr(),type:'Xuất',product_code:p.code,product_name:`${p.name} ${p.size} · ${p.color}`,color:p.color,size:p.size,quantity:qty,channel,note:'Quét QR',staff}),
-      db.insertOrder({order_code:orderCode,date:todayStr(),customer_name:cust,phone,product_code:p.code,product_name:`${p.name} ${p.size} · ${p.color}`,quantity:qty,channel,tracking_code:mvd,staff,status:'Chờ lấy',note:'Tạo qua quét QR'})
+      db.insertOrder({order_code:orderCode,date:todayStr(),customer_name:cust,phone,address:addr,product_code:p.code,product_name:`${p.name} ${p.size} · ${p.color}`,quantity:qty,channel,tracking_code:mvd,staff,status:'Chờ lấy',note:'Tạo qua quét QR'})
     ]);
     closeModal('modal-scan'); resetScan();
     toast(`Xuất ${qty}× ${p.code} · Đơn ${orderCode} đã tạo`);
