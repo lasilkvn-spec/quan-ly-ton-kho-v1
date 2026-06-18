@@ -377,7 +377,7 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5z"/></svg>
         Quét QR
       </button>
-      <button class="btn btn-primary" onclick="openModal('modal-order')">+ Tạo đơn mới</button>
+      <button class="btn btn-primary" onclick="openModal('modal-order');toggleOrderFields(document.getElementById('o-channel').value)">+ Tạo đơn mới</button>
     </div>
   </div>
   <div class="metrics">
@@ -1286,10 +1286,10 @@ async function createOrder(){
   const phoneWrapHidden = document.getElementById('o-phone-wrap')?.style.display==='none';
   const phone = phoneWrapHidden ? '' : document.getElementById('o-phone').value.trim();
   const prodCode=document.getElementById('o-prod').value;
-  if(!name || !prodCode || (!phoneWrapHidden && !phone)){
-    toast('Vui lòng điền đủ thông tin *',true);
-    return;
-  }
+
+  if(!name){ toast('Vui lòng nhập tên khách', true); return; }
+  if(!prodCode){ toast('Vui lòng chọn sản phẩm', true); return; }
+  if(!phoneWrapHidden && !phone){ toast('Vui lòng nhập số điện thoại', true); return; }
   const prod=allProducts.find(p=>p.code===prodCode);
   const qty=parseInt(document.getElementById('o-qty').value)||1;
   const data={
