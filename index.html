@@ -59,6 +59,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 /* CARDS */
 .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px}
 .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:20px}
+
+/* FINANCE ROWS */
+.fin-row{display:grid;grid-template-columns:1fr 110px 70px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--bg)}
+.fin-row:last-child{border-bottom:none}
+.fin-row-label{font-size:12.5px;color:var(--dark);display:flex;align-items:center;gap:7px}
+.fin-row-input{padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;text-align:right;color:var(--dark);background:var(--card)}
+.fin-row-input:focus{outline:none;border-color:var(--tan)}
+.fin-tag{font-size:10px;color:var(--med);text-align:center}
+.fin-icon{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px}
 .metric{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;cursor:pointer;transition:border-color .15s}
 .metric:hover{border-color:var(--tan)}
 .metric-label{font-size:11px;color:var(--med);margin-bottom:6px;display:flex;align-items:center;gap:5px}
@@ -266,6 +275,15 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
     <div class="nav-item" data-page="products" onclick="goPage('products',this)">
       <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z"/><path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z"/></svg>
       Danh mục sản phẩm
+    </div>
+    <div class="nav-section" id="finance-section" style="display:none">Riêng tư</div>
+    <div class="nav-item" id="finance-nav-item" data-page="finance" onclick="goPage('finance',this)" style="display:none">
+      <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM18 10.5h.75M5.25 10.5H6"/></svg>
+      Thu Chi 🔒
+    </div>
+    <div class="nav-item" id="finance-lock-item" data-page="finance-lock" onclick="showPinModal()">
+      <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="opacity:.4"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
+      <span style="opacity:.6">Thu Chi</span>
     </div>
   </nav>
   <div class="sidebar-footer">LàSilk · v1.0</div>
@@ -491,7 +509,88 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
   </div>
 </div>
 
-</div><!-- end main -->
+<!-- ══ FINANCE (Thu Chi) ══ -->
+<div id="page-finance" class="page">
+  <div class="page-header">
+    <div><div class="page-title">💰 Tổng Hợp Thu Chi</div><div class="page-sub" id="fin-period-label">Tháng này</div></div>
+    <div class="btns" style="align-items:center">
+      <select id="fin-month" onchange="loadFinance()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--card);color:var(--dark)">
+        <option value="1">Tháng 1</option><option value="2">Tháng 2</option><option value="3">Tháng 3</option>
+        <option value="4">Tháng 4</option><option value="5">Tháng 5</option><option value="6">Tháng 6</option>
+        <option value="7">Tháng 7</option><option value="8">Tháng 8</option><option value="9">Tháng 9</option>
+        <option value="10">Tháng 10</option><option value="11">Tháng 11</option><option value="12">Tháng 12</option>
+      </select>
+      <select id="fin-year" onchange="loadFinance()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--card);color:var(--dark)">
+        <option value="2026">2026</option><option value="2025">2025</option>
+      </select>
+      <button class="btn" onclick="lockFinance()">🔒 Khoá lại</button>
+    </div>
+  </div>
+
+  <div class="metrics" style="margin-bottom:16px">
+    <div class="metric"><div class="metric-label" style="color:var(--green-t)">Tổng thu</div><div class="metric-val" style="color:var(--green-t)" id="fin-total-thu">0</div><div class="metric-sub">đồng</div></div>
+    <div class="metric"><div class="metric-label" style="color:var(--red-t)">Tổng chi</div><div class="metric-val" style="color:var(--red-t)" id="fin-total-chi">0</div><div class="metric-sub">đồng</div></div>
+    <div class="metric"><div class="metric-label" style="color:var(--blue-t)">Lợi nhuận</div><div class="metric-val" style="color:var(--blue-t)" id="fin-loi-nhuan">0</div><div class="metric-sub" id="fin-margin">0% margin</div></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+    <!-- KHOẢN THU -->
+    <div class="card">
+      <div style="font-size:13px;font-weight:600;color:var(--dark);margin-bottom:2px">📥 Các khoản thu</div>
+      <div style="font-size:11px;color:var(--med);margin-bottom:12px">Tổng tiền khách trả về theo từng nguồn</div>
+      <div id="fin-thu-rows"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;margin-top:6px;border-top:1px solid var(--border)">
+        <span style="font-size:13px;font-weight:600">Tổng thu</span>
+        <span style="font-size:16px;font-weight:600;color:var(--green-t)" id="fin-sum-thu">0 đ</span>
+      </div>
+    </div>
+    <!-- KHOẢN CHI -->
+    <div class="card">
+      <div style="font-size:13px;font-weight:600;color:var(--dark);margin-bottom:2px">📤 Các khoản chi</div>
+      <div style="font-size:11px;color:var(--med);margin-bottom:12px">Chi phí phát sinh trong tháng</div>
+      <div id="fin-chi-rows"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;margin-top:6px;border-top:1px solid var(--border)">
+        <span style="font-size:13px;font-weight:600">Tổng chi</span>
+        <span style="font-size:16px;font-weight:600;color:var(--red-t)" id="fin-sum-chi">0 đ</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="background:var(--blue-bg);border-color:#B5D4F4">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:12px;color:var(--blue-t);font-weight:600">Lợi nhuận kỳ này</div>
+        <div style="font-size:11px;color:var(--blue-t);opacity:.8;margin-top:2px" id="fin-formula">Thu − Chi</div>
+      </div>
+      <div style="font-size:26px;font-weight:600;color:var(--blue-t)" id="fin-profit-big">0 đ</div>
+    </div>
+  </div>
+
+  <div class="metrics" style="margin-top:16px">
+    <div class="metric"><div class="metric-label">💵 Tiền mặt đã thu</div><div class="metric-val" id="fin-cash">0</div><div class="metric-sub">đ trong kỳ</div></div>
+    <div class="metric"><div class="metric-label">🏦 Đã về tài khoản</div><div class="metric-val" id="fin-bank">0</div><div class="metric-sub">đ trong kỳ</div></div>
+    <div class="metric"><div class="metric-label">📊 Biên lợi nhuận</div><div class="metric-val" id="fin-margin-pct">0%</div><div class="metric-sub">trên doanh thu</div></div>
+  </div>
+
+  <div style="text-align:right;margin-top:16px">
+    <button class="btn btn-primary" onclick="saveFinance()">💾 Lưu tổng hợp tháng này</button>
+  </div>
+</div>
+
+<!-- Modal: PIN -->
+<div class="modal-overlay" id="modal-pin">
+  <div class="modal" style="max-width:320px;text-align:center">
+    <div class="modal-title" style="justify-content:center">🔒 Nhập mã PIN</div>
+    <div style="font-size:12px;color:var(--med);margin-bottom:16px">Trang Thu Chi chỉ chủ shop xem được</div>
+    <input id="pin-input" type="password" inputmode="numeric" maxlength="4" placeholder="••••" style="width:160px;padding:12px;text-align:center;font-size:24px;letter-spacing:8px;border:1px solid var(--border);border-radius:10px;margin-bottom:6px" onkeyup="if(event.key==='Enter')checkPin()">
+    <div id="pin-error" style="font-size:11px;color:var(--red-t);min-height:16px;margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn" style="flex:1" onclick="closeModal('modal-pin')">Huỷ</button>
+      <button class="btn btn-primary" style="flex:1" onclick="checkPin()">Mở khoá</button>
+    </div>
+    <div style="margin-top:14px;font-size:10px;color:var(--med);cursor:pointer" onclick="changePinPrompt()">Đổi mã PIN</div>
+  </div>
+</div>
 
 <!-- ══ MODALS ══ -->
 
@@ -517,6 +616,7 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
     </div>
     <div class="field2">
       <div class="field"><label>Kênh vận chuyển *</label><select id="o-channel" onchange="toggleOrderFields(this.value)">
+        <option value="Online">💻 Đơn Online</option>
         <option value="GHN">📦 Đơn GHN</option>
         <option value="Grab">🛵 Đơn Grab</option>
         <option value="Shopee">🟠 Đơn Shopee</option>
@@ -595,6 +695,7 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
     <div class="field2">
       <div class="field"><label>Kênh vận chuyển</label>
         <select id="edit-o-channel">
+          <option value="Online">💻 Đơn Online</option>
           <option value="GHN">📦 Đơn GHN</option>
           <option value="Grab">🛵 Đơn Grab</option>
           <option value="Shopee">🟠 Đơn Shopee</option>
@@ -661,6 +762,7 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
         </div>
         <div class="field2">
           <div class="field"><label>Kênh xuất *</label><select id="sc-channel" onchange="toggleScanFields(this.value)">
+  <option value="Online">💻 Đơn Online</option>
   <option value="GHN">📦 Đơn GHN</option>
   <option value="Grab">🛵 Đơn Grab</option>
   <option value="Shopee">🟠 Đơn Shopee</option>
@@ -751,6 +853,7 @@ function goPage(name, el){
   else if(name==='report') loadReport();
   else if(name==='qr') loadQR();
   else if(name==='products') loadProducts();
+  else if(name==='finance') loadFinance();
 }
 
 // ── COMPUTE STOCK ──
@@ -1159,6 +1262,7 @@ function toggleOrderFields(ch){
   const mvd = document.getElementById('o-mvd');
   if(mvd){
     if(ch==='GHN') mvd.placeholder='GHN...';
+    else if(ch==='Online') mvd.placeholder='Mã vận đơn (nếu có)...';
     else if(ch==='Shopee') mvd.placeholder='Mã đơn Shopee...';
     else if(ch==='TikTok') mvd.placeholder='Mã đơn TikTok...';
     else mvd.placeholder='Mã vận đơn...';
@@ -1179,9 +1283,13 @@ function toggleScanFields(ch){
 
 async function createOrder(){
   const name=document.getElementById('o-name').value.trim();
-  const phone=document.getElementById('o-phone').value.trim();
+  const phoneWrapHidden = document.getElementById('o-phone-wrap')?.style.display==='none';
+  const phone = phoneWrapHidden ? '' : document.getElementById('o-phone').value.trim();
   const prodCode=document.getElementById('o-prod').value;
-  if(!name||!phone||!prodCode){toast('Vui lòng điền đủ thông tin *',true);return;}
+  if(!name || !prodCode || (!phoneWrapHidden && !phone)){
+    toast('Vui lòng điền đủ thông tin *',true);
+    return;
+  }
   const prod=allProducts.find(p=>p.code===prodCode);
   const qty=parseInt(document.getElementById('o-qty').value)||1;
   const data={
@@ -1757,8 +1865,203 @@ function populateProdSelect(elId, prods){
   sel.innerHTML='<option value="">-- Chọn sản phẩm --</option>'+prods.map(p=>`<option value="${p.code}">${p.code} · ${p.name} ${p.size||''} · ${p.color||''}</option>`).join('');
 }
 
+// ══════════════════════════════════════
+// FINANCE (Thu Chi) — bảo vệ bằng PIN
+// ══════════════════════════════════════
+const FINANCE_PIN_KEY = 'lasilk_fin_pin';
+const FINANCE_UNLOCK_KEY = 'lasilk_fin_unlocked';
+let financeUnlocked = false;
+
+function getFinancePin(){
+  return sessionStorage.getItem(FINANCE_PIN_KEY) || '1234'; // PIN mặc định lần đầu
+}
+
+function showPinModal(){
+  document.getElementById('pin-input').value='';
+  document.getElementById('pin-error').textContent='';
+  openModal('modal-pin');
+  setTimeout(()=>document.getElementById('pin-input').focus(),100);
+}
+
+function checkPin(){
+  const entered = document.getElementById('pin-input').value.trim();
+  const correct = getFinancePin();
+  if(entered === correct){
+    financeUnlocked = true;
+    sessionStorage.setItem(FINANCE_UNLOCK_KEY,'1');
+    closeModal('modal-pin');
+    document.getElementById('finance-nav-item').style.display='flex';
+    document.getElementById('finance-lock-item').style.display='none';
+    document.getElementById('finance-section').style.display='block';
+    toast('Đã mở khoá Thu Chi ✓');
+    goPage('finance', document.getElementById('finance-nav-item'));
+  } else {
+    document.getElementById('pin-error').textContent = 'Sai mã PIN, thử lại';
+    document.getElementById('pin-input').value='';
+  }
+}
+
+function changePinPrompt(){
+  const current = prompt('Nhập mã PIN hiện tại để xác nhận:');
+  if(current !== getFinancePin()){ alert('Mã PIN hiện tại không đúng!'); return; }
+  const newPin = prompt('Nhập mã PIN mới (4 số):');
+  if(!newPin || !/^\d{4}$/.test(newPin)){ alert('PIN phải là 4 số!'); return; }
+  sessionStorage.setItem(FINANCE_PIN_KEY, newPin);
+  alert('Đã đổi mã PIN thành công! (PIN chỉ lưu cho phiên làm việc này)');
+}
+
+function lockFinance(){
+  financeUnlocked = false;
+  sessionStorage.removeItem(FINANCE_UNLOCK_KEY);
+  document.getElementById('finance-nav-item').style.display='none';
+  document.getElementById('finance-lock-item').style.display='flex';
+  document.getElementById('finance-section').style.display='block';
+  goPage('dashboard', document.querySelector('[data-page="dashboard"]'));
+  toast('Đã khoá lại trang Thu Chi 🔒');
+}
+
+// Định nghĩa các khoản thu/chi cố định
+const FIN_THU_ITEMS = [
+  {key:'shopee',  label:'Thu từ Shopee (đã trừ phí sàn)', icon:'🛍️', bg:'#E1F5EE', method:'Chuyển khoản', tag:'🏦 Ví Shopee'},
+  {key:'tiktok',  label:'Thu từ TikTok Shop',              icon:'🎵', bg:'#FBEAF0', method:'Chuyển khoản', tag:'🏦 Ví TikTok'},
+  {key:'ghn_cod', label:'Thu COD qua GHN',                  icon:'📦', bg:'#E6F1FB', method:'Chuyển khoản', tag:'🏦 Chuyển khoản'},
+  {key:'grab_cod',label:'Thu COD qua Grab',                 icon:'🛵', bg:'#FFF0D6', method:'Tiền mặt',    tag:'💵 Tiền mặt'},
+  {key:'cash',    label:'Khách trả tiền mặt trực tiếp',     icon:'💵', bg:'#EAF3DE', method:'Tiền mặt',    tag:'💵 Tiền mặt'},
+];
+const FIN_CHI_ITEMS = [
+  {key:'nhap_hang', label:'Nhập hàng (vốn sản phẩm)', icon:'👗', method:'Chuyển khoản', tag:'🏦 CK NCC'},
+  {key:'ship',      label:'Phí ship / vận chuyển',     icon:'🚚', method:'Chuyển khoản', tag:'🏦 CK'},
+  {key:'ads',       label:'Quảng cáo (Ads, Affiliate)',icon:'📢', method:'Chuyển khoản', tag:'🏦 CK'},
+  {key:'luong',     label:'Lương nhân viên',           icon:'👥', method:'Chuyển khoản', tag:'🏦 CK'},
+  {key:'khac',      label:'Chi phí khác',              icon:'📋', method:'Tiền mặt',    tag:'💵 Mặt'},
+];
+
+function fmtVND(n){ return (n||0).toLocaleString('vi-VN'); }
+
+function renderFinanceRows(){
+  const thuEl = document.getElementById('fin-thu-rows');
+  const chiEl = document.getElementById('fin-chi-rows');
+  thuEl.innerHTML = FIN_THU_ITEMS.map(it=>`
+    <div class="fin-row">
+      <span class="fin-row-label"><span class="fin-icon" style="background:${it.bg}">${it.icon}</span>${it.label}</span>
+      <input class="fin-row-input" id="fin-thu-${it.key}" type="text" inputmode="numeric" placeholder="0" oninput="formatFinInput(this);calcFinanceTotals()">
+      <span class="fin-tag">${it.tag}</span>
+    </div>`).join('');
+  chiEl.innerHTML = FIN_CHI_ITEMS.map(it=>`
+    <div class="fin-row">
+      <span class="fin-row-label"><span class="fin-icon" style="background:#FCEBEB">${it.icon}</span>${it.label}</span>
+      <input class="fin-row-input" id="fin-chi-${it.key}" type="text" inputmode="numeric" placeholder="0" oninput="formatFinInput(this);calcFinanceTotals()">
+      <span class="fin-tag">${it.tag}</span>
+    </div>`).join('');
+}
+
+function formatFinInput(el){
+  let v = el.value.replace(/[^\d]/g,'');
+  el.value = v ? Number(v).toLocaleString('vi-VN') : '';
+}
+
+function getFinVal(id){
+  const el = document.getElementById(id);
+  if(!el) return 0;
+  return parseInt((el.value||'0').replace(/[^\d]/g,'')) || 0;
+}
+
+function calcFinanceTotals(){
+  let totalThu=0, cashThu=0, bankThu=0;
+  FIN_THU_ITEMS.forEach(it=>{
+    const v = getFinVal('fin-thu-'+it.key);
+    totalThu += v;
+    if(it.method==='Tiền mặt') cashThu += v; else bankThu += v;
+  });
+  let totalChi=0;
+  FIN_CHI_ITEMS.forEach(it=>{ totalChi += getFinVal('fin-chi-'+it.key); });
+
+  const profit = totalThu - totalChi;
+  const margin = totalThu>0 ? Math.round(profit/totalThu*100) : 0;
+
+  document.getElementById('fin-total-thu').textContent = fmtVND(totalThu);
+  document.getElementById('fin-total-chi').textContent = fmtVND(totalChi);
+  document.getElementById('fin-loi-nhuan').textContent = fmtVND(profit);
+  document.getElementById('fin-margin').textContent = margin+'% margin';
+  document.getElementById('fin-sum-thu').textContent = fmtVND(totalThu)+' đ';
+  document.getElementById('fin-sum-chi').textContent = fmtVND(totalChi)+' đ';
+  document.getElementById('fin-profit-big').textContent = fmtVND(profit)+' đ';
+  document.getElementById('fin-formula').textContent = `${fmtVND(totalThu)} − ${fmtVND(totalChi)}`;
+  document.getElementById('fin-cash').textContent = fmtVND(cashThu);
+  document.getElementById('fin-bank').textContent = fmtVND(bankThu);
+  document.getElementById('fin-margin-pct').textContent = margin+'%';
+}
+
+async function loadFinance(){
+  if(!document.getElementById('fin-thu-rows').innerHTML) renderFinanceRows();
+  const month = parseInt(document.getElementById('fin-month').value);
+  const year  = parseInt(document.getElementById('fin-year').value);
+  const monthNames=['','Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
+  document.getElementById('fin-period-label').textContent = `${monthNames[month]}/${year}`;
+
+  try {
+    const rows = await api(`finance?date=gte.${year}-${String(month).padStart(2,'0')}-01&date=lt.${month===12?(year+1):year}-${String(month===12?1:month+1).padStart(2,'0')}-01`);
+    // Reset all inputs
+    [...FIN_THU_ITEMS,...FIN_CHI_ITEMS].forEach(it=>{
+      const elThu=document.getElementById('fin-thu-'+it.key);
+      const elChi=document.getElementById('fin-chi-'+it.key);
+      if(elThu) elThu.value='';
+      if(elChi) elChi.value='';
+    });
+    (rows||[]).forEach(r=>{
+      const el = document.getElementById(`fin-${r.type==='Thu'?'thu':'chi'}-${r.category}`);
+      if(el) el.value = Number(r.amount).toLocaleString('vi-VN');
+    });
+  } catch(e){ console.log('Chưa có dữ liệu tháng này hoặc lỗi tải:', e.message); }
+
+  calcFinanceTotals();
+}
+
+async function saveFinance(){
+  const month = parseInt(document.getElementById('fin-month').value);
+  const year  = parseInt(document.getElementById('fin-year').value);
+  const dateStr = `${year}-${String(month).padStart(2,'0')}-01`;
+
+  try {
+    // Xoá dữ liệu cũ của tháng này rồi ghi lại
+    await fetch(`${SUPABASE_URL}/rest/v1/finance?date=eq.${dateStr}`,{
+      method:'DELETE',
+      headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
+    });
+
+    const records = [];
+    FIN_THU_ITEMS.forEach(it=>{
+      const v = getFinVal('fin-thu-'+it.key);
+      if(v>0) records.push({date:dateStr,type:'Thu',category:it.key,description:it.label,amount:v,payment_method:it.method});
+    });
+    FIN_CHI_ITEMS.forEach(it=>{
+      const v = getFinVal('fin-chi-'+it.key);
+      if(v>0) records.push({date:dateStr,type:'Chi',category:it.key,description:it.label,amount:v,payment_method:it.method});
+    });
+
+    if(records.length>0){
+      await fetch(`${SUPABASE_URL}/rest/v1/finance`,{
+        method:'POST',
+        headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json','Prefer':'return=minimal'},
+        body:JSON.stringify(records)
+      });
+    }
+    toast('Đã lưu tổng hợp thu chi ✓');
+  } catch(e){ toast('Lỗi lưu: '+e.message, true); }
+}
+
 // ── INIT ──
 document.getElementById('dash-date').textContent=`Hôm nay ${fmtDate(new Date())}`;
+
+// Khôi phục trạng thái mở khoá Thu Chi nếu đã unlock trong phiên này
+if(sessionStorage.getItem(FINANCE_UNLOCK_KEY)==='1'){
+  financeUnlocked = true;
+  document.getElementById('finance-nav-item').style.display='flex';
+  document.getElementById('finance-lock-item').style.display='none';
+  document.getElementById('finance-section').style.display='block';
+} else {
+  document.getElementById('finance-section').style.display='block';
+}
 
 function toggleSidebar(){
   const sb=document.getElementById('sidebar');
