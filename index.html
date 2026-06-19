@@ -88,6 +88,7 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
 .p-ship{background:var(--blue-bg);color:var(--blue-t)}
 .p-done{background:var(--green-bg);color:var(--green-t)}
 .p-ret{background:var(--red-bg);color:var(--red-t)}
+.p-no-hang{background:#3C3489;color:#fff;font-weight:700}
 .p-online{background:var(--teal-bg);color:var(--teal-t)}
 .p-shopee{background:#FFF0E6;color:#7A3500}
 .p-tiktok{background:var(--pink-bg);color:var(--pink-t)}
@@ -251,8 +252,13 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
     </div>
     <div class="nav-section">Vận hành</div>
     <div class="nav-item" data-page="orders" onclick="goPage('orders',this)">
-      <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z"/></svg>
+      <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0-.504-1.125 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z"/></svg>
       Quản lý đơn hàng
+    </div>
+    <div class="nav-item" data-page="debt" onclick="goPage('debt',this)" style="position:relative">
+      <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 15.75h.008v.008H12v-.008z"/></svg>
+      Đơn nợ hàng
+      <span id="debt-badge" style="display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);background:#3C3489;color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;min-width:18px;text-align:center"></span>
     </div>
     <div class="nav-item" data-page="nxk" onclick="goPage('nxk',this)">
       <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"/></svg>
@@ -382,6 +388,7 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
   </div>
   <div class="metrics">
     <div class="metric" onclick="filterOrderStatus('')"><div class="metric-label">Tất cả hôm nay</div><div class="metric-val" id="o-all">—</div></div>
+    <div class="metric" onclick="filterOrderStatus('Nợ hàng')" style="border-color:#3C3489"><div class="metric-label" style="color:#3C3489">📦 Nợ hàng</div><div class="metric-val" style="color:#3C3489" id="o-debt">—</div></div>
     <div class="metric" onclick="filterOrderStatus('Chờ lấy')"><div class="metric-label" style="color:var(--amber-t)">Chờ lấy hàng</div><div class="metric-val" id="o-wait" style="color:var(--amber-t)">—</div></div>
     <div class="metric" onclick="filterOrderStatus('Đang giao')"><div class="metric-label" style="color:var(--blue-t)">Đang giao</div><div class="metric-val" id="o-ship" style="color:var(--blue-t)">—</div></div>
     <div class="metric" onclick="filterOrderStatus('Đã giao')"><div class="metric-label" style="color:var(--green-t)">Đã giao xong</div><div class="metric-val" id="o-done" style="color:var(--green-t)">—</div></div>
@@ -390,6 +397,7 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
   <div class="toolbar">
     <div class="search-wrap"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg><input class="search-input" id="order-search" placeholder="Tìm tên, SĐT, mã vận đơn..." oninput="renderOrders()"></div>
     <span class="chip on" data-os="" onclick="filterOrderStatus('')">Tất cả</span>
+    <span class="chip" data-os="Nợ hàng" onclick="filterOrderStatus('Nợ hàng')">📦 Nợ hàng</span>
     <span class="chip" data-os="Chờ lấy" onclick="filterOrderStatus('Chờ lấy')">Chờ lấy</span>
     <span class="chip" data-os="Đang giao" onclick="filterOrderStatus('Đang giao')">Đang giao</span>
     <span class="chip" data-os="Đã giao" onclick="filterOrderStatus('Đã giao')">Đã xong</span>
@@ -407,6 +415,17 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
   </div>
 </div>
 
+<!-- ══ ĐƠN NỢ HÀNG ══ -->
+<div id="page-debt" class="page">
+  <div class="page-header">
+    <div><div class="page-title">📦 Đơn Nợ Hàng</div><div class="page-sub">Đơn đã bán nhưng chưa có hàng để giao — cập nhật khi hàng về</div></div>
+  </div>
+  <div class="metrics" style="margin-bottom:16px">
+    <div class="metric" style="border-color:#3C3489;background:var(--purple-bg)"><div class="metric-label" style="color:#3C3489">Tổng đơn đang nợ</div><div class="metric-val" style="color:#3C3489" id="debt-count">0</div><div class="metric-sub">đơn chưa có hàng</div></div>
+  </div>
+  <div id="debt-list"></div>
+</div>
+
 <!-- ══ NHẬP XUẤT KHO ══ -->
 <div id="page-nxk" class="page">
   <div class="page-header">
@@ -417,6 +436,19 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
       <button class="btn btn-danger" onclick="openNXKModal('Xuất')">− Xuất hàng</button>
     </div>
   </div>
+
+  <!-- ĐỐI SOÁT ĐƠN -->
+  <div class="card" style="margin-bottom:16px;border-color:#B5D4F4;background:var(--blue-bg)">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:13px;font-weight:600;color:var(--blue-t)">📋 Đối soát đơn hôm nay</span>
+        <input id="nxk-expected-count" type="number" min="0" placeholder="Nhập số đơn Zalo gửi..." style="width:160px;padding:6px 10px;border:1px solid #B5D4F4;border-radius:6px;font-size:12px;background:#fff" onchange="saveExpectedCount()">
+        <button class="btn" style="padding:6px 12px;font-size:12px" onclick="saveExpectedCount()">Lưu</button>
+      </div>
+      <div id="nxk-recon-status" style="font-size:13px;font-weight:600"></div>
+    </div>
+  </div>
+
   <div class="toolbar">
     <div class="search-wrap"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg><input class="search-input" id="nxk-search" placeholder="Tìm mã SP, tên, ghi chú..." oninput="renderNXK()"></div>
     <span class="chip on" data-nxk="" onclick="filterNXK(this,'')">Tất cả</span>
@@ -709,7 +741,7 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
     <div class="field2">
       <div class="field"><label>Trạng thái</label>
         <select id="edit-o-status">
-          <option>Chờ lấy</option><option>Đang giao</option><option>Đã giao</option><option>Hoàn hàng</option>
+          <option>Nợ hàng</option><option>Chờ lấy</option><option>Đang giao</option><option>Đã giao</option><option>Hoàn hàng</option>
         </select>
       </div>
       <div class="field"><label>Nhân viên</label><input id="edit-o-staff" placeholder="Tên nhân viên"></div>
@@ -825,7 +857,7 @@ function fmtDate(d){ if(!d)return'—'; const dt=new Date(d); return`${String(dt
 function fmtDateShort(d){ if(!d)return'—'; const dt=new Date(d); return`${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`; }
 function todayStr(){ const d=new Date(); return d.toISOString().split('T')[0]; }
 function initials(n){ return (n||'?').split(' ').slice(-2).map(w=>w[0]).join('').toUpperCase().slice(0,2); }
-function pillSt(s){ const m={'Chờ lấy':'p-wait','Đang giao':'p-ship','Đã giao':'p-done','Hoàn hàng':'p-ret'}; return`<span class="pill ${m[s]||'p-wait'}">${s||'—'}</span>`; }
+function pillSt(s){ const m={'Chờ lấy':'p-wait','Đang giao':'p-ship','Đã giao':'p-done','Hoàn hàng':'p-ret','Nợ hàng':'p-no-hang'}; return`<span class="pill ${m[s]||'p-wait'}">${s||'—'}</span>`; }
 function pillCh(c){ const m={Online:'p-online',Shopee:'p-shopee',TikTok:'p-tiktok',KOL:'p-kol','Tặng':'p-tang','Grab':'p-ship','GHN':'p-blue','Hàng mới về':'p-in','Hàng trả về':'p-in','Gửi kol':'p-kol','Đơn online':'p-online','Đơn shoppe':'p-shopee','Đơn tiktok':'p-tiktok','Đơn GHN':'p-blue','Đơn Grab':'p-ship'}; const k=Object.keys(m).find(k=>c&&c.toLowerCase().includes(k.toLowerCase()))||c; return`<span class="pill ${m[k]||'p-tang'}">${c||'—'}</span>`; }
 function stockClass(n){ return n<=0?'stock-out':n<=5?'stock-low':'stock-ok'; }
 function stockPill(n){ if(n<=0)return`<span class="pill p-out2">🔴 Hết hàng</span>`; if(n<=5)return`<span class="pill p-low">🟡 Sắp hết</span>`; return`<span class="pill p-ok">🟢 Còn hàng</span>`; }
@@ -852,6 +884,7 @@ function goPage(name, el){
   else if(name==='report') loadReport();
   else if(name==='qr') loadQR();
   else if(name==='products') loadProducts();
+  else if(name==='debt') loadDebtOrders();
   else if(name==='finance') loadFinance();
 }
 
@@ -1018,6 +1051,7 @@ function renderOrders(){
   const today=todayStr();
   const tod=allOrders.filter(o=>o.date===today);
   document.getElementById('o-all').textContent=tod.length;
+  document.getElementById('o-debt').textContent=allOrders.filter(o=>o.status==='Nợ hàng').length;
   document.getElementById('o-wait').textContent=tod.filter(o=>o.status==='Chờ lấy').length;
   document.getElementById('o-ship').textContent=tod.filter(o=>o.status==='Đang giao').length;
   document.getElementById('o-done').textContent=tod.filter(o=>o.status==='Đã giao').length;
@@ -1065,7 +1099,7 @@ function selectOrder(id){
     <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--bg)">
       <div style="font-size:12px;font-weight:500;color:var(--med);margin-bottom:8px">Cập nhật trạng thái</div>
       <select onchange="updateOrderStatus(${o.id},this.value)" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--dark);background:var(--card)">
-        ${['Chờ lấy','Đang giao','Đã giao','Hoàn hàng'].map(s=>`<option${s===o.status?' selected':''}>${s}</option>`).join('')}
+        ${['Nợ hàng','Chờ lấy','Đang giao','Đã giao','Hoàn hàng'].map(s=>`<option${s===o.status?' selected':''}>${s}</option>`).join('')}
       </select>
     </div>`;
 }
@@ -1082,7 +1116,103 @@ async function updateOrderStatus(id,status){
     const o=allOrders.find(x=>x.id===id); if(o) o.status=status;
     toast(`Cập nhật → ${status}`);
     selectOrder(id); renderOrders();
+    updateDebtBadge();
   } catch(e){ toast('Lỗi: '+e.message,true); }
+}
+
+// ══════════════════════════════════════
+// ĐƠN NỢ HÀNG
+// ══════════════════════════════════════
+async function loadDebtOrders(){
+  try {
+    const [prods, orders, txs] = await Promise.all([db.products(), db.orders(), db.transactions()]);
+    allProducts=prods; allOrders=orders; allTx=txs;
+    renderDebtList();
+    updateDebtBadge();
+  } catch(e){ toast('Lỗi: '+e.message,true); }
+}
+
+function renderDebtList(){
+  const debtOrders = allOrders.filter(o=>o.status==='Nợ hàng');
+  document.getElementById('debt-count').textContent = debtOrders.length;
+  const listEl = document.getElementById('debt-list');
+
+  if(debtOrders.length===0){
+    listEl.innerHTML = `<div class="card" style="text-align:center;padding:40px"><div style="font-size:32px;margin-bottom:8px">✅</div><div style="color:var(--med);font-size:13px">Không có đơn nào đang nợ hàng</div></div>`;
+    return;
+  }
+
+  const stockNow = computeStock(allProducts, allTx);
+
+  listEl.innerHTML = debtOrders.map(o=>{
+    const stockItem = stockNow.find(p=>p.code===o.product_code);
+    const currentStock = stockItem ? stockItem.current : 0;
+    const hasEnough = currentStock >= (o.quantity||1);
+    return `
+    <div class="card" style="margin-bottom:10px;${hasEnough?'border-color:#A8D08D;background:#F4FAEE':''}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap">
+        <div style="flex:1;min-width:220px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <span style="font-family:monospace;font-size:11px;color:var(--med)">${o.order_code}</span>
+            ${pillCh(o.channel)}
+            ${hasEnough?'<span class="pill" style="background:#EAF3DE;color:#27500A">✓ Đã có hàng</span>':'<span class="pill" style="background:#FCEBEB;color:#791F1F">Còn thiếu hàng</span>'}
+          </div>
+          <div style="font-size:14px;font-weight:600;color:var(--dark)">${o.customer_name||'—'}</div>
+          <div style="font-size:12px;color:var(--med);margin-top:2px">${o.phone||''} ${o.address?'· '+o.address:''}</div>
+          <div style="font-size:13px;color:var(--dark);margin-top:6px">📦 ${o.product_name||'—'} × <b>${o.quantity||1}</b></div>
+          <div style="font-size:11px;color:${hasEnough?'#27500A':'#791F1F'};margin-top:3px">Tồn hiện tại: <b>${currentStock}</b> cái</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;min-width:140px">
+          <button class="btn ${hasEnough?'btn-primary':''}" ${!hasEnough?'disabled style="opacity:.4;cursor:not-allowed"':''} onclick="confirmHasStock(${o.id})">✓ Đã có hàng — Xuất</button>
+          <button class="btn" style="font-size:12px" onclick="openEditOrder(${o.id})">✏️ Sửa đơn</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function confirmHasStock(orderId){
+  const o = allOrders.find(x=>x.id===orderId);
+  if(!o) return;
+  const stockNow = computeStock(allProducts, allTx);
+  const stockItem = stockNow.find(p=>p.code===o.product_code);
+  const currentStock = stockItem ? stockItem.current : 0;
+
+  if(currentStock < (o.quantity||1)){
+    toast(`Chưa đủ hàng! Tồn hiện tại chỉ có ${currentStock} cái`, true);
+    return;
+  }
+
+  try {
+    // Trừ tồn kho (tạo dòng Xuất)
+    await db.insertTx({
+      date:todayStr(), type:'Xuất', product_code:o.product_code, product_name:o.product_name,
+      quantity:o.quantity||1, channel:o.channel, note:'Xuất từ đơn nợ hàng', staff:o.staff
+    });
+    // Đổi trạng thái đơn sang Chờ lấy
+    await db.updateOrder(orderId, {status:'Chờ lấy'});
+    o.status = 'Chờ lấy';
+
+    toast(`✓ Đã xuất hàng cho đơn ${o.order_code} — chuyển sang Chờ lấy`);
+
+    // Reload data
+    const [prods, txs] = await Promise.all([db.products(), db.transactions()]);
+    allProducts = prods; allTx = txs;
+    renderDebtList();
+    updateDebtBadge();
+  } catch(e){ toast('Lỗi: '+e.message, true); }
+}
+
+function updateDebtBadge(){
+  const count = allOrders.filter(o=>o.status==='Nợ hàng').length;
+  const badge = document.getElementById('debt-badge');
+  if(!badge) return;
+  if(count > 0){
+    badge.textContent = count;
+    badge.style.display = 'inline-block';
+  } else {
+    badge.style.display = 'none';
+  }
 }
 
 function openEditOrder(id){
@@ -1291,6 +1421,14 @@ async function createOrder(){
   if(!phoneWrapHidden && !phone){ toast('Vui lòng nhập số điện thoại', true); return; }
   const prod=allProducts.find(p=>p.code===prodCode);
   const qty=parseInt(document.getElementById('o-qty').value)||1;
+
+  // Kiểm tra tồn kho hiện tại của sản phẩm này
+  const stockNow = computeStock(allProducts, allTx);
+  const stockItem = stockNow.find(p=>p.code===prodCode);
+  const currentStock = stockItem ? stockItem.current : 0;
+  const isOutOfStock = currentStock < qty;
+  const initialStatus = isOutOfStock ? 'Nợ hàng' : 'Chờ lấy';
+
   const data={
     order_code:`DH${Date.now().toString().slice(-6)}`,
     date:todayStr(), customer_name:name, phone,
@@ -1300,15 +1438,24 @@ async function createOrder(){
     quantity:qty, channel:document.getElementById('o-channel').value,
     tracking_code:document.getElementById('o-mvd').value,
     staff:document.getElementById('o-staff').value,
-    note:document.getElementById('o-note').value, status:'Chờ lấy'
+    note:document.getElementById('o-note').value, status:initialStatus
   };
   try {
     const r=await db.insertOrder(data);
-    await db.insertTx({date:todayStr(),type:'Xuất',product_code:prodCode,product_name:data.product_name,color:prod?.color,size:prod?.size,quantity:qty,channel:data.channel,note:'Tạo từ đơn hàng',staff:data.staff});
+    // Chỉ trừ tồn kho NGAY nếu còn hàng. Nếu Nợ hàng thì chưa trừ — sẽ trừ khi xác nhận có hàng.
+    if(!isOutOfStock){
+      await db.insertTx({date:todayStr(),type:'Xuất',product_code:prodCode,product_name:data.product_name,color:prod?.color,size:prod?.size,quantity:qty,channel:data.channel,note:'Tạo từ đơn hàng',staff:data.staff});
+    }
     allOrders.unshift(r[0]); closeModal('modal-order');
     ['o-name','o-phone','o-addr','o-mvd','o-staff','o-note'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('o-qty').value='1';
-    toast(`Đã tạo đơn ${data.order_code}`); renderOrders();
+    if(isOutOfStock){
+      toast(`⚠️ Hết hàng — đơn ${data.order_code} đã chuyển vào "Đơn nợ hàng"`);
+    } else {
+      toast(`Đã tạo đơn ${data.order_code}`);
+    }
+    renderOrders();
+    updateDebtBadge();
   } catch(e){ toast('Lỗi: '+e.message,true); }
 }
 
@@ -1319,7 +1466,50 @@ async function loadNXK(){
     allProducts=prods; allTx=txs;
     populateProdSelect('nxk-prod', prods);
     renderNXK();
+    loadExpectedCount();
   } catch(e){ toast('Lỗi: '+e.message,true); }
+}
+
+// ── ĐỐI SOÁT ĐƠN HÔM NAY ──
+function getReconKey(){
+  return 'lasilk_recon_' + todayStr();
+}
+
+function loadExpectedCount(){
+  const saved = localStorage.getItem(getReconKey());
+  const input = document.getElementById('nxk-expected-count');
+  if(input) input.value = saved || '';
+  updateReconStatus();
+}
+
+function saveExpectedCount(){
+  const val = document.getElementById('nxk-expected-count').value;
+  if(val) localStorage.setItem(getReconKey(), val);
+  else localStorage.removeItem(getReconKey());
+  updateReconStatus();
+  toast(val ? `Đã lưu: dự kiến ${val} đơn hôm nay` : 'Đã xoá số đơn dự kiến');
+}
+
+function updateReconStatus(){
+  const expected = parseInt(document.getElementById('nxk-expected-count')?.value) || 0;
+  const today = todayStr();
+  // Đếm số lượt "Xuất" thực tế hôm nay (mỗi lượt xuất = 1 đơn ghi nhận)
+  const actualToday = allTx.filter(t => t.type==='Xuất' && (t.date||'').startsWith(today)).length;
+
+  const statusEl = document.getElementById('nxk-recon-status');
+  if(!statusEl) return;
+
+  if(expected === 0){
+    statusEl.innerHTML = `<span style="color:var(--med)">Đã nhập hôm nay: <b>${actualToday}</b> lượt xuất</span>`;
+    return;
+  }
+
+  if(actualToday >= expected){
+    statusEl.innerHTML = `<span style="color:#27500A">✅ Đã nhập đủ ${actualToday}/${expected} đơn</span>`;
+  } else {
+    const missing = expected - actualToday;
+    statusEl.innerHTML = `<span style="color:#791F1F">⚠️ Đã nhập ${actualToday}/${expected} — còn thiếu ${missing} đơn!</span>`;
+  }
 }
 
 function renderNXK(){
@@ -1371,6 +1561,7 @@ async function submitNXK(){
     const r=await db.insertTx(data);
     allTx.unshift(r[0]); closeModal('modal-nxk');
     toast(`Đã ${type} ${qty} × ${prodCode}`); renderNXK();
+    updateReconStatus();
   } catch(e){ toast('Lỗi: '+e.message,true); }
 }
 
@@ -2076,6 +2267,15 @@ function closeSidebar(){
   document.getElementById('hamburger').style.opacity='1';
 }
 loadDashboard();
+
+// Khởi tạo badge đơn nợ hàng ngay khi mở app
+(async function initDebtBadge(){
+  try {
+    const orders = await db.orders();
+    allOrders = orders;
+    updateDebtBadge();
+  } catch(e){}
+})();
 </script>
 </body>
 </html>
