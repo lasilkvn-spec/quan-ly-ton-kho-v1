@@ -282,6 +282,11 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
       ⭐🇹🇭 KOL Thái Lan
       <span id="kolthai-badge" style="display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);background:#3C3489;color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;min-width:18px;text-align:center"></span>
     </div>
+    <div class="nav-item" data-page="kolvn" onclick="goPage('kolvn',this)" style="position:relative">
+      <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"/></svg>
+      ⭐ KOL Việt Nam
+      <span id="kolvn-badge" style="display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);background:#3C3489;color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;min-width:18px;text-align:center"></span>
+    </div>
     <div class="nav-item" data-page="nxk" onclick="goPage('nxk',this)">
       <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"/></svg>
       Nhập / Xuất kho
@@ -483,7 +488,10 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
             <option value="Grab">🛵 Đơn Grab</option>
             <option value="Shopee">🟠 Đơn Shopee</option>
             <option value="TikTok">🎵 Đơn TikTok</option>
-            <option value="KOL">⭐ Gửi KOL</option>
+            <option value="KOL_IG">⭐📸 KOL Instagram (VN)</option>
+            <option value="KOL_TT">🎵 KOL TikTok (VN)</option>
+            <option value="KOL_IG_THAI">⭐🇹🇭📸 KOL IG (Thái)</option>
+            <option value="KOL_TT_THAI">🎵🇹🇭 KOL TikTok (Thái)</option>
             <option value="ThaiLan">🇹🇭 Đơn Thái Lan</option>
             <option value="KOLThai">⭐🇹🇭 KOL Thái Lan</option>
             <option value="Tặng">🎁 Tặng</option>
@@ -543,8 +551,10 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
     <div style="font-size:13px;font-weight:600;color:var(--dark)" id="thai-batch-label">Lô tiếp theo đang chờ gửi</div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-primary" onclick="markThailandBatchSent()">✓ Đánh dấu cả lô đã gửi</button>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span id="thai-selected-count" style="font-size:12px;color:var(--med);display:none">Đã chọn <b id="thai-selected-num">0</b> đơn</span>
+      <button class="btn" style="font-size:12px" onclick="toggleSelectAllThai('ThaiLan')">☐ Chọn tất cả</button>
+      <button class="btn btn-primary" style="font-size:12px" onclick="markSelectedThaiSent('ThaiLan')">✓ Gửi đơn đã chọn</button>
     </div>
   </div>
   <div id="thailand-list"></div>
@@ -553,20 +563,36 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
 <!-- ══ KOL THÁI LAN ══ -->
 <div id="page-kolthai" class="page">
   <div class="page-header">
-    <div><div class="page-title">⭐🇹🇭 KOL Thái Lan</div><div class="page-sub">Dồn đơn — tick khi đã gửi cả lô</div></div>
+    <div><div class="page-title">⭐🇹🇭 KOL Thái Lan</div><div class="page-sub">Gom đơn → gửi 1 lô — theo dõi nhắc lên bài sau khi gửi</div></div>
   </div>
   <div class="metrics" style="margin-bottom:16px">
-    <div class="metric" style="border-color:#C5C1F7;background:#EEEDFE"><div class="metric-label" style="color:#3C3489">Chờ gửi</div><div class="metric-val" style="color:#3C3489" id="kolthai-pending">0</div></div>
+    <div class="metric" style="border-color:#FAC775;background:var(--amber-bg)"><div class="metric-label" style="color:#633806">Chờ gửi</div><div class="metric-val" style="color:#633806" id="kolthai-pending">0</div></div>
     <div class="metric" style="border-color:#C0DD97;background:var(--green-bg)"><div class="metric-label" style="color:#27500A">Đã gửi</div><div class="metric-val" style="color:#27500A" id="kolthai-sent">0</div></div>
+    <div class="metric" style="border-color:#C5C1F7;background:#EEEDFE"><div class="metric-label" style="color:#3C3489">Chờ lên bài</div><div class="metric-val" style="color:#3C3489" id="kolthai-pending-post">0</div></div>
     <div class="metric"><div class="metric-label">Tổng KOL</div><div class="metric-val" id="kolthai-total">0</div></div>
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
     <div style="font-size:13px;font-weight:600;color:var(--dark)" id="kolthai-batch-label">Lô tiếp theo đang chờ gửi</div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-primary" onclick="markKolThaiBatchSent()">✓ Đánh dấu cả lô đã gửi</button>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span id="kolthai-selected-count" style="font-size:12px;color:var(--med);display:none">Đã chọn <b id="kolthai-selected-num">0</b> đơn</span>
+      <button class="btn" style="font-size:12px" onclick="toggleSelectAllThai('KOLThai')">☐ Chọn tất cả</button>
+      <button class="btn btn-primary" style="font-size:12px" onclick="markSelectedThaiSent('KOLThai')">✓ Gửi đơn đã chọn</button>
     </div>
   </div>
   <div id="kolthai-list"></div>
+</div>
+
+<!-- ══ KOL VIỆT NAM ══ -->
+<div id="page-kolvn" class="page">
+  <div class="page-header">
+    <div><div class="page-title">⭐ KOL Việt Nam</div><div class="page-sub">Theo dõi từng KOL — nhắc lên bài, ghi ngày đăng</div></div>
+  </div>
+  <div class="metrics" style="margin-bottom:16px">
+    <div class="metric" style="border-color:#FAC775;background:var(--amber-bg)"><div class="metric-label" style="color:#633806">Chờ lên bài</div><div class="metric-val" style="color:#633806" id="kolvn-pending">0</div></div>
+    <div class="metric" style="border-color:#C0DD97;background:var(--green-bg)"><div class="metric-label" style="color:#27500A">Đã lên bài</div><div class="metric-val" style="color:#27500A" id="kolvn-posted">0</div></div>
+    <div class="metric"><div class="metric-label">Tổng KOL</div><div class="metric-val" id="kolvn-total">0</div></div>
+  </div>
+  <div id="kolvn-list"></div>
 </div>
 
 <!-- Modal: Ghi nhận đổi trả -->
@@ -844,15 +870,40 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
         <div style="padding:9px 12px;background:var(--blue-bg);border-radius:8px;font-size:14px;font-weight:600;color:var(--blue-t)" id="o-total-cod-display">0 đ</div>
       </div>
     </div>
+    <div id="o-kol-social-wrap" style="display:none;margin-bottom:14px">
+      <div class="field" style="margin-bottom:0">
+        <label>📱 Link IG / TikTok của KOL</label>
+        <input id="o-kol-social" placeholder="@username hoặc link đầy đủ..." autocomplete="off">
+      </div>
+    </div>
+
     <div id="o-payment-note" style="display:none;font-size:11.5px;color:#0C447C;background:var(--blue-bg);padding:8px 12px;border-radius:8px;margin-bottom:14px">
       💡 Đơn Shopee/TikTok: tiền về qua ví sàn, không cần nhập COD — cập nhật ở trang <b>Thu Chi</b> cuối tháng.
     </div>
     <div id="o-grab-cash-wrap" style="display:none;margin-bottom:14px">
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;background:#EAF3DE;border-radius:8px;padding:10px 12px">
-        <input type="checkbox" id="o-grab-cash" style="width:16px;height:16px">
-        <span style="font-size:13px;font-weight:500;color:#27500A">💵 Đã nhận tiền mặt từ Grab</span>
-        <span style="font-size:11px;color:#27500A;margin-left:auto">Đánh dấu khi shipper đã giao tiền về</span>
-      </label>
+      <div style="background:#EAF3DE;border-radius:8px;padding:12px 14px">
+        <div style="font-size:12px;font-weight:600;color:#27500A;margin-bottom:10px">💵 Thanh toán đơn Grab</div>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:8px">
+          <input type="checkbox" id="o-grab-partial" style="width:15px;height:15px" onchange="onGrabPartialChange()">
+          <span style="font-size:12.5px;color:#27500A">Khách đã chuyển khoản trước 1 phần</span>
+        </label>
+        <div id="o-grab-partial-fields" style="display:none;margin-bottom:8px">
+          <div class="field2" style="margin-bottom:0">
+            <div class="field" style="margin-bottom:0">
+              <label>Số tiền đã CK</label>
+              <input id="o-grab-ck-amount" type="text" placeholder="0" oninput="formatMoneyInput(this);onGrabPartialChange()">
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label>Shipper còn thu mặt</label>
+              <div id="o-grab-remaining" style="padding:9px 12px;background:#fff;border-radius:8px;font-size:13px;font-weight:600;color:#0C447C">0 đ</div>
+            </div>
+          </div>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="o-grab-cash" style="width:15px;height:15px">
+          <span style="font-size:12.5px;color:#27500A">✅ Đã nhận đủ tiền mặt từ shipper</span>
+        </label>
+      </div>
     </div>
     <div class="field2">
       <div class="field"><label>Kênh vận chuyển *</label><select id="o-channel" onchange="toggleOrderFields(this.value)">
@@ -861,7 +912,10 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
         <option value="Grab">🛵 Đơn Grab</option>
         <option value="Shopee">🟠 Đơn Shopee</option>
         <option value="TikTok">🎵 Đơn TikTok</option>
-        <option value="KOL">⭐ Gửi KOL</option>
+        <option value="KOL_IG">⭐📸 KOL Instagram (VN)</option>
+            <option value="KOL_TT">🎵 KOL TikTok (VN)</option>
+            <option value="KOL_IG_THAI">⭐🇹🇭📸 KOL IG (Thái)</option>
+            <option value="KOL_TT_THAI">🎵🇹🇭 KOL TikTok (Thái)</option>
         <option value="ThaiLan">🇹🇭 Đơn Thái Lan</option>
         <option value="KOLThai">⭐🇹🇭 KOL Thái Lan</option>
         <option value="Tặng">🎁 Tặng</option>
@@ -913,6 +967,19 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
 </div>
 
 <!-- Modal: Sửa giao dịch Nhập/Xuất (cần PIN) -->
+<div class="modal-overlay" id="modal-kol-social" style="z-index:500">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-title">✏️ Cập nhật KOL <span class="modal-close" onclick="closeModal('modal-kol-social')">×</span></div>
+    <input type="hidden" id="kol-social-order-code">
+    <div class="field"><label>Link IG / TikTok</label><input id="kol-social-link" placeholder="@username hoặc link đầy đủ..."></div>
+    <div class="field"><label>Ghi chú thêm</label><input id="kol-social-note" placeholder="VD: Chuyên review thời trang, 50k followers..."></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-kol-social')">Huỷ</button>
+      <button class="btn btn-primary" onclick="saveKolSocial()">💾 Lưu</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-nxk-edit">
   <div class="modal">
     <div class="modal-title">✏️ Sửa giao dịch <span class="modal-close" onclick="closeModal('modal-nxk-edit')">×</span></div>
@@ -1002,15 +1069,40 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
         <div style="padding:9px 12px;background:var(--blue-bg);border-radius:8px;font-size:14px;font-weight:600;color:var(--blue-t)" id="edit-o-total-cod-display">0 đ</div>
       </div>
     </div>
+    <div id="edit-o-kol-social-wrap" style="display:none;margin-bottom:14px">
+      <div class="field" style="margin-bottom:0">
+        <label>📱 Link IG / TikTok của KOL</label>
+        <input id="edit-o-kol-social" placeholder="@username hoặc link đầy đủ..." autocomplete="off">
+      </div>
+    </div>
+
     <div id="edit-o-payment-note" style="display:none;font-size:11.5px;color:#0C447C;background:var(--blue-bg);padding:8px 12px;border-radius:8px;margin-bottom:14px">
       💡 Đơn Shopee/TikTok: tiền về qua ví sàn, không cần nhập COD — cập nhật ở trang <b>Thu Chi</b> cuối tháng.
     </div>
     <div id="edit-o-grab-cash-wrap" style="display:none;margin-bottom:14px">
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;background:#EAF3DE;border-radius:8px;padding:10px 12px">
-        <input type="checkbox" id="edit-o-grab-cash" style="width:16px;height:16px">
-        <span style="font-size:13px;font-weight:500;color:#27500A">💵 Đã nhận tiền mặt từ Grab</span>
-        <span style="font-size:11px;color:#27500A;margin-left:auto">Đánh dấu khi shipper đã giao tiền về</span>
-      </label>
+      <div style="background:#EAF3DE;border-radius:8px;padding:12px 14px">
+        <div style="font-size:12px;font-weight:600;color:#27500A;margin-bottom:10px">💵 Thanh toán đơn Grab</div>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:8px">
+          <input type="checkbox" id="edit-o-grab-partial" style="width:15px;height:15px" onchange="onEditGrabPartialChange()">
+          <span style="font-size:12.5px;color:#27500A">Khách đã chuyển khoản trước 1 phần</span>
+        </label>
+        <div id="edit-o-grab-partial-fields" style="display:none;margin-bottom:8px">
+          <div class="field2" style="margin-bottom:0">
+            <div class="field" style="margin-bottom:0">
+              <label>Số tiền đã CK</label>
+              <input id="edit-o-grab-ck-amount" type="text" placeholder="0" oninput="formatMoneyInput(this);onEditGrabPartialChange()">
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label>Shipper còn thu mặt</label>
+              <div id="edit-o-grab-remaining" style="padding:9px 12px;background:#fff;border-radius:8px;font-size:13px;font-weight:600;color:#0C447C">0 đ</div>
+            </div>
+          </div>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="edit-o-grab-cash" style="width:15px;height:15px">
+          <span style="font-size:12.5px;color:#27500A">✅ Đã nhận đủ tiền mặt từ shipper</span>
+        </label>
+      </div>
     </div>
 
     <div class="field2">
@@ -1021,7 +1113,10 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
           <option value="Grab">🛵 Đơn Grab</option>
           <option value="Shopee">🟠 Đơn Shopee</option>
           <option value="TikTok">🎵 Đơn TikTok</option>
-          <option value="KOL">⭐ Gửi KOL</option>
+          <option value="KOL_IG">⭐📸 KOL Instagram (VN)</option>
+            <option value="KOL_TT">🎵 KOL TikTok (VN)</option>
+            <option value="KOL_IG_THAI">⭐🇹🇭📸 KOL IG (Thái)</option>
+            <option value="KOL_TT_THAI">🎵🇹🇭 KOL TikTok (Thái)</option>
           <option value="ThaiLan">🇹🇭 Đơn Thái Lan</option>
           <option value="KOLThai">⭐🇹🇭 KOL Thái Lan</option>
           <option value="Tặng">🎁 Tặng</option>
@@ -1090,7 +1185,10 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
   <option value="Grab">🛵 Đơn Grab</option>
   <option value="Shopee">🟠 Đơn Shopee</option>
   <option value="TikTok">🎵 Đơn TikTok</option>
-  <option value="KOL">⭐ Gửi KOL</option>
+  <option value="KOL_IG">⭐📸 KOL Instagram (VN)</option>
+            <option value="KOL_TT">🎵 KOL TikTok (VN)</option>
+            <option value="KOL_IG_THAI">⭐🇹🇭📸 KOL IG (Thái)</option>
+            <option value="KOL_TT_THAI">🎵🇹🇭 KOL TikTok (Thái)</option>
   <option value="ThaiLan">🇹🇭 Đơn Thái Lan</option>
   <option value="KOLThai">⭐🇹🇭 KOL Thái Lan</option>
   <option value="Tặng">🎁 Tặng</option>
@@ -1151,7 +1249,13 @@ function fmtDateShort(d){ if(!d)return'—'; const dt=new Date(d); return`${Stri
 function todayStr(){ const d=new Date(); return d.toISOString().split('T')[0]; }
 function initials(n){ return (n||'?').split(' ').slice(-2).map(w=>w[0]).join('').toUpperCase().slice(0,2); }
 function pillSt(s){ const m={'Chờ lấy':'p-wait','Đang giao':'p-ship','Đã giao':'p-done','Hoàn hàng':'p-ret','Nợ hàng':'p-no-hang'}; return`<span class="pill ${m[s]||'p-wait'}">${s||'—'}</span>`; }
-function pillCh(c){ const m={Online:'p-online',Shopee:'p-shopee',TikTok:'p-tiktok',KOL:'p-kol','KOLThai':'p-kol','ThaiLan':'p-thai','Tặng':'p-tang','Grab':'p-ship','GHN':'p-blue','Hàng mới về':'p-in','Hàng trả về':'p-in','Gửi kol':'p-kol','Đơn online':'p-online','Đơn shoppe':'p-shopee','Đơn tiktok':'p-tiktok','Đơn GHN':'p-blue','Đơn Grab':'p-ship'}; const k=Object.keys(m).find(k=>c&&c.toLowerCase().includes(k.toLowerCase()))||c; return`<span class="pill ${m[k]||'p-tang'}">${c||'—'}</span>`; }
+function pillCh(c){
+  const labels={'KOL_IG':'⭐📸 KOL IG','KOL_TT':'🎵 KOL TikTok','KOL_IG_THAI':'⭐🇹🇭📸 KOL IG Thái','KOL_TT_THAI':'🎵🇹🇭 KOL TikTok Thái'};
+  const m={Online:'p-online',Shopee:'p-shopee',TikTok:'p-tiktok',KOL_IG:'p-kol',KOL_TT:'p-kol',KOL_IG_THAI:'p-kol',KOL_TT_THAI:'p-kol',ThaiLan:'p-thai','Tặng':'p-tang','Grab':'p-ship','GHN':'p-blue','Hàng mới về':'p-in','Hàng trả về':'p-in'};
+  const k=Object.keys(m).find(k=>c&&c===k)||c;
+  const display = labels[c]||c||'—';
+  return`<span class="pill ${m[k]||'p-tang'}">${display}</span>`;
+}
 function stockClass(n){ return n<=0?'stock-out':n<=5?'stock-low':'stock-ok'; }
 function stockPill(n){ if(n<=0)return`<span class="pill p-out2">🔴 Hết hàng</span>`; if(n<=5)return`<span class="pill p-low">🟡 Sắp hết</span>`; return`<span class="pill p-ok">🟢 Còn hàng</span>`; }
 
@@ -1181,7 +1285,8 @@ function goPage(name, el){
   else if(name==='quickentry') loadQuickEntry();
   else if(name==='returns') loadReturns();
   else if(name==='thailand') loadThailandOrders('ThaiLan');
-  else if(name==='kolthai') loadThailandOrders('KOLThai');
+  else if(name==='kolthai') loadThailandOrders('KOLThai_ALL');
+  else if(name==='kolvn') loadKolVN();
   else if(name==='finance') loadFinance();
 }
 
@@ -1391,11 +1496,16 @@ function renderOrders(){
     const allPaid = o.items.length>0 && o.items.every(i=>i.is_paid);
     const isGrab = o.channel === 'Grab';
     const grabCashReceived = isGrab && o.payment_method === 'Tiền mặt đã thu';
-    const grabCashPending = isGrab && o.payment_method !== 'Tiền mặt đã thu';
+    const grabHybrid = isGrab && (o.payment_method||'').startsWith('Hỗn hợp:');
+    const grabCashPending = isGrab && !grabCashReceived && !grabHybrid;
+    // Trích số tiền CK từ payment_method nếu là hỗn hợp
+    const hybridCkMatch = grabHybrid ? (o.payment_method||'').match(/CK ([\d.,]+)đ/) : null;
+    const hybridCkText = hybridCkMatch ? hybridCkMatch[1] : '';
     const codDisplay = o.totalCOD>0
-      ? `<div style="font-weight:600;color:${allPaid?'#27500A':grabCashReceived?'#27500A':'var(--blue-t)'}">${o.totalCOD.toLocaleString('vi-VN')} đ</div>
+      ? `<div style="font-weight:600;color:${allPaid||grabCashReceived?'#27500A':'var(--blue-t)'}">${o.totalCOD.toLocaleString('vi-VN')} đ</div>
          ${allPaid?'<div style="font-size:10px;color:#27500A">(đã CK)</div>':''}
          ${grabCashReceived?'<div style="font-size:10px;color:#27500A">💵 Đã nhận mặt</div>':''}
+         ${grabHybrid?`<div style="font-size:10px;color:#BA7517">💵 Chờ thu mặt · CK ${hybridCkText}đ</div>`:''}
          ${grabCashPending?'<div style="font-size:10px;color:#BA7517">💵 Chờ nhận mặt</div>':''}`
       : `<span style="color:var(--med);font-size:11px">—</span>`;
     return `
@@ -1900,6 +2010,7 @@ function renderReturns(){
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;min-width:150px;align-items:stretch">
           ${actionBtn}
+          <button class="btn" style="font-size:11px;color:var(--red-t);border-color:var(--red-t);margin-top:4px" onclick="deleteReturnRecord('${o.order_code}')">🗑️ Xoá ghi nhận này</button>
         </div>
       </div>
     </div>`;
@@ -1985,6 +2096,26 @@ async function resoldTraReturn(orderId){
   } catch(e){ toast('Lỗi: '+e.message, true); }
 }
 
+async function deleteReturnRecord(orderCode){
+  if(!confirm(`Xoá ghi nhận đổi/trả cho đơn ${orderCode}?\n\nĐơn sẽ được khôi phục về trạng thái "Đã giao" và ghi chú đổi/trả sẽ bị xoá.`)) return;
+
+  const items = allOrders.filter(o=>o.order_code===orderCode);
+  if(!items.length){ toast('Không tìm thấy đơn', true); return; }
+
+  try {
+    // Xoá note đổi trả + khôi phục status về Đã giao
+    await Promise.all(items.map(i=>
+      db.updateOrder(i.id, {note:'', status:'Đã giao'})
+    ));
+    toast(`Đã xoá ghi nhận đổi/trả cho đơn ${orderCode} ✓`);
+
+    const [prods, txs, orders] = await Promise.all([db.products(), db.transactions(), db.orders()]);
+    allProducts = prods; allTx = txs; allOrders = orders;
+    renderReturns();
+    renderOrders();
+  } catch(e){ toast('Lỗi: '+e.message, true); }
+}
+
 function updateReturnsBadge(count){
   const badge = document.getElementById('returns-badge');
   if(!badge) return;
@@ -2008,19 +2139,25 @@ async function loadThailandOrders(channel){
   } catch(e){ toast('Lỗi: '+e.message, true); }
 }
 
+// Track filters for KOL Thai
+let kolThaiFilterProd = null;
+let kolThaiFilterPlatform = null;
+
 function renderThailandPage(channel){
   const isThai = channel === 'ThaiLan';
+  const isKolThai = channel === 'KOLThai_ALL';
   const prefix = isThai ? 'thai' : 'kolthai';
   const listId = isThai ? 'thailand-list' : 'kolthai-list';
 
-  // Lọc đơn theo kênh — gộp theo order_code
-  const grouped = groupOrdersByCode(allOrders.filter(o=>o.channel===channel));
-  const pending = grouped.filter(o=>o.status!=='Đã giao' && o.status!=='Đã gửi Thái');
-  const sent = grouped.filter(o=>o.status==='Đã giao' || o.status==='Đã gửi Thái');
+  const grouped = groupOrdersByCode(allOrders.filter(o=>isKolThai ? KOL_THAI_CHANNELS.includes(o.channel) : o.channel===channel));
+  const pending = grouped.filter(o=>o.status!=='Đã giao');
+  const sent    = grouped.filter(o=>o.status==='Đã giao');
+  const pendingPost = isKolThai ? sent.filter(o=>!o.kol_posted_date) : [];
 
-  // Update metrics
   document.getElementById(`${prefix}-pending`).textContent = pending.length;
   document.getElementById(`${prefix}-sent`).textContent = sent.length;
+  if(isKolThai && document.getElementById('kolthai-pending-post'))
+    document.getElementById('kolthai-pending-post').textContent = pendingPost.length;
   document.getElementById(`${prefix}-total`).textContent = grouped.length;
 
   const batchLabel = document.getElementById(`${prefix}-batch-label`);
@@ -2030,39 +2167,224 @@ function renderThailandPage(channel){
 
   const listEl = document.getElementById(listId);
   if(!listEl) return;
-
-  if(grouped.length === 0){
-    listEl.innerHTML = `<div class="card" style="text-align:center;padding:40px"><div style="font-size:32px;margin-bottom:8px">📭</div><div style="color:var(--med);font-size:13px">Chưa có đơn nào — tạo đơn mới với kênh ${channel==='ThaiLan'?'🇹🇭 Đơn Thái Lan':'⭐🇹🇭 KOL Thái Lan'}</div></div>`;
+  if(!grouped.length){
+    listEl.innerHTML=`<div class="card" style="text-align:center;padding:40px"><div style="font-size:32px;margin-bottom:8px">📭</div><div style="color:var(--med);font-size:13px">Chưa có đơn nào</div></div>`;
     return;
   }
 
-  // Hiện đơn chờ gửi trước, đã gửi sau (mờ)
-  const renderGroup = (orders, isSent) => orders.map(o=>{
-    const totalQty = o.items.reduce((s,i)=>s+(i.quantity||0),0);
-    const productLines = o.items.map(i=>`${i.product_name||'—'} × ${i.quantity||1}`).join(', ');
-    const sentDate = o.sent_date ? `Đã gửi ${fmtDateShort(o.sent_date)}` : 'Đã gửi';
-    return `
-    <div style="display:grid;grid-template-columns:32px 1fr auto 32px;align-items:center;gap:12px;padding:11px 16px;border-bottom:0.5px solid var(--bg);${isSent?'opacity:.5;background:var(--bg)':''}">
-      <div onclick="${isSent?'':'markThaiOrderSent('+JSON.stringify(o.order_code)+')'}" style="width:22px;height:22px;border-radius:6px;cursor:${isSent?'default':'pointer'};flex-shrink:0;display:flex;align-items:center;justify-content:center;${isSent?'background:#2A211C':'border:2px solid var(--border)'}">
-        ${isSent?'<span style="color:#fff;font-size:12px">✓</span>':''}
-      </div>
-      <div>
-        <div style="font-size:13px;font-weight:600;color:var(--dark)">${o.customer_name||'—'} <span class="pill ${isSent?'p-done':'p-wait'}" style="font-size:10px">${isSent?sentDate:'Chờ gửi'}</span></div>
-        <div style="font-size:12px;color:var(--med);margin-top:2px">${productLines}</div>
-        ${o.phone?`<div style="font-size:11px;color:var(--blue-t)">${o.phone}</div>`:''}
-      </div>
-      <div style="text-align:right">
-        <div style="font-size:11px;color:var(--med)">${fmtDateShort(o.date)}</div>
-        <div style="font-size:12px;font-weight:600;color:var(--blue-t);margin-top:2px">${o.totalCOD>0?o.totalCOD.toLocaleString('vi-VN')+' đ':''}</div>
-      </div>
-      <div style="font-size:13px;cursor:pointer;text-align:center" onclick="openEditOrder('${o.order_code}')">✏️</div>
-    </div>`;
-  }).join('');
+  if(!isKolThai){
+    // ── ĐƠNTHAI: layout cũ đơn giản ──
+    const renderPendingRow = o => {
+      const productLines = o.items.map(i=>`${i.product_name||'—'} × ${i.quantity||1}`).join(', ');
+      const checkId=`thai-check-${o.order_code.replace(/[^a-z0-9]/gi,'_')}`;
+      return `<div class="card" style="margin-bottom:8px">
+        <div style="display:grid;grid-template-columns:32px 1fr auto;align-items:start;gap:12px">
+          <input type="checkbox" id="${checkId}" data-order-code="${o.order_code}" data-channel="${o.channel}"
+            style="width:18px;height:18px;margin-top:4px;cursor:pointer;accent-color:#2A211C" onchange="onThaiCheckChange('thai')">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--dark)">${o.customer_name||'—'} <span class="pill p-wait" style="font-size:10px">Chờ gửi</span></div>
+            <div style="font-size:12px;color:var(--med);margin-top:2px">${productLines}</div>
+            ${o.phone?`<div style="font-size:11px;color:var(--blue-t)">${o.phone}</div>`:''}
+          </div>
+          <div style="font-size:11px;color:var(--med)">${fmtDateShort(o.date)}</div>
+        </div>
+      </div>`;
+    };
+    const renderSentRow = o => {
+      const productLines = o.items.map(i=>`${i.product_name||'—'} × ${i.quantity||1}`).join(', ');
+      const sentDate = o.sent_date ? `Đã gửi ${fmtDateShort(o.sent_date)}` : 'Đã gửi';
+      return `<div class="card" style="margin-bottom:8px;opacity:.65">
+        <div style="display:flex;justify-content:space-between;align-items:start;gap:10px">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--dark)">${o.customer_name||'—'}</div>
+            <div style="font-size:12px;color:var(--med);margin-top:2px">${productLines}</div>
+            <span class="pill p-done" style="background:#EAF3DE;color:#27500A;font-size:10px;margin-top:5px;display:inline-block">✓ ${sentDate}</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">
+            <span style="font-size:13px;cursor:pointer" onclick="openEditOrder('${o.order_code}')">✏️</span>
+            <button class="btn" style="font-size:10px;padding:4px 8px;color:var(--red-t);border-color:var(--red-t)" onclick="unmarkThaiOrderSent('${o.order_code}','ThaiLan')">↩ Hoàn tác</button>
+          </div>
+        </div>
+      </div>`;
+    };
+    listEl.innerHTML = pending.map(renderPendingRow).join('') +
+      (sent.length?`<div style="font-size:11px;color:var(--med);margin:10px 0 6px;font-weight:600">— Đã gửi —</div>`:'')+
+      sent.map(renderSentRow).join('');
+    return;
+  }
 
-  listEl.innerHTML = `<div class="card" style="padding:0">
-    ${pending.length>0 ? renderGroup(pending, false) : ''}
-    ${sent.length>0 ? renderGroup(sent, true) : ''}
+  // ── KOL THAI: layout mới với tabs + prod summary + table ──
+
+  // Apply platform filter
+  const igOrders  = grouped.filter(o=>o.channel==='KOL_IG_THAI');
+  const ttOrders  = grouped.filter(o=>o.channel==='KOL_TT_THAI');
+  let platFiltered = kolThaiFilterPlatform==='IG' ? igOrders
+                   : kolThaiFilterPlatform==='TT' ? ttOrders
+                   : grouped;
+
+  // Apply product filter
+  let displayRows = kolThaiFilterProd===null ? platFiltered : platFiltered.filter(o=>{
+    const item = o.items[0];
+    const prod = allProducts.find(p=>p.code===item?.product_code);
+    const key = prod ? `${prod.name} · ${prod.color}` : (item?.product_name||'—');
+    return key === kolThaiFilterProd;
+  });
+
+  // Platform tabs HTML
+  const tabHtml = `<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+    ${[
+      {key:null, label:'Tất cả', count:grouped.length, bg:'#2A211C', fg:'#F7F3EB', cb:'rgba(220,198,170,.2)', cf:'#DCC6AA'},
+      {key:'IG', label:'📸 Instagram', count:igOrders.length, bg:'#E1306C', fg:'#fff', cb:'rgba(255,255,255,.25)', cf:'#fff'},
+      {key:'TT', label:'🎵 TikTok', count:ttOrders.length, bg:'#010101', fg:'#fff', cb:'rgba(255,255,255,.2)', cf:'#fff'},
+    ].map(t=>{
+      const on = kolThaiFilterPlatform===t.key;
+      return `<div onclick="setKolThaiPlatform(${t.key===null?'null':`'${t.key}'`})"
+        style="display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:10px;font-size:12.5px;font-weight:500;cursor:pointer;
+        border:1.5px solid ${on?t.bg:'var(--border)'};background:${on?t.bg:'var(--card)'};color:${on?t.fg:'var(--dark)'}">
+        ${t.label}
+        <span style="padding:1px 7px;border-radius:20px;font-size:10px;font-weight:700;background:${on?t.cb:'var(--bg)'};color:${on?t.cf:'var(--med)'}">${t.count}</span>
+      </div>`;
+    }).join('')}
   </div>`;
+
+  // Product summary
+  const prodMap = {};
+  platFiltered.forEach(o=>{
+    const item = o.items[0];
+    const prod = allProducts.find(p=>p.code===item?.product_code);
+    const key = prod ? `${prod.name} · ${prod.color}` : (item?.product_name||'—');
+    if(!prodMap[key]) prodMap[key]={key,total:0,pending:0,sent:0};
+    prodMap[key].total++;
+    if(o.status==='Đã giao') prodMap[key].sent++;
+    else prodMap[key].pending++;
+  });
+  const prodSummaryHtml = `
+  <div style="margin-bottom:12px">
+    <div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--med);margin-bottom:8px">Theo sản phẩm — click để lọc</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px">
+      <div onclick="setKolThaiFilter(null)" style="background:${kolThaiFilterProd===null?'#2A211C':'var(--bg)'};border-radius:10px;padding:10px 14px;cursor:pointer;border:1.5px solid ${kolThaiFilterProd===null?'#2A211C':'var(--border)'}">
+        <div style="font-size:12px;font-weight:600;color:${kolThaiFilterProd===null?'#F7F3EB':'var(--dark)'}">Tất cả</div>
+        <div style="display:flex;gap:10px;margin-top:5px">
+          <div><div style="font-size:16px;font-weight:700;color:${kolThaiFilterProd===null?'#DCC6AA':'#3C3489'}">${platFiltered.length}</div><div style="font-size:9px;text-transform:uppercase;color:${kolThaiFilterProd===null?'rgba(220,198,170,.6)':'var(--med)'}">Book</div></div>
+          <div><div style="font-size:16px;font-weight:700;color:${kolThaiFilterProd===null?'#FAC775':'#633806'}">${platFiltered.filter(o=>o.status!=='Đã giao').length}</div><div style="font-size:9px;text-transform:uppercase;color:${kolThaiFilterProd===null?'rgba(220,198,170,.6)':'var(--med)'}">Chờ gửi</div></div>
+          <div><div style="font-size:16px;font-weight:700;color:${kolThaiFilterProd===null?'#C0DD97':'#27500A'}">${platFiltered.filter(o=>o.status==='Đã giao').length}</div><div style="font-size:9px;text-transform:uppercase;color:${kolThaiFilterProd===null?'rgba(220,198,170,.6)':'var(--med)'}">Đã gửi</div></div>
+        </div>
+      </div>
+      ${Object.keys(prodMap).map(key=>{
+        const p=prodMap[key]; const on=kolThaiFilterProd===key;
+        const pct=p.total>0?Math.round(p.sent/p.total*100):0;
+        return `<div onclick="setKolThaiFilter('${key.replace(/'/g,"\'")}')" style="background:${on?'#2A211C':'var(--bg)'};border-radius:10px;padding:10px 14px;cursor:pointer;border:1.5px solid ${on?'#2A211C':'var(--border)'}">
+          <div style="font-size:12px;font-weight:600;color:${on?'#F7F3EB':'var(--dark)'}">${key}</div>
+          <div style="display:flex;gap:10px;margin-top:5px">
+            <div><div style="font-size:16px;font-weight:700;color:${on?'#DCC6AA':'#3C3489'}">${p.total}</div><div style="font-size:9px;text-transform:uppercase;color:${on?'rgba(220,198,170,.6)':'var(--med)'}">Book</div></div>
+            <div><div style="font-size:16px;font-weight:700;color:${on?'#FAC775':'#633806'}">${p.pending}</div><div style="font-size:9px;text-transform:uppercase;color:${on?'rgba(220,198,170,.6)':'var(--med)'}">Chờ</div></div>
+            <div><div style="font-size:16px;font-weight:700;color:${on?'#C0DD97':'#27500A'}">${p.sent}</div><div style="font-size:9px;text-transform:uppercase;color:${on?'rgba(220,198,170,.6)':'var(--med)'}">Đã gửi</div></div>
+          </div>
+          <div style="height:4px;background:${on?'rgba(220,198,170,.2)':'var(--border)'};border-radius:99px;margin-top:6px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:${on?'#C0DD97':'#27500A'};border-radius:99px"></div>
+          </div>
+          <div style="font-size:10px;color:${on?'rgba(220,198,170,.6)':'var(--med)'};margin-top:2px">${pct}% đã gửi</div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+
+  // Sort: pending trước, sent sau, sent đã lên bài cuối
+  const sortedRows = [
+    ...displayRows.filter(o=>o.status!=='Đã giao'),
+    ...displayRows.filter(o=>o.status==='Đã giao' && !o.kol_posted_date),
+    ...displayRows.filter(o=>o.status==='Đã giao' && !!o.kol_posted_date),
+  ];
+
+  const platBadge = ch => ch==='KOL_IG_THAI'
+    ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;background:#fce4ec;color:#c2185b">📸 IG</span>`
+    : `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;background:#e8e8e8;color:#222">🎵 TikTok</span>`;
+
+  const tableHtml = `
+  <div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--med);margin-bottom:8px">
+    Danh sách KOL${kolThaiFilterProd?` — ${kolThaiFilterProd}`:''} (${sortedRows.length})
+  </div>
+  <div class="card" style="padding:0;overflow:auto">
+    <table style="width:100%;border-collapse:collapse;min-width:640px">
+      <thead><tr style="background:var(--bg)">
+        <th style="padding:8px 10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--med);text-align:left;width:28px"></th>
+        <th style="padding:8px 10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--med);text-align:left">KOL</th>
+        <th style="padding:8px 10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--med);text-align:left">Nền tảng</th>
+        <th style="padding:8px 10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--med);text-align:left">Link</th>
+        <th style="padding:8px 10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--med);text-align:left">Sản phẩm</th>
+        <th style="padding:8px 10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--med);text-align:left;white-space:nowrap">Ngày nhập</th>
+        <th style="padding:8px 10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--med);text-align:left">Trạng thái</th>
+        <th style="padding:8px 10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--med);text-align:left">Nhắc bài</th>
+        <th style="padding:8px 10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--med);text-align:left">Thao tác</th>
+      </tr></thead>
+      <tbody>
+        ${sortedRows.map(o=>{
+          const isSent = o.status==='Đã giao';
+          const isPosted = !!o.kol_posted_date;
+          const remind = o.kol_remind||0;
+          const social = o.kol_social||'';
+          const prodLines = o.items.map(i=>i.product_name||'—').join(', ');
+          const sentDate = o.sent_date ? fmtDateShort(o.sent_date) : '';
+          const checkId = `kolthai-chk-${o.order_code.replace(/[^a-z0-9]/gi,'_')}`;
+
+          const remindMini = isSent ? [0,1,2].map(i=>`
+            <div onclick="${!isPosted?`toggleKolRemind('${o.order_code}',${i+1})`:'void 0'}"
+              style="width:20px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;cursor:${isPosted?'default':'pointer'};
+              ${i<remind?'background:#2A211C;color:#fff':'border:1.5px dashed var(--border)'}">
+              ${i<remind?'✓':''}</div>`).join('')
+            : `<span style="font-size:11px;color:var(--med)">— (sau khi gửi)</span>`;
+
+          const statusCell = !isSent
+            ? `<span class="pill p-wait" style="font-size:10px">📦 Chờ gửi</span>`
+            : isPosted
+              ? `<div><span class="pill" style="background:#EAF3DE;color:#27500A;font-size:10px">✓ Gửi ${sentDate}</span></div>
+                 <div style="margin-top:3px"><span class="pill p-done" style="font-size:10px">✅ Lên bài ${fmtDateShort(o.kol_posted_date)}</span></div>`
+              : `<div><span class="pill" style="background:#EAF3DE;color:#27500A;font-size:10px">✓ Gửi ${sentDate}</span></div>
+                 <div style="margin-top:3px"><span class="pill p-wait" style="font-size:10px">⏳ Chờ bài</span></div>`;
+
+          const actionCell = !isSent
+            ? `<span style="font-size:13px;cursor:pointer" onclick="openEditOrder('${o.order_code}')">✏️</span>`
+            : isPosted
+              ? `<span style="font-size:11px;color:var(--med)">Hoàn tất</span>
+                 <button class="btn" style="font-size:10px;padding:3px 7px;color:var(--red-t);border-color:var(--red-t);margin-left:4px" onclick="unmarkThaiOrderSent('${o.order_code}','KOLThai_ALL')">↩</button>`
+              : `<button class="btn btn-primary" style="font-size:10px;padding:4px 8px" onclick="markKolPostedThai('${o.order_code}')">✅ Lên bài</button>
+                 <span style="font-size:13px;cursor:pointer;margin-left:4px" onclick="openEditOrder('${o.order_code}')">✏️</span>
+                 <button class="btn" style="font-size:10px;padding:3px 7px;color:var(--red-t);border-color:var(--red-t);margin-left:2px" onclick="unmarkThaiOrderSent('${o.order_code}','KOLThai_ALL')">↩</button>`;
+
+          return `<tr style="border-bottom:0.5px solid var(--bg);${isPosted?'opacity:.5':''}">
+            <td style="padding:8px 10px">
+              ${!isSent?`<input type="checkbox" id="${checkId}" data-order-code="${o.order_code}" data-channel="${o.channel}"
+                style="width:15px;height:15px;cursor:pointer;accent-color:#2A211C" onchange="onThaiCheckChange('kolthai')">`:''}
+            </td>
+            <td style="padding:8px 10px;font-size:13px;font-weight:600;white-space:nowrap">${o.customer_name||'—'}</td>
+            <td style="padding:8px 10px">${platBadge(o.channel)}</td>
+            <td style="padding:8px 10px">
+              <input value="${social}" placeholder="@username..." oninput="saveKolSocialInline('${o.order_code}',this.value)"
+                style="width:110px;padding:3px 7px;border:0.5px solid var(--border);border-radius:6px;font-size:11px;color:#6366F1">
+            </td>
+            <td style="padding:8px 10px;font-size:12px;max-width:140px">${prodLines}</td>
+            <td style="padding:8px 10px;font-size:12px;color:var(--med);white-space:nowrap">${fmtDateShort(o.date)}</td>
+            <td style="padding:8px 10px">${statusCell}</td>
+            <td style="padding:8px 10px"><div style="display:flex;gap:3px">${remindMini}</div></td>
+            <td style="padding:8px 10px;white-space:nowrap">${actionCell}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>`;
+
+  listEl.innerHTML = tabHtml + prodSummaryHtml + tableHtml;
+}
+
+function setKolThaiPlatform(key){
+  kolThaiFilterPlatform = key;
+  kolThaiFilterProd = null;
+  renderThailandPage('KOLThai_ALL');
+}
+
+function setKolThaiFilter(key){
+  kolThaiFilterProd = key;
+  renderThailandPage('KOLThai_ALL');
 }
 
 async function markThaiOrderSent(orderCode){
@@ -2071,13 +2393,11 @@ async function markThaiOrderSent(orderCode){
 
   const sentDate = todayStr();
   try {
-    // Cập nhật trạng thái + sent_date cho tất cả dòng trong đơn
     await Promise.all(items.map(i=>
       db.updateOrder(i.id, {status:'Đã giao', sent_date:sentDate})
     ));
-    // Xuất kho ngay cho từng sản phẩm (chưa xuất từ trước)
     for(const item of items){
-      if(item.status === 'Nợ hàng') continue; // Nợ hàng chưa có hàng — bỏ qua
+      if(item.status === 'Nợ hàng') continue;
       const prod = allProducts.find(p=>p.code===item.product_code);
       await db.insertTx({
         date:sentDate, type:'Xuất', product_code:item.product_code,
@@ -2096,32 +2416,365 @@ async function markThaiOrderSent(orderCode){
   } catch(e){ toast('Lỗi: '+e.message, true); }
 }
 
-async function markThailandBatchSent(){
-  const pending = allOrders.filter(o=>o.channel==='ThaiLan' && o.status!=='Đã giao' && o.status!=='Đã gửi Thái');
-  if(!pending.length){ toast('Không có đơn nào đang chờ gửi', true); return; }
-  if(!confirm(`Đánh dấu tất cả ${pending.length} đơn Thái Lan là ĐÃ GỬI và xuất kho luôn?`)) return;
+async function unmarkThaiOrderSent(orderCode, channel){
+  if(!confirm(`Hoàn tác "Đã gửi" cho đơn ${orderCode}?\nTồn kho sẽ được cộng lại và đơn chuyển về "Chờ gửi".`)) return;
 
-  // Lấy danh sách order_code unique
-  const codes = [...new Set(pending.map(o=>o.order_code))];
+  const items = allOrders.filter(o=>o.order_code===orderCode);
+  if(!items.length) return;
+
+  try {
+    // Khôi phục status về Chờ lấy (chờ gửi), xoá sent_date
+    await Promise.all(items.map(i=>
+      db.updateOrder(i.id, {status:'Chờ lấy', sent_date:null})
+    ));
+
+    // Xoá transaction xuất kho liên quan đến lô gửi này
+    // Tìm các tx có note "Gửi Thái" và đúng product_code
+    const relatedTxs = allTx.filter(t=>
+      (t.note||'').startsWith('Gửi Thái') &&
+      items.some(i=>i.product_code===t.product_code && t.type==='Xuất')
+    );
+    await Promise.all(relatedTxs.map(t=>
+      fetch(`${SUPABASE_URL}/rest/v1/transactions?id=eq.${t.id}`,{
+        method:'DELETE',
+        headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
+      })
+    ));
+
+    toast(`↩ Đã hoàn tác — đơn ${orderCode} về lại "Chờ gửi"`);
+
+    const [prods, orders, txs] = await Promise.all([db.products(), db.orders(), db.transactions()]);
+    allProducts = prods; allOrders = orders; allTx = txs;
+    renderThailandPage(channel);
+    updateThailandBadges();
+  } catch(e){ toast('Lỗi: '+e.message, true); }
+}
+
+function onThaiCheckChange(prefix){
+  const checks = document.querySelectorAll(`input[data-channel][type=checkbox]`);
+  const checked = [...checks].filter(c=>c.checked);
+  const countEl = document.getElementById(`${prefix}-selected-count`);
+  const numEl = document.getElementById(`${prefix}-selected-num`);
+  if(countEl) countEl.style.display = checked.length>0?'inline':'none';
+  if(numEl) numEl.textContent = checked.length;
+}
+
+function toggleSelectAllThai(channel){
+  const prefix = channel==='ThaiLan'?'thai':'kolthai';
+  const checks = document.querySelectorAll(`input[data-channel="${channel}"][type=checkbox]`);
+  const allChecked = [...checks].every(c=>c.checked);
+  checks.forEach(c=>c.checked=!allChecked);
+  const btn = document.getElementById(`${prefix}-select-all-btn`);
+  if(btn) btn.textContent = allChecked?'☐ Chọn tất cả':'☑ Bỏ chọn tất cả';
+  onThaiCheckChange(prefix);
+}
+
+async function markSelectedThaiSent(channel){
+  const prefix = channel==='ThaiLan'?'thai':'kolthai';
+  const checks = [...document.querySelectorAll('input[type=checkbox][data-channel]')].filter(c=>c.checked && (channel==='KOLThai_ALL' ? KOL_THAI_CHANNELS.includes(c.dataset.channel) : c.dataset.channel===channel));
+  if(!checks.length){ toast('Chưa chọn đơn nào', true); return; }
+  const codes = checks.map(c=>c.dataset.orderCode);
+  if(!confirm(`Gửi ${codes.length} đơn đã chọn?\nTồn kho sẽ được trừ ngay sau khi xác nhận.`)) return;
   for(const code of codes){
     await markThaiOrderSent(code);
   }
 }
 
+async function markThailandBatchSent(){
+  await markSelectedThaiSent('ThaiLan');
+}
 async function markKolThaiBatchSent(){
-  const pending = allOrders.filter(o=>o.channel==='KOLThai' && o.status!=='Đã giao' && o.status!=='Đã gửi Thái');
-  if(!pending.length){ toast('Không có đơn KOL Thái nào đang chờ gửi', true); return; }
-  if(!confirm(`Đánh dấu tất cả ${pending.length} đơn KOL Thái là ĐÃ GỬI và xuất kho luôn?`)) return;
+  await markSelectedThaiSent('KOLThai_ALL');
+}
 
-  const codes = [...new Set(pending.map(o=>o.order_code))];
-  for(const code of codes){
-    await markThaiOrderSent(code);
+// ══════════════════════════════════════
+// KOL VIỆT NAM
+// ══════════════════════════════════════
+async function loadKolVN(){
+  try {
+    const [prods, orders, txs] = await Promise.all([db.products(), db.orders(), db.transactions()]);
+    allProducts=prods; allOrders=orders; allTx=txs;
+    renderKolVN();
+    updateKolVNBadge();
+  } catch(e){ toast('Lỗi: '+e.message, true); }
+}
+
+let kolVNFilterProd = null;
+let kolVNFilterPlatform = null;
+
+function renderKolVN(){
+  const allKolVN = groupOrdersByCode(allOrders.filter(o=>KOL_VN_CHANNELS.includes(o.channel)));
+  const igOrders = allKolVN.filter(o=>o.channel==='KOL_IG');
+  const ttOrders = allKolVN.filter(o=>o.channel==='KOL_TT');
+
+  // Apply platform filter
+  let grouped = kolVNFilterPlatform==='IG' ? igOrders
+              : kolVNFilterPlatform==='TT' ? ttOrders
+              : allKolVN;
+
+  const pending = allKolVN.filter(o=>!o.kol_posted_date);
+  const posted  = allKolVN.filter(o=>!!o.kol_posted_date);
+
+  document.getElementById('kolvn-pending').textContent = pending.length;
+  document.getElementById('kolvn-posted').textContent  = posted.length;
+  document.getElementById('kolvn-total').textContent   = allKolVN.length;
+
+  const listEl = document.getElementById('kolvn-list');
+  if(!listEl) return;
+  if(!allKolVN.length){
+    listEl.innerHTML=`<div class="card" style="text-align:center;padding:40px"><div style="font-size:32px;margin-bottom:8px">⭐</div><div style="color:var(--med);font-size:13px">Chưa có KOL nào — tạo đơn với kênh ⭐📸 KOL Instagram (VN) hoặc 🎵 KOL TikTok (VN)</div></div>`;
+    return;
   }
+
+  // ── Platform tabs ──
+  const tabHtml = `
+  <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
+    ${[
+      {key:null,  label:'Tất cả',       count:allKolVN.length, bg:'#2A211C', fg:'#F7F3EB', cbg:'rgba(220,198,170,.2)', cfg:'#DCC6AA'},
+      {key:'IG',  label:'📸 Instagram',  count:igOrders.length, bg:'#E1306C', fg:'#fff',    cbg:'rgba(255,255,255,.25)',cfg:'#fff'},
+      {key:'TT',  label:'🎵 TikTok',     count:ttOrders.length, bg:'#010101', fg:'#fff',    cbg:'rgba(255,255,255,.2)', cfg:'#fff'},
+    ].map(t=>{
+      const on = kolVNFilterPlatform===t.key;
+      return `<div onclick="setKolVNPlatform(${t.key===null?'null':`'${t.key}'`})"
+        style="display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:10px;font-size:12.5px;font-weight:500;cursor:pointer;border:1.5px solid ${on?t.bg:'var(--border)'};background:${on?t.bg:'var(--card)'};color:${on?t.fg:'var(--dark)'};transition:all .15s">
+        ${t.label}
+        <span style="padding:1px 7px;border-radius:20px;font-size:10px;font-weight:700;background:${on?t.cbg:'var(--bg)'};color:${on?t.cfg:'var(--med)'}">${t.count}</span>
+      </div>`;
+    }).join('')}
+  </div>`;
+
+  // Apply product filter after platform filter
+  let displayRows = kolVNFilterProd === null ? grouped
+    : grouped.filter(o=>{
+        const item = o.items[0];
+        const prod = allProducts.find(p=>p.code===item?.product_code);
+        const key = prod ? `${prod.name} · ${prod.color}` : (item?.product_name||'—');
+        return key === kolVNFilterProd;
+      });
+
+  // ── Product summary ──
+  const prodMap = {};
+  grouped.forEach(o=>{
+    const item = o.items[0];
+    const prod = allProducts.find(p=>p.code===item?.product_code);
+    const key = prod ? `${prod.name} · ${prod.color}` : (item?.product_name||'—');
+    if(!prodMap[key]) prodMap[key]={key,total:0,pending:0,posted:0};
+    prodMap[key].total++;
+    if(o.kol_posted_date) prodMap[key].posted++;
+    else prodMap[key].pending++;
+  });
+  const prodKeys = Object.keys(prodMap);
+
+  const prodSummaryHtml = `
+  <div style="margin-bottom:14px">
+    <div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--med);margin-bottom:8px">Theo sản phẩm — click để lọc</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px">
+      <div onclick="setKolVNFilter(null)" style="background:${kolVNFilterProd===null?'#2A211C':'var(--bg)'};border-radius:10px;padding:10px 14px;cursor:pointer;border:1.5px solid ${kolVNFilterProd===null?'#2A211C':'var(--border)'}">
+        <div style="font-size:12px;font-weight:600;color:${kolVNFilterProd===null?'#F7F3EB':'var(--dark)'}">Tất cả</div>
+        <div style="display:flex;gap:12px;margin-top:5px">
+          <div><div style="font-size:17px;font-weight:700;color:${kolVNFilterProd===null?'#DCC6AA':'#3C3489'}">${grouped.length}</div><div style="font-size:9px;color:${kolVNFilterProd===null?'rgba(220,198,170,.6)':'var(--med)'};text-transform:uppercase">Book</div></div>
+          <div><div style="font-size:17px;font-weight:700;color:${kolVNFilterProd===null?'#FAC775':'#633806'}">${grouped.filter(o=>!o.kol_posted_date).length}</div><div style="font-size:9px;color:${kolVNFilterProd===null?'rgba(220,198,170,.6)':'var(--med)'};text-transform:uppercase">Chờ</div></div>
+          <div><div style="font-size:17px;font-weight:700;color:${kolVNFilterProd===null?'#C0DD97':'#27500A'}">${grouped.filter(o=>o.kol_posted_date).length}</div><div style="font-size:9px;color:${kolVNFilterProd===null?'rgba(220,198,170,.6)':'var(--med)'};text-transform:uppercase">Lên bài</div></div>
+        </div>
+      </div>
+      ${prodKeys.map(key=>{
+        const p = prodMap[key]; const on = kolVNFilterProd===key;
+        const pct = p.total>0?Math.round(p.posted/p.total*100):0;
+        return `<div onclick="setKolVNFilter('${key.replace(/'/g,"\\'")}')" style="background:${on?'#2A211C':'var(--bg)'};border-radius:10px;padding:10px 14px;cursor:pointer;border:1.5px solid ${on?'#2A211C':'var(--border)'}">
+          <div style="font-size:12px;font-weight:600;color:${on?'#F7F3EB':'var(--dark)'}">${key}</div>
+          <div style="display:flex;gap:10px;margin-top:5px">
+            <div><div style="font-size:17px;font-weight:700;color:${on?'#DCC6AA':'#3C3489'}">${p.total}</div><div style="font-size:9px;color:${on?'rgba(220,198,170,.6)':'var(--med)'};text-transform:uppercase">Book</div></div>
+            <div><div style="font-size:17px;font-weight:700;color:${on?'#FAC775':'#633806'}">${p.pending}</div><div style="font-size:9px;color:${on?'rgba(220,198,170,.6)':'var(--med)'};text-transform:uppercase">Chờ</div></div>
+            <div><div style="font-size:17px;font-weight:700;color:${on?'#C0DD97':'#27500A'}">${p.posted}</div><div style="font-size:9px;color:${on?'rgba(220,198,170,.6)':'var(--med)'};text-transform:uppercase">Lên bài</div></div>
+          </div>
+          <div style="height:4px;background:${on?'rgba(220,198,170,.2)':'var(--border)'};border-radius:99px;margin-top:7px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:${on?'#C0DD97':'#27500A'};border-radius:99px"></div>
+          </div>
+          <div style="font-size:10px;color:${on?'rgba(220,198,170,.6)':'var(--med)'};margin-top:2px">${pct}% lên bài</div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+
+  // ── Bảng danh sách ──
+  const sortedRows = [
+    ...displayRows.filter(o=>!o.kol_posted_date),
+    ...displayRows.filter(o=>!!o.kol_posted_date)
+  ];
+
+  const platformBadge = ch => ch==='KOL_IG'
+    ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;background:#fce4ec;color:#c2185b">📸 IG</span>`
+    : `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;background:#e8e8e8;color:#222">🎵 TikTok</span>`;
+
+  const tableHtml = `
+  <div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--med);margin-bottom:8px">
+    Danh sách KOL${kolVNFilterProd?` — ${kolVNFilterProd}`:''} (${sortedRows.length})
+  </div>
+  <div class="card" style="padding:0;overflow:auto">
+    <table style="width:100%;border-collapse:collapse;min-width:600px">
+      <thead>
+        <tr style="background:var(--bg)">
+          <th style="padding:9px 12px;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--med);text-align:left;white-space:nowrap">KOL</th>
+          <th style="padding:9px 12px;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--med);text-align:left">Nền tảng</th>
+          <th style="padding:9px 12px;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--med);text-align:left">Link</th>
+          <th style="padding:9px 12px;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--med);text-align:left">Sản phẩm</th>
+          <th style="padding:9px 12px;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--med);text-align:left;white-space:nowrap">Ngày gửi</th>
+          <th style="padding:9px 12px;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--med);text-align:left">Nhắc</th>
+          <th style="padding:9px 12px;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--med);text-align:left">Trạng thái</th>
+          <th style="padding:9px 12px;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--med);text-align:left">Thao tác</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${sortedRows.map(o=>{
+          const remind = o.kol_remind||0;
+          const social = o.kol_social||'';
+          const isPosted = !!o.kol_posted_date;
+          const prodLines = o.items.map(i=>i.product_name||'—').join(', ');
+          const remindMini = [0,1,2].map(i=>`
+            <div onclick="${!isPosted?`toggleKolRemind('${o.order_code}',${i+1})`:'void 0'}"
+              style="width:20px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;cursor:${isPosted?'default':'pointer'};
+              ${i<remind?'background:#2A211C;color:#fff':'border:1.5px dashed var(--border)'}">
+              ${i<remind?'✓':''}</div>`).join('');
+          return `<tr style="border-bottom:0.5px solid var(--bg);${isPosted?'opacity:.55':''}">
+            <td style="padding:10px 12px;font-size:13px;font-weight:600;color:var(--dark);white-space:nowrap">${o.customer_name||'—'}</td>
+            <td style="padding:10px 12px">${platformBadge(o.channel)}</td>
+            <td style="padding:10px 12px">
+              <input value="${social}" placeholder="@username..." oninput="saveKolSocialInline('${o.order_code}',this.value)"
+                style="width:130px;padding:4px 7px;border:0.5px solid var(--border);border-radius:6px;font-size:11.5px;color:#6366F1">
+            </td>
+            <td style="padding:10px 12px;font-size:12px;color:var(--dark);max-width:140px">${prodLines}</td>
+            <td style="padding:10px 12px;font-size:12px;color:var(--med);white-space:nowrap">${fmtDateShort(o.date)}</td>
+            <td style="padding:10px 12px"><div style="display:flex;gap:3px">${remindMini}</div></td>
+            <td style="padding:10px 12px">
+              ${isPosted
+                ?`<span class="pill" style="background:#EAF3DE;color:#27500A;font-size:10px">✅ ${fmtDateShort(o.kol_posted_date)}</span>`
+                :`<span class="pill" style="background:#FAEEDA;color:#633806;font-size:10px">⏳ Chờ bài</span>`}
+            </td>
+            <td style="padding:10px 12px">
+              <div style="display:flex;gap:5px;align-items:center">
+                ${!isPosted?`<button class="btn btn-primary" style="font-size:10px;padding:4px 9px" onclick="markKolPosted('${o.order_code}')">✅ Lên bài</button>`:''}
+                <span style="cursor:pointer;font-size:13px" onclick="openEditOrder('${o.order_code}')" title="Sửa đơn">✏️</span>
+              </div>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>`;
+
+  listEl.innerHTML = tabHtml + prodSummaryHtml + tableHtml;
+}
+
+function setKolVNPlatform(key){
+  kolVNFilterPlatform = key;
+  kolVNFilterProd = null; // reset product filter khi đổi platform
+  renderKolVN();
+}
+
+function setKolVNFilter(key){
+  kolVNFilterProd = key;
+  renderKolVN();
+}
+
+function setKolVNFilter(key){
+  kolVNFilterProd = key;
+  renderKolVN();
+}
+
+async function toggleKolRemind(orderCode, newVal){
+  const items = allOrders.filter(o=>o.order_code===orderCode);
+  if(!items.length) return;
+  const current = items[0].kol_remind||0;
+  const val = (current === newVal) ? newVal-1 : newVal;
+  try {
+    await Promise.all(items.map(i=>db.updateOrder(i.id,{kol_remind:val})));
+    items.forEach(i=>i.kol_remind=val);
+    // Re-render đúng trang
+    if(document.getElementById('page-kolvn')?.classList.contains('active')) renderKolVN();
+    else renderThailandPage('KOLThai');
+    toast(val>0?`Đã nhắc ${val}/3 lần`:'Đã bỏ đánh dấu nhắc');
+  } catch(e){ toast('Lỗi: '+e.message,true); }
+}
+
+let _kolSocialTimer = {};
+function saveKolSocialInline(orderCode, val){
+  clearTimeout(_kolSocialTimer[orderCode]);
+  _kolSocialTimer[orderCode] = setTimeout(async ()=>{
+    const items = allOrders.filter(o=>o.order_code===orderCode);
+    if(!items.length) return;
+    try {
+      await Promise.all(items.map(i=>db.updateOrder(i.id,{kol_social:val})));
+      items.forEach(i=>i.kol_social=val);
+      toast('Đã lưu link KOL ✓');
+    } catch(e){ toast('Lỗi lưu link: '+e.message,true); }
+  }, 800);
+}
+
+async function markKolPosted(orderCode){
+  if(!confirm(`Xác nhận KOL đã đăng bài cho đơn ${orderCode}?`)) return;
+  const items = allOrders.filter(o=>o.order_code===orderCode);
+  const today = todayStr();
+  try {
+    await Promise.all(items.map(i=>db.updateOrder(i.id,{kol_posted_date:today, status:'Đã giao'})));
+    items.forEach(i=>{i.kol_posted_date=today;});
+    toast('✅ Đã đánh dấu lên bài!');
+    const orders = await db.orders();
+    allOrders = orders;
+    renderKolVN();
+    updateKolVNBadge();
+  } catch(e){ toast('Lỗi: '+e.message,true); }
+}
+
+function openKolSocialModal(orderCode, currentSocial){
+  document.getElementById('kol-social-order-code').value = orderCode;
+  document.getElementById('kol-social-link').value = currentSocial||'';
+  document.getElementById('kol-social-note').value = '';
+  openModal('modal-kol-social');
+}
+
+async function saveKolSocial(){
+  const orderCode = document.getElementById('kol-social-order-code').value;
+  const social = document.getElementById('kol-social-link').value.trim();
+  const extraNote = document.getElementById('kol-social-note').value.trim();
+  const items = allOrders.filter(o=>o.order_code===orderCode);
+  try {
+    const updateData = {kol_social: social};
+    if(extraNote) updateData.note = (items[0]?.note||'') + (extraNote ? ` | ${extraNote}` : '');
+    await Promise.all(items.map(i=>db.updateOrder(i.id, updateData)));
+    items.forEach(i=>i.kol_social=social);
+    closeModal('modal-kol-social');
+    toast('Đã lưu thông tin KOL ✓');
+    // Re-render đúng trang
+    const page = document.querySelector('#page-kolvn.active') ? 'kolvn' : 'kolthai';
+    if(page==='kolvn') renderKolVN(); else renderThailandPage('KOLThai');
+  } catch(e){ toast('Lỗi: '+e.message,true); }
+}
+
+function updateKolVNBadge(){
+  const pending = allOrders.filter(o=>KOL_VN_CHANNELS.includes(o.channel) && !o.kol_posted_date);
+  const uniq = new Set(pending.map(o=>o.order_code)).size;
+  const badge = document.getElementById('kolvn-badge');
+  if(badge){ badge.textContent=uniq; badge.style.display=uniq>0?'inline-block':'none'; }
+}
+
+// Update renderThailandPage to also handle KOL social + remind for KOLThai
+async function markKolPostedThai(orderCode){
+  if(!confirm(`Xác nhận KOL Thái đã đăng bài cho đơn ${orderCode}?`)) return;
+  const items = allOrders.filter(o=>o.order_code===orderCode);
+  try {
+    await Promise.all(items.map(i=>db.updateOrder(i.id,{kol_posted_date:todayStr()})));
+    items.forEach(i=>i.kol_posted_date=todayStr());
+    toast('✅ Đã đánh dấu lên bài!');
+    const orders = await db.orders();
+    allOrders = orders;
+    renderThailandPage('KOLThai');
+    updateThailandBadges();
+  } catch(e){ toast('Lỗi: '+e.message,true); }
 }
 
 function updateThailandBadges(){
   const thaiPending = allOrders.filter(o=>o.channel==='ThaiLan' && o.status!=='Đã giao');
-  const kolThaiPending = allOrders.filter(o=>o.channel==='KOLThai' && o.status!=='Đã giao');
+  const kolThaiPending = allOrders.filter(o=>KOL_THAI_CHANNELS.includes(o.channel) && o.status!=='Đã giao');
 
   const tBadge = document.getElementById('thailand-badge');
   if(tBadge){
@@ -2244,6 +2897,9 @@ function toggleEditOrderPaymentFields(ch){
   if(codField) codField.style.display = hide ? 'none' : 'block';
   const noteEl = document.getElementById('edit-o-payment-note');
   if(noteEl) noteEl.style.display = hide ? 'block' : 'none';
+  // Hiện ô link KOL
+  const editKolSocialWrap = document.getElementById('edit-o-kol-social-wrap');
+  if(editKolSocialWrap) editKolSocialWrap.style.display = ALL_KOL_CHANNELS.includes(ch) ? 'block' : 'none';
   // Checkbox nhận tiền mặt chỉ hiện với Grab
   const grabWrap = document.getElementById('edit-o-grab-cash-wrap');
   if(grabWrap) grabWrap.style.display = (ch==='Grab') ? 'block' : 'none';
@@ -2296,10 +2952,27 @@ function openEditOrder(orderCode){
   editOrderProductRowCount = 0;
   items.forEach(i => addEditProductRow(i.id, i.product_code, i.quantity, i.amount_due, i.is_paid));
   updateEditOrderTotalCOD();
+  // Khôi phục link KOL social nếu có
+  const editKolSocialEl = document.getElementById('edit-o-kol-social');
+  if(editKolSocialEl) editKolSocialEl.value = o.kol_social||'';
   toggleEditOrderPaymentFields(o.channel);
   // Khôi phục trạng thái checkbox nhận tiền mặt Grab
   const editGrabCashEl = document.getElementById('edit-o-grab-cash');
   if(editGrabCashEl) editGrabCashEl.checked = (o.payment_method === 'Tiền mặt đã thu');
+  // Khôi phục partial CK nếu có
+  const isHybrid = o.payment_method && o.payment_method.startsWith('Hỗn hợp:');
+  const editGrabPartialEl = document.getElementById('edit-o-grab-partial');
+  const editGrabPartialFields = document.getElementById('edit-o-grab-partial-fields');
+  const editGrabCkEl = document.getElementById('edit-o-grab-ck-amount');
+  if(editGrabPartialEl) editGrabPartialEl.checked = isHybrid;
+  if(editGrabPartialFields) editGrabPartialFields.style.display = isHybrid ? 'block' : 'none';
+  if(editGrabCkEl && isHybrid){
+    const match = (o.payment_method||'').match(/CK ([\d.,]+)đ/);
+    if(match) editGrabCkEl.value = match[1].replace(/\./g,',');
+  } else if(editGrabCkEl){
+    editGrabCkEl.value = '';
+  }
+  setTimeout(()=>onEditGrabPartialChange(), 50);
 
   openModal('modal-edit-order');
 }
@@ -2330,8 +3003,18 @@ async function saveEditOrder(){
   const isNoPaymentChannel = ['Shopee','TikTok'].includes(newCommon.channel);
   const newShipFee = isNoPaymentChannel ? 0 : (parseInt((document.getElementById('edit-o-ship-fee')?.value||'0').replace(/[^\d]/g,'')) || 0);
   const editGrabCash = newCommon.channel==='Grab' && document.getElementById('edit-o-grab-cash')?.checked;
-  const editPaymentMethod = editGrabCash ? 'Tiền mặt đã thu' : (newCommon.channel==='Grab' ? 'Tiền mặt chờ thu' : 'Chuyển khoản');
+  const editGrabPartial = newCommon.channel==='Grab' && document.getElementById('edit-o-grab-partial')?.checked;
+  const editGrabCkAmount = editGrabPartial ? (parseInt((document.getElementById('edit-o-grab-ck-amount')?.value||'0').replace(/[^\d]/g,''))||0) : 0;
+  let editPaymentMethod = 'Chuyển khoản';
+  if(newCommon.channel==='Grab'){
+    if(editGrabCash) editPaymentMethod = 'Tiền mặt đã thu';
+    else if(editGrabPartial && editGrabCkAmount>0) editPaymentMethod = `Hỗn hợp: CK ${editGrabCkAmount.toLocaleString('vi-VN')}đ + tiền mặt chờ thu`;
+    else editPaymentMethod = 'Tiền mặt chờ thu';
+  }
   newCommon.payment_method = editPaymentMethod;
+  if(ALL_KOL_CHANNELS.includes(newCommon.channel)){
+    newCommon.kol_social = document.getElementById('edit-o-kol-social')?.value.trim()||'';
+  }
 
   try {
     const keptItemIds = new Set();
@@ -2610,8 +3293,8 @@ function autoParse(){
 }
 
 function toggleOrderFields(ch){
-  const noPhone = ['Shopee','TikTok','KOL','KOLThai','Tặng'];
-  const noAddr  = ['Shopee','TikTok','KOL','KOLThai','Tặng'];
+  const noPhone = ['Shopee','TikTok',...ALL_KOL_CHANNELS,'Tặng'];
+  const noAddr  = ['Shopee','TikTok',...ALL_KOL_CHANNELS,'Tặng'];
   const noMvd   = ['Grab','Tặng'];
   const noPayment = ['Shopee','TikTok']; // tiền về qua ví sàn, cập nhật ở Thu Chi cuối tháng
   const phoneWrap = document.getElementById('o-phone-wrap');
@@ -2630,13 +3313,64 @@ function toggleOrderFields(ch){
     else mvd.placeholder='Mã vận đơn...';
   }
   toggleOrderPaymentFields(noPayment.includes(ch));
+  // Hiện ô link KOL khi chọn kênh KOL
+  const kolSocialWrap = document.getElementById('o-kol-social-wrap');
+  if(kolSocialWrap) kolSocialWrap.style.display = ALL_KOL_CHANNELS.includes(ch) ? 'block' : 'none';
+  if(!ALL_KOL_CHANNELS.includes(ch)){
+    const kolSocial = document.getElementById('o-kol-social');
+    if(kolSocial) kolSocial.value = '';
+  }
+
   // Hiện checkbox "Đã nhận tiền mặt" chỉ khi chọn Grab
   const grabCashWrap = document.getElementById('o-grab-cash-wrap');
   if(grabCashWrap) grabCashWrap.style.display = (ch==='Grab') ? 'block' : 'none';
   if(ch!=='Grab'){
     const grabCash = document.getElementById('o-grab-cash');
     if(grabCash) grabCash.checked = false;
+    const grabPartial = document.getElementById('o-grab-partial');
+    if(grabPartial) grabPartial.checked = false;
+    const grabPartialFields = document.getElementById('o-grab-partial-fields');
+    if(grabPartialFields) grabPartialFields.style.display = 'none';
+    const grabCkAmount = document.getElementById('o-grab-ck-amount');
+    if(grabCkAmount) grabCkAmount.value = '';
   }
+}
+
+function onGrabPartialChange(){
+  const isPartial = document.getElementById('o-grab-partial')?.checked;
+  const fieldsEl = document.getElementById('o-grab-partial-fields');
+  if(fieldsEl) fieldsEl.style.display = isPartial ? 'block' : 'none';
+  if(!isPartial){
+    const ckEl = document.getElementById('o-grab-ck-amount');
+    if(ckEl) ckEl.value = '';
+    const remEl = document.getElementById('o-grab-remaining');
+    if(remEl) remEl.textContent = '0 đ';
+    return;
+  }
+  // Tính phần còn thu = tổng COD - số đã CK
+  const totalCOD = parseInt((document.getElementById('o-total-cod-display')?.textContent||'0').replace(/[^\d]/g,'')) || 0;
+  const ckAmt = parseInt((document.getElementById('o-grab-ck-amount')?.value||'0').replace(/[^\d]/g,'')) || 0;
+  const remaining = Math.max(0, totalCOD - ckAmt);
+  const remEl = document.getElementById('o-grab-remaining');
+  if(remEl) remEl.textContent = remaining.toLocaleString('vi-VN') + ' đ';
+}
+
+function onEditGrabPartialChange(){
+  const isPartial = document.getElementById('edit-o-grab-partial')?.checked;
+  const fieldsEl = document.getElementById('edit-o-grab-partial-fields');
+  if(fieldsEl) fieldsEl.style.display = isPartial ? 'block' : 'none';
+  if(!isPartial){
+    const ckEl = document.getElementById('edit-o-grab-ck-amount');
+    if(ckEl) ckEl.value = '';
+    const remEl = document.getElementById('edit-o-grab-remaining');
+    if(remEl) remEl.textContent = '0 đ';
+    return;
+  }
+  const totalCOD = parseInt((document.getElementById('edit-o-total-cod-display')?.textContent||'0').replace(/[^\d]/g,'')) || 0;
+  const ckAmt = parseInt((document.getElementById('edit-o-grab-ck-amount')?.value||'0').replace(/[^\d]/g,'')) || 0;
+  const remaining = Math.max(0, totalCOD - ckAmt);
+  const remEl = document.getElementById('edit-o-grab-remaining');
+  if(remEl) remEl.textContent = remaining.toLocaleString('vi-VN') + ' đ';
 }
 
 function toggleOrderPaymentFields(hide){
@@ -2652,8 +3386,8 @@ function toggleOrderPaymentFields(hide){
 }
 
 function toggleScanFields(ch){
-  const noPhone = ['Shopee','TikTok','KOL','KOLThai','Tặng'];
-  const noAddr  = ['Shopee','TikTok','KOL','KOLThai','Tặng'];
+  const noPhone = ['Shopee','TikTok',...ALL_KOL_CHANNELS,'Tặng'];
+  const noAddr  = ['Shopee','TikTok',...ALL_KOL_CHANNELS,'Tặng'];
   const noMvd   = ['Grab','Tặng'];
   const phoneWrap = document.getElementById('sc-phone-wrap');
   const addrWrap  = document.getElementById('sc-addr-wrap');
@@ -2815,7 +3549,14 @@ async function createOrder(){
   const isNoPaymentChannel = noPaymentChannels.includes(channel);
   const shipFee = isNoPaymentChannel ? 0 : (parseInt((document.getElementById('o-ship-fee')?.value||'0').replace(/[^\d]/g,'')) || 0);
   const grabCashReceived = channel==='Grab' && document.getElementById('o-grab-cash')?.checked;
-  const paymentMethod = grabCashReceived ? 'Tiền mặt đã thu' : (channel==='Grab' ? 'Tiền mặt chờ thu' : 'Chuyển khoản');
+  const grabPartial = channel==='Grab' && document.getElementById('o-grab-partial')?.checked;
+  const grabCkAmount = grabPartial ? (parseInt((document.getElementById('o-grab-ck-amount')?.value||'0').replace(/[^\d]/g,''))||0) : 0;
+  let paymentMethod = 'Chuyển khoản';
+  if(channel==='Grab'){
+    if(grabCashReceived) paymentMethod = 'Tiền mặt đã thu';
+    else if(grabPartial && grabCkAmount>0) paymentMethod = `Hỗn hợp: CK ${grabCkAmount.toLocaleString('vi-VN')}đ + tiền mặt chờ thu`;
+    else paymentMethod = 'Tiền mặt chờ thu';
+  }
 
   const stockNow = computeStock(allProducts, allTx);
   let anyOutOfStock = false;
@@ -2841,16 +3582,20 @@ async function createOrder(){
         amount_due: isNoPaymentChannel ? 0 : (item.amountDue||0),
         is_paid: isNoPaymentChannel ? false : (item.isPaid||false),
         shipping_fee: idx===0 ? shipFee : 0,
-        payment_method: paymentMethod
+        payment_method: paymentMethod,
+        kol_social: ALL_KOL_CHANNELS.includes(channel) ? (document.getElementById('o-kol-social')?.value.trim()||'') : ''
       };
       const r = await db.insertOrder(data);
       createdOrders.push(r[0]);
 
       if(!isOutOfStock){
-        await db.insertTx({date:todayStr(),type:'Xuất',product_code:item.code,product_name:data.product_name,color:prod?.color,size:prod?.size,quantity:item.qty,channel,note:'Tạo từ đơn hàng',staff});
-        // Update stock tracking ngay để các item sau trong vòng lặp tính đúng
-        const si = stockNow.find(p=>p.code===item.code);
-        if(si) si.current -= item.qty;
+        // ThaiLan/KOLThai: KHÔNG xuất kho ngay — chỉ xuất khi tick "Đã gửi"
+        const isThaiChannel = channel==='ThaiLan'||KOL_THAI_CHANNELS.includes(channel);
+        if(!isThaiChannel){
+          await db.insertTx({date:todayStr(),type:'Xuất',product_code:item.code,product_name:data.product_name,color:prod?.color,size:prod?.size,quantity:item.qty,channel,note:'Tạo từ đơn hàng',staff});
+          const si = stockNow.find(p=>p.code===item.code);
+          if(si) si.current -= item.qty;
+        }
       }
     }
 
@@ -2996,7 +3741,10 @@ function openNXKModal(type){
     const btn=document.getElementById('nxk-submit-btn');
     if(btn) btn.textContent='✓ Xác nhận nhập kho';
   } else {
-    sel.innerHTML=`<option value="GHN">📦 Đơn GHN</option><option value="Grab">🛵 Đơn Grab</option><option value="Shopee">🟠 Đơn Shopee</option><option value="TikTok">🎵 Đơn TikTok</option><option value="KOL">⭐ Gửi KOL</option><option value="ThaiLan">🇹🇭 Đơn Thái Lan</option><option value="KOLThai">⭐🇹🇭 KOL Thái Lan</option><option value="Tặng">🎁 Tặng</option>`;
+    sel.innerHTML=`<option value="GHN">📦 Đơn GHN</option><option value="Grab">🛵 Đơn Grab</option><option value="Shopee">🟠 Đơn Shopee</option><option value="TikTok">🎵 Đơn TikTok</option><option value="KOL_IG">⭐📸 KOL Instagram (VN)</option>
+            <option value="KOL_TT">🎵 KOL TikTok (VN)</option>
+            <option value="KOL_IG_THAI">⭐🇹🇭📸 KOL IG (Thái)</option>
+            <option value="KOL_TT_THAI">🎵🇹🇭 KOL TikTok (Thái)</option><option value="ThaiLan">🇹🇭 Đơn Thái Lan</option><option value="KOLThai">⭐🇹🇭 KOL Thái Lan</option><option value="Tặng">🎁 Tặng</option>`;
     document.getElementById('nxk-import-section').style.display='none';
     document.getElementById('nxk-export-section').style.display='block';
     populateProdSelect('nxk-prod', allProducts);
@@ -3684,6 +4432,11 @@ function populateProdSelect(elId, prods){
 // FINANCE (Thu Chi) — bảo vệ bằng PIN
 // ══════════════════════════════════════
 const FINANCE_PIN_KEY = 'lasilk_fin_pin';
+// KOL channel groups
+const KOL_VN_CHANNELS   = ['KOL_IG','KOL_TT'];
+const KOL_THAI_CHANNELS = ['KOL_IG_THAI','KOL_TT_THAI'];
+const ALL_KOL_CHANNELS  = [...KOL_VN_CHANNELS, ...KOL_THAI_CHANNELS];
+
 const FINANCE_UNLOCK_KEY = 'lasilk_fin_unlocked';
 let financeUnlocked = false;
 
@@ -4035,8 +4788,8 @@ function qeAutoParse(){
 }
 
 function toggleQEFields(ch){
-  const noPhone = ['Shopee','TikTok','KOL','KOLThai','Tặng'];
-  const noAddr  = ['Shopee','TikTok','KOL','KOLThai','Tặng'];
+  const noPhone = ['Shopee','TikTok',...ALL_KOL_CHANNELS,'Tặng'];
+  const noAddr  = ['Shopee','TikTok',...ALL_KOL_CHANNELS,'Tặng'];
   const noMvd   = ['Grab','Tặng'];
   const phoneWrap = document.getElementById('qe-phone-wrap');
   const addrWrap  = document.getElementById('qe-addr-wrap');
@@ -4163,6 +4916,7 @@ loadDashboard();
     });
     updateReturnsBadge(returnOrders.length);
     updateThailandBadges();
+    updateKolVNBadge();
   } catch(e){}
 })();
 </script>
