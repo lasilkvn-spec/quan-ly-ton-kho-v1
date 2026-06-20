@@ -223,7 +223,7 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
   .main{margin-left:0;padding:16px;padding-top:64px}
   .layout2{grid-template-columns:1fr}
   .metrics{grid-template-columns:repeat(3,1fr)}
-  #dash-period-metrics{grid-template-columns:repeat(3,1fr)}
+  #dash-period-metrics{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
   .page-header{flex-direction:column;align-items:flex-start;gap:8px}
   .page-header .btns{width:100%;overflow-x:auto;flex-wrap:nowrap}
   .report-grid{grid-template-columns:1fr}
@@ -393,6 +393,9 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
         <th style="padding:8px 10px;text-align:center;color:#3C3489;font-weight:600">KOL</th>
         <th style="padding:8px 10px;text-align:center;color:#712B13;font-weight:600">Shopee</th>
         <th style="padding:8px 10px;text-align:center;color:#72243E;font-weight:600">TikTok</th>
+        <th style="padding:8px 10px;text-align:center;color:#1A5C14;font-weight:600">Grab</th>
+        <th style="padding:8px 10px;text-align:center;color:#0C447C;font-weight:600">GHN</th>
+        <th style="padding:8px 10px;text-align:center;color:#1A5C14;font-weight:600">🇹🇭 Thái</th>
         <th style="padding:8px 10px;text-align:center;color:#27500A;font-weight:600">Tổng nhập</th>
       </tr></thead>
       <tbody id="dash-monthly-body"></tbody>
@@ -575,8 +578,8 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
     <div style="font-size:13px;font-weight:600;color:var(--dark)" id="kolthai-batch-label">Lô tiếp theo đang chờ gửi</div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <span id="kolthai-selected-count" style="font-size:12px;color:var(--med);display:none">Đã chọn <b id="kolthai-selected-num">0</b> đơn</span>
-      <button class="btn" style="font-size:12px" onclick="toggleSelectAllThai('KOLThai')">☐ Chọn tất cả</button>
-      <button class="btn btn-primary" style="font-size:12px" onclick="markSelectedThaiSent('KOLThai')">✓ Gửi đơn đã chọn</button>
+      <button class="btn" style="font-size:12px" onclick="toggleSelectAllThai('KOLThai_ALL')">☐ Chọn tất cả</button>
+      <button class="btn btn-primary" style="font-size:12px" onclick="markSelectedThaiSent('KOLThai_ALL')">✓ Gửi đơn đã chọn</button>
     </div>
   </div>
   <div id="kolthai-list"></div>
@@ -1337,23 +1340,25 @@ async function loadDashboard(){
     const totalIn   = inPeriod.reduce((s,t)=>s+(t.quantity||0),0);
     const chMatch = (t,kw)=>t.channel&&t.channel.toLowerCase().includes(kw);
     const sumCh = kw => outPeriod.filter(t=>chMatch(t,kw)).reduce((s,t)=>s+(t.quantity||0),0);
+    const sumChExact = (...chs) => outPeriod.filter(t=>chs.some(ch=>t.channel===ch)).reduce((s,t)=>s+(t.quantity||0),0);
 
-    // Row 1: tồn kho
+    // Row 2: period metrics
+    document.getElementById('dash-period-metrics').innerHTML = `
+      <div class="metric"><div class="metric-label" style="color:var(--red-t)">Tổng xuất</div><div class="metric-val" style="color:var(--red-t)">${totalOut}</div><div class="metric-sub">cái (đã loại đổi/trả)</div></div>
+      <div class="metric"><div class="metric-label" style="color:var(--green-t)">Tổng nhập</div><div class="metric-val" style="color:var(--green-t)">${totalIn}</div><div class="metric-sub">cái</div></div>
+      <div class="metric"><div class="metric-label" style="color:var(--teal-t)">Online</div><div class="metric-val" style="color:var(--teal-t)">${sumChExact('Online')}</div><div class="metric-sub">cái</div></div>
+      <div class="metric"><div class="metric-label" style="color:var(--purple-t)">KOL (tất cả)</div><div class="metric-val" style="color:var(--purple-t)">${sumCh('kol')}</div><div class="metric-sub">cái</div></div>
+      <div class="metric"><div class="metric-label" style="color:#712B13">Shopee</div><div class="metric-val" style="color:#712B13">${sumChExact('Shopee')}</div><div class="metric-sub">cái</div></div>
+      <div class="metric"><div class="metric-label" style="color:var(--pink-t)">TikTok</div><div class="metric-val" style="color:var(--pink-t)">${sumChExact('TikTok')}</div><div class="metric-sub">cái</div></div>
+      <div class="metric"><div class="metric-label" style="color:#1A5C14">Grab</div><div class="metric-val" style="color:#1A5C14">${sumChExact('Grab')}</div><div class="metric-sub">cái</div></div>
+      <div class="metric"><div class="metric-label" style="color:#0C447C">GHN</div><div class="metric-val" style="color:#0C447C">${sumChExact('GHN')}</div><div class="metric-sub">cái</div></div>
+      <div class="metric"><div class="metric-label" style="color:#1A5C14">🇹🇭 Thái</div><div class="metric-val" style="color:#1A5C14">${sumCh('thai')+sumCh('kol_ig_thai')+sumCh('kol_tt_thai')}</div><div class="metric-sub">cái</div></div>
+    `;
     document.getElementById('dash-metrics').innerHTML = `
       <div class="metric"><div class="metric-label">Tổng tồn kho</div><div class="metric-val">${stockData.reduce((s,p)=>s+Math.max(0,p.current),0)}</div><div class="metric-sub">cái còn lại</div></div>
       <div class="metric"><div class="metric-label" style="color:var(--amber-t)">Sắp hết (≤5)</div><div class="metric-val" style="color:var(--amber-t)">${stockData.filter(p=>p.current>0&&p.current<=5).length}</div><div class="metric-sub">loại SP</div></div>
       <div class="metric"><div class="metric-label" style="color:var(--red-t)">Hết hàng</div><div class="metric-val" style="color:var(--red-t)">${stockData.filter(p=>p.current<=0).length}</div><div class="metric-sub">loại cần nhập</div></div>
       <div class="metric"><div class="metric-label">Loại đang có hàng</div><div class="metric-val">${stockData.filter(p=>p.current>0).length}</div><div class="metric-sub">/ ${stockData.length} loại</div></div>
-    `;
-
-    // Row 2: period metrics
-    document.getElementById('dash-period-metrics').innerHTML = `
-      <div class="metric"><div class="metric-label" style="color:var(--red-t)">Tổng xuất</div><div class="metric-val" style="color:var(--red-t)">${totalOut}</div><div class="metric-sub">cái</div></div>
-      <div class="metric"><div class="metric-label" style="color:var(--green-t)">Tổng nhập</div><div class="metric-val" style="color:var(--green-t)">${totalIn}</div><div class="metric-sub">cái</div></div>
-      <div class="metric"><div class="metric-label" style="color:var(--teal-t)">Online</div><div class="metric-val" style="color:var(--teal-t)">${sumCh('online')}</div><div class="metric-sub">cái</div></div>
-      <div class="metric"><div class="metric-label" style="color:var(--purple-t)">KOL</div><div class="metric-val" style="color:var(--purple-t)">${sumCh('kol')}</div><div class="metric-sub">cái</div></div>
-      <div class="metric"><div class="metric-label" style="color:#712B13">Shopee</div><div class="metric-val" style="color:#712B13">${sumCh('shoppe')}</div><div class="metric-sub">cái</div></div>
-      <div class="metric"><div class="metric-label" style="color:var(--pink-t)">TikTok</div><div class="metric-val" style="color:var(--pink-t)">${sumCh('tiktok')}</div><div class="metric-sub">cái</div></div>
     `;
 
     // Channels chart
@@ -1400,22 +1405,28 @@ async function loadDashboard(){
     // Monthly table for selected year
     const MONTHS = ['T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11','T12'];
     const txYear = txs.filter(t=>new Date(t.date||t.created_at).getFullYear()===filterYear);
-    let totalRow = {out:0,online:0,kol:0,shopee:0,tiktok:0,inp:0};
+    const isReturnTx2b = t => (t.note||'').includes('không tính doanh số');
+    let totalRow = {out:0,online:0,kol:0,shopee:0,tiktok:0,grab:0,ghn:0,thai:0,inp:0};
     const tbody = document.getElementById('dash-monthly-body');
     if(tbody) {
       tbody.innerHTML = MONTHS.map((mn,i)=>{
         const m=i+1;
         const mTx=txYear.filter(t=>new Date(t.date||t.created_at).getMonth()+1===m);
-        const mOut=mTx.filter(t=>t.type==='Xuất');
-        const mIn=mTx.filter(t=>t.type==='Nhập');
+        // Loại trừ đổi/trả khỏi tổng xuất (giống outPeriod ở trên)
+        const mOut=mTx.filter(t=>t.type==='Xuất' && !isReturnTx2b(t));
+        const mIn=mTx.filter(t=>t.type==='Nhập' && !isReturnTx2b(t));
         const out=mOut.reduce((s,t)=>s+(t.quantity||0),0);
         const online=mOut.filter(t=>chMatch(t,'online')).reduce((s,t)=>s+(t.quantity||0),0);
         const kol=mOut.filter(t=>chMatch(t,'kol')).reduce((s,t)=>s+(t.quantity||0),0);
-        const shopee=mOut.filter(t=>chMatch(t,'shoppe')).reduce((s,t)=>s+(t.quantity||0),0);
+        const shopee=mOut.filter(t=>chMatch(t,'shopee')||chMatch(t,'shoppe')).reduce((s,t)=>s+(t.quantity||0),0);
         const tiktok=mOut.filter(t=>chMatch(t,'tiktok')).reduce((s,t)=>s+(t.quantity||0),0);
+        const grab=mOut.filter(t=>chMatch(t,'grab')).reduce((s,t)=>s+(t.quantity||0),0);
+        const ghn=mOut.filter(t=>chMatch(t,'ghn')).reduce((s,t)=>s+(t.quantity||0),0);
+        const thai=mOut.filter(t=>chMatch(t,'thai')||chMatch(t,'kol_thai')||chMatch(t,'kol_ig_thai')||chMatch(t,'kol_tt_thai')).reduce((s,t)=>s+(t.quantity||0),0);
         const inp=mIn.reduce((s,t)=>s+(t.quantity||0),0);
         totalRow.out+=out; totalRow.online+=online; totalRow.kol+=kol;
-        totalRow.shopee+=shopee; totalRow.tiktok+=tiktok; totalRow.inp+=inp;
+        totalRow.shopee+=shopee; totalRow.tiktok+=tiktok; totalRow.grab+=grab;
+        totalRow.ghn+=ghn; totalRow.thai+=thai; totalRow.inp+=inp;
         const isCurr=m===filterMonth&&filterYear===now.getFullYear();
         return `<tr style="${isCurr?'background:#F7F3EB;font-weight:600':''}">
           <td style="padding:8px 10px;border-bottom:1px solid var(--bg);font-size:12px">${mn}${isCurr?' ◀':''}</td>
@@ -1424,6 +1435,9 @@ async function loadDashboard(){
           <td style="padding:8px 10px;border-bottom:1px solid var(--bg);text-align:center;font-size:12px;color:#3C3489">${kol||'—'}</td>
           <td style="padding:8px 10px;border-bottom:1px solid var(--bg);text-align:center;font-size:12px;color:#712B13">${shopee||'—'}</td>
           <td style="padding:8px 10px;border-bottom:1px solid var(--bg);text-align:center;font-size:12px;color:#72243E">${tiktok||'—'}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid var(--bg);text-align:center;font-size:12px;color:#1A5C14">${grab||'—'}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid var(--bg);text-align:center;font-size:12px;color:#0C447C">${ghn||'—'}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid var(--bg);text-align:center;font-size:12px;color:#1A5C14">${thai||'—'}</td>
           <td style="padding:8px 10px;border-bottom:1px solid var(--bg);text-align:center;font-size:12px;color:#27500A">${inp||'—'}</td>
         </tr>`;
       }).join('') + `<tr style="background:var(--dark);color:#F7F3EB;font-weight:600">
@@ -1433,6 +1447,9 @@ async function loadDashboard(){
         <td style="padding:8px 10px;text-align:center">${totalRow.kol}</td>
         <td style="padding:8px 10px;text-align:center">${totalRow.shopee}</td>
         <td style="padding:8px 10px;text-align:center">${totalRow.tiktok}</td>
+        <td style="padding:8px 10px;text-align:center">${totalRow.grab}</td>
+        <td style="padding:8px 10px;text-align:center">${totalRow.ghn}</td>
+        <td style="padding:8px 10px;text-align:center">${totalRow.thai}</td>
         <td style="padding:8px 10px;text-align:center">${totalRow.inp}</td>
       </tr>`;
     }
@@ -2461,8 +2478,11 @@ function onThaiCheckChange(prefix){
 
 function toggleSelectAllThai(channel){
   const prefix = channel==='ThaiLan'?'thai':'kolthai';
-  const checks = document.querySelectorAll(`input[data-channel="${channel}"][type=checkbox]`);
-  const allChecked = [...checks].every(c=>c.checked);
+  // KOLThai_ALL: chọn tất cả checkbox của cả 2 kênh Thai
+  const checks = channel==='KOLThai_ALL'
+    ? [...document.querySelectorAll('input[type=checkbox][data-channel]')].filter(c=>KOL_THAI_CHANNELS.includes(c.dataset.channel))
+    : [...document.querySelectorAll(`input[data-channel="${channel}"][type=checkbox]`)];
+  const allChecked = checks.every(c=>c.checked);
   checks.forEach(c=>c.checked=!allChecked);
   const btn = document.getElementById(`${prefix}-select-all-btn`);
   if(btn) btn.textContent = allChecked?'☐ Chọn tất cả':'☑ Bỏ chọn tất cả';
@@ -2474,10 +2494,113 @@ async function markSelectedThaiSent(channel){
   const checks = [...document.querySelectorAll('input[type=checkbox][data-channel]')].filter(c=>c.checked && (channel==='KOLThai_ALL' ? KOL_THAI_CHANNELS.includes(c.dataset.channel) : c.dataset.channel===channel));
   if(!checks.length){ toast('Chưa chọn đơn nào', true); return; }
   const codes = checks.map(c=>c.dataset.orderCode);
-  if(!confirm(`Gửi ${codes.length} đơn đã chọn?\nTồn kho sẽ được trừ ngay sau khi xác nhận.`)) return;
+  if(!confirm(`Gửi ${codes.length} đơn đã chọn?\nTồn kho sẽ được trừ ngay sau khi xác nhận.\n\nSau khi gửi, cửa sổ in tem sẽ tự mở.`)) return;
   for(const code of codes){
     await markThaiOrderSent(code);
   }
+  // Mở cửa sổ in tem cho các đơn vừa gửi
+  printThaiLabels(codes);
+}
+
+function printThaiLabels(orderCodes){
+  const orders = orderCodes.map(code=>{
+    const items = allOrders.filter(o=>o.order_code===code);
+    if(!items.length) return null;
+    const o = items[0];
+    const prodLines = items.map(i=>i.product_name||'—').join(', ');
+    const totalQty = items.reduce((s,i)=>s+(i.quantity||0),0);
+    return {order_code:code, customer_name:o.customer_name||'—', phone:o.phone||'', address:o.address||'', social:o.kol_social||'', product:prodLines, qty:totalQty, date:fmtDate(o.date||todayStr()), channel:o.channel};
+  }).filter(Boolean);
+
+  if(!orders.length){ toast('Không có đơn nào để in', true); return; }
+
+  const labelHtml = orders.map(o=>`
+  <div class="label">
+    <div class="label-brand">
+      <div>
+        <div class="brand-name">LàSilk</div>
+        <div class="brand-tagline">VIETNAM · 0364000709</div>
+        <div class="brand-tagline">MÃ KH: W3417</div>
+      </div>
+      <div class="qty-badge">× ${o.qty}</div>
+    </div>
+    <div class="label-section">
+      <div class="label-section-title">Người nhận</div>
+      <div class="label-value lg">${o.customer_name}</div>
+      <div class="label-phone">${o.phone||'—'}</div>
+      ${o.social?`<div class="label-social">📱 ${o.social}</div>`:''}
+    </div>
+    ${o.address?`<div class="label-section">
+      <div class="label-section-title">Địa chỉ</div>
+      <div class="label-addr">${o.address}</div>
+    </div>`:`<div class="label-section">
+      <div class="label-section-title">Địa chỉ</div>
+      <div class="label-addr" style="color:#aaa;font-style:italic">Chưa nhập địa chỉ</div>
+    </div>`}
+    <hr class="label-divider">
+    <div class="label-section">
+      <div class="label-section-title">Sản phẩm</div>
+      <div class="label-prod-box">
+        <div class="label-prod-name">${o.product}</div>
+      </div>
+    </div>
+    <div class="label-footer">
+      <div class="label-order">${o.order_code} · ${o.date}</div>
+      <div class="label-channel">${o.channel||''}</div>
+    </div>
+  </div>`).join('');
+
+  const printWin = window.open('','_blank','width=900,height=700');
+  printWin.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>In tem — ${orders.length} đơn</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Arial',sans-serif;background:#fff}
+    @media print{
+      body{margin:0}
+      .label{page-break-after:always;margin:0 !important}
+      .label:last-child{page-break-after:avoid}
+      .no-print{display:none}
+    }
+    .no-print{text-align:center;padding:16px;background:#f5f5f5;font-family:Arial,sans-serif;font-size:13px;color:#333;border-bottom:1px solid #ddd}
+    .no-print button{padding:8px 20px;background:#2A211C;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;margin-left:10px}
+    .label{
+      width:75mm;height:100mm;
+      border:0.5px solid #999;
+      padding:5mm 5mm 4mm;
+      display:flex;flex-direction:column;
+      font-family:Arial,sans-serif;
+      color:#111;
+      margin:4mm auto;
+    }
+    .label-brand{display:flex;align-items:center;justify-content:space-between;border-bottom:1.5px solid #111;padding-bottom:3mm;margin-bottom:3mm}
+    .brand-name{font-size:11pt;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+    .brand-tagline{font-size:6pt;color:#555;letter-spacing:.5px;text-transform:uppercase;margin-top:1px}
+    .label-section{margin-bottom:2.5mm}
+    .label-section-title{font-size:5.5pt;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#777;margin-bottom:1.5mm}
+    .label-value{font-size:10.5pt;font-weight:700;color:#111;line-height:1.3}
+    .label-value.lg{font-size:12pt}
+    .label-phone{font-size:9pt;color:#333;margin-top:1mm}
+    .label-social{font-size:8pt;color:#555;margin-top:1mm}
+    .label-addr{font-size:8pt;color:#333;line-height:1.5}
+    .label-divider{border:none;border-top:0.5px dashed #bbb;margin:2mm 0}
+    .label-prod-box{background:#f0f0f0;border-radius:2mm;padding:2mm 3mm}
+    .label-prod-name{font-size:9pt;font-weight:700;color:#111;line-height:1.4}
+    .qty-badge{background:#111;color:#fff;font-size:8pt;font-weight:700;padding:1.5mm 3mm;border-radius:1.5mm}
+    .label-footer{margin-top:auto;border-top:0.5px solid #ddd;padding-top:2mm;display:flex;justify-content:space-between;align-items:center}
+    .label-order{font-size:7pt;color:#777;font-family:monospace}
+    .label-channel{font-size:7pt;color:#999}
+  </style></head><body>
+  <div class="no-print">
+    <div style="margin-bottom:8px;font-size:13px;color:#333">📋 <b>${orders.length} tem</b> sẵn sàng — khổ 75×100mm</div>
+    <div style="font-size:12px;color:#666;margin-bottom:10px">
+      💾 Muốn <b>lưu PDF</b>: Bấm "In ngay" → chọn máy in là <b>"Save as PDF"</b> (hoặc "Microsoft Print to PDF")
+    </div>
+    <button onclick="window.print()" style="padding:8px 20px;background:#2A211C;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">🖨️ In ngay / Lưu PDF</button>
+    <button onclick="window.close()" style="background:#666;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;margin-left:8px">Đóng</button>
+  </div>
+  ${labelHtml}
+  </body></html>`);
+  printWin.document.close();
 }
 
 async function markThailandBatchSent(){
