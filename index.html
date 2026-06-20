@@ -295,6 +295,10 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
       <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg>
       Tồn kho
     </div>
+    <div class="nav-item" data-page="forecast" onclick="goPage('forecast',this)">
+      <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+      Dự báo đặt hàng
+    </div>
     <div class="nav-section">Phân tích</div>
     <div class="nav-item" data-page="report" onclick="goPage('report',this)">
       <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
@@ -697,6 +701,69 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
     <table>
       <thead><tr><th>Ảnh</th><th>Mã SP</th><th>Tên sản phẩm</th><th>Màu sắc</th><th>Size</th><th>Tồn đầu kỳ</th><th>Tổng nhập</th><th>Tổng xuất</th><th>Tồn hiện tại</th><th>Trạng thái</th></tr></thead>
       <tbody id="stock-body"><tr><td colspan="9"><div class="loading"><div class="spinner"></div> Đang tải...</div></td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══ DỰ BÁO ĐẶT HÀNG ══ -->
+<div id="page-forecast" class="page">
+  <div class="page-header">
+    <div><div class="page-title">📊 Dự báo đặt hàng</div><div class="page-sub">Tự động tính tốc độ bán + dự báo hết kho</div></div>
+    <div class="btns">
+      <select id="forecast-period" onchange="renderForecast()" style="padding:6px 10px;border:0.5px solid var(--border);border-radius:8px;font-size:12px;background:var(--card);color:var(--dark)">
+        <option value="7">7 ngày</option>
+        <option value="30" selected>30 ngày</option>
+        <option value="60">60 ngày</option>
+      </select>
+      <button class="btn" onclick="loadForecast()">↺ Làm mới</button>
+    </div>
+  </div>
+
+  <!-- Alert đặt ngay -->
+  <div id="forecast-alerts"></div>
+
+  <!-- Metrics tổng quan -->
+  <div class="metrics" id="forecast-metrics" style="margin-bottom:20px"></div>
+
+  <!-- Bảng phân tích -->
+  <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--med);margin-bottom:8px">Phân tích theo sản phẩm & size</div>
+  <div class="table-wrap" style="margin-bottom:20px">
+    <table class="table" id="forecast-table">
+      <thead><tr>
+        <th>Sản phẩm · Size</th>
+        <th>Tồn kho</th>
+        <th style="text-align:center">Đã bán</th>
+        <th style="text-align:center">% trong kỳ</th>
+        <th style="text-align:center">Tốc độ/ngày</th>
+        <th style="text-align:center">Hết sau</th>
+        <th style="text-align:center">Trạng thái</th>
+      </tr></thead>
+      <tbody id="forecast-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- Bảng đặt hàng -->
+  <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--med);margin-bottom:8px">Kế hoạch đặt hàng — lead time 14 ngày</div>
+  <div class="table-wrap">
+    <table class="table" id="order-plan-table">
+      <thead><tr>
+        <th>Sản phẩm · Size</th>
+        <th style="text-align:center">Tồn kho</th>
+        <th style="text-align:center">Tốc độ/ngày</th>
+        <th style="text-align:center">Hết sau</th>
+        <th style="text-align:center;color:#0C447C">Gợi ý đặt</th>
+        <th style="text-align:center;color:#0C447C">Số muốn đặt</th>
+        <th style="text-align:center">Tổng sau đặt</th>
+        <th style="text-align:center">Đủ thêm</th>
+      </tr></thead>
+      <tbody id="order-tbody"></tbody>
+      <tfoot><tr id="order-tfoot" style="background:var(--dark);color:#F7F3EB;font-weight:600">
+        <td style="padding:9px 12px">Tổng</td>
+        <td></td><td></td><td></td><td></td>
+        <td style="text-align:center;padding:9px 12px" id="grand-order-qty">—</td>
+        <td style="text-align:center;padding:9px 12px" id="grand-total-qty">—</td>
+        <td></td>
+      </tr></tfoot>
     </table>
   </div>
 </div>
@@ -1281,6 +1348,7 @@ function goPage(name, el){
   else if(name==='orders') loadOrders();
   else if(name==='nxk') loadNXK();
   else if(name==='stock') loadStock();
+  else if(name==='forecast') loadForecast();
   else if(name==='report') loadReport();
   else if(name==='qr') loadQR();
   else if(name==='products') loadProducts();
@@ -2520,33 +2588,28 @@ function printThaiLabels(orderCodes){
       <div>
         <div class="brand-name">LàSilk</div>
         <div class="brand-tagline">VIETNAM · 0364000709</div>
-        <div style="font-size:9pt;font-weight:700;letter-spacing:1px;margin-top:2px">MÃ KH: W3417</div>
+        <div class="brand-code">MÃ KH: W3417</div>
       </div>
       <div class="qty-badge">× ${o.qty}</div>
     </div>
-    <div class="label-section">
-      <div class="label-section-title">Người nhận</div>
-      <div class="label-value lg">${o.customer_name}</div>
-      <div class="label-phone">${o.phone||'—'}</div>
-      ${o.social?`<div class="label-social">📱 ${o.social}</div>`:''}
+    <div style="margin-bottom:1.5mm">
+      <div class="lbl-title">Người nhận</div>
+      <div class="lbl-name">${o.customer_name}</div>
+      <div class="lbl-phone">${o.phone||'—'}</div>
+      ${o.social?`<div class="lbl-social">📱 ${o.social}</div>`:''}
     </div>
-    ${o.address?`<div class="label-section">
-      <div class="label-section-title">Địa chỉ</div>
-      <div class="label-addr">${o.address}</div>
-    </div>`:`<div class="label-section">
-      <div class="label-section-title">Địa chỉ</div>
-      <div class="label-addr" style="color:#aaa;font-style:italic">Chưa nhập địa chỉ</div>
-    </div>`}
-    <hr class="label-divider">
-    <div class="label-section">
-      <div class="label-section-title">Sản phẩm</div>
-      <div class="label-prod-box">
-        <div class="label-prod-name">${o.product}</div>
-      </div>
+    <div style="margin-bottom:1mm">
+      <div class="lbl-title">Địa chỉ</div>
+      <div class="lbl-addr">${o.address||'<em style="color:#bbb">Chưa nhập</em>'}</div>
     </div>
-    <div class="label-footer">
-      <div class="label-order">${o.order_code} · ${o.date}</div>
-      <div class="label-channel">${o.channel||''}</div>
+    <div class="lbl-divider"></div>
+    <div style="margin-bottom:auto">
+      <div class="lbl-title">Sản phẩm</div>
+      <div class="lbl-prod-box"><div class="lbl-prod-name">${o.product}</div></div>
+    </div>
+    <div class="lbl-footer">
+      <div class="lbl-order">${o.order_code} · ${o.date}</div>
+      <div class="lbl-channel">${o.channel||''}</div>
     </div>
   </div>`).join('');
 
@@ -2554,49 +2617,61 @@ function printThaiLabels(orderCodes){
   printWin.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>In tem — ${orders.length} đơn</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:'Arial',sans-serif;background:#fff}
+    @page{size:75mm 100mm;margin:0mm}
+    html,body{width:75mm;background:#fff;font-family:Arial,sans-serif}
     @media print{
-      body{margin:0}
-      .label{page-break-after:always;margin:0 !important}
+      .no-print{display:none !important}
+      .label{
+        width:75mm !important;
+        height:100mm !important;
+        margin:0 !important;
+        padding:4mm !important;
+        page-break-after:always;
+        page-break-inside:avoid;
+        border:none !important;
+      }
       .label:last-child{page-break-after:avoid}
-      .no-print{display:none}
     }
-    .no-print{text-align:center;padding:16px;background:#f5f5f5;font-family:Arial,sans-serif;font-size:13px;color:#333;border-bottom:1px solid #ddd}
-    .no-print button{padding:8px 20px;background:#2A211C;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;margin-left:10px}
+    @media screen{
+      body{background:#e0e0e0;padding:10mm}
+      .label{margin:5mm auto;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+    }
+    .no-print{text-align:center;padding:12px;background:#f5f5f5;font-size:13px;color:#333;border-bottom:1px solid #ddd;margin-bottom:5mm}
+    .no-print button{padding:7px 18px;background:#2A211C;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;margin-left:8px}
     .label{
-      width:75mm;height:100mm;
-      border:0.5px solid #999;
-      padding:5mm 5mm 4mm;
-      display:flex;flex-direction:column;
+      width:75mm;
+      height:100mm;
+      border:0.5px solid #bbb;
+      padding:4mm;
+      display:flex;
+      flex-direction:column;
       font-family:Arial,sans-serif;
       color:#111;
-      margin:4mm auto;
+      overflow:hidden;
+      background:#fff;
     }
-    .label-brand{display:flex;align-items:center;justify-content:space-between;border-bottom:1.5px solid #111;padding-bottom:3mm;margin-bottom:3mm}
-    .brand-name{font-size:11pt;font-weight:700;letter-spacing:1px;text-transform:uppercase}
-    .brand-tagline{font-size:6pt;color:#555;letter-spacing:.5px;text-transform:uppercase;margin-top:1px}
-    .label-section{margin-bottom:2.5mm}
-    .label-section-title{font-size:5.5pt;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#777;margin-bottom:1.5mm}
-    .label-value{font-size:10.5pt;font-weight:700;color:#111;line-height:1.3}
-    .label-value.lg{font-size:12pt}
-    .label-phone{font-size:9pt;color:#333;margin-top:1mm}
-    .label-social{font-size:8pt;color:#555;margin-top:1mm}
-    .label-addr{font-size:8pt;color:#333;line-height:1.5}
-    .label-divider{border:none;border-top:0.5px dashed #bbb;margin:2mm 0}
-    .label-prod-box{background:#f0f0f0;border-radius:2mm;padding:2mm 3mm}
-    .label-prod-name{font-size:9pt;font-weight:700;color:#111;line-height:1.4}
-    .qty-badge{background:#111;color:#fff;font-size:8pt;font-weight:700;padding:1.5mm 3mm;border-radius:1.5mm}
-    .label-footer{margin-top:auto;border-top:0.5px solid #ddd;padding-top:2mm;display:flex;justify-content:space-between;align-items:center}
-    .label-order{font-size:7pt;color:#777;font-family:monospace}
-    .label-channel{font-size:7pt;color:#999}
+    .label-brand{display:flex;align-items:flex-start;justify-content:space-between;border-bottom:1px solid #222;padding-bottom:2mm;margin-bottom:2.5mm}
+    .brand-name{font-size:8.5pt;font-weight:700;letter-spacing:.5px;text-transform:uppercase;line-height:1.2}
+    .brand-tagline{font-size:5pt;color:#666;text-transform:uppercase;margin-top:.5mm;letter-spacing:.3px}
+    .brand-code{font-size:6.5pt;font-weight:700;margin-top:.5mm}
+    .qty-badge{background:#111;color:#fff;font-size:7pt;font-weight:700;padding:1mm 2.5mm;border-radius:1mm;white-space:nowrap;flex-shrink:0;margin-left:3mm;margin-top:1mm}
+    .lbl-title{font-size:4.5pt;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#888;margin-bottom:1mm}
+    .lbl-name{font-size:10pt;font-weight:700;color:#111;line-height:1.15;margin-bottom:.8mm}
+    .lbl-phone{font-size:7pt;color:#333;margin-bottom:.5mm}
+    .lbl-social{font-size:6.5pt;color:#555}
+    .lbl-addr{font-size:6pt;color:#333;line-height:1.45}
+    .lbl-divider{border:none;border-top:0.5px dashed #ccc;margin:2mm 0}
+    .lbl-prod-box{background:#f2f2f2;border-radius:1mm;padding:1.5mm 2.5mm;flex:1}
+    .lbl-prod-name{font-size:8pt;font-weight:700;color:#111;line-height:1.3}
+    .lbl-footer{margin-top:auto;border-top:0.5px solid #ddd;padding-top:1.5mm;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+    .lbl-order{font-size:5.5pt;color:#888;font-family:monospace}
+    .lbl-channel{font-size:5.5pt;color:#aaa}
   </style></head><body>
   <div class="no-print">
-    <div style="margin-bottom:8px;font-size:13px;color:#333">📋 <b>${orders.length} tem</b> sẵn sàng — khổ 75×100mm</div>
-    <div style="font-size:12px;color:#666;margin-bottom:10px">
-      💾 Muốn <b>lưu PDF</b>: Bấm "In ngay" → chọn máy in là <b>"Save as PDF"</b> (hoặc "Microsoft Print to PDF")
-    </div>
-    <button onclick="window.print()" style="padding:8px 20px;background:#2A211C;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">🖨️ In ngay / Lưu PDF</button>
-    <button onclick="window.close()" style="background:#666;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;margin-left:8px">Đóng</button>
+    <div style="margin-bottom:6px;font-size:13px;color:#333">📋 <b>${orders.length} tem</b> — khổ 75×100mm, mỗi tem 1 tờ</div>
+    <div style="font-size:11px;color:#666;margin-bottom:8px">💾 Lưu PDF: In ngay → máy in chọn <b>"Save as PDF"</b> → khổ giấy đặt <b>Custom: 75×100mm</b></div>
+    <button onclick="window.print()">🖨️ In ngay / Lưu PDF</button>
+    <button onclick="window.close()" style="background:#666;margin-left:6px">Đóng</button>
   </div>
   ${labelHtml}
   </body></html>`);
@@ -4060,6 +4135,163 @@ async function confirmNxkDelete(txId){
 }
 
 // ── STOCK ──
+// ══════════════════════════════════════
+// DỰ BÁO ĐẶT HÀNG
+// ══════════════════════════════════════
+const LEAD_TIME = 14; // ngày lead time
+const BUFFER_DAYS = 30; // buffer tồn kho sau khi nhập
+
+async function loadForecast(){
+  try {
+    const [prods, txs] = await Promise.all([db.products(), db.transactions()]);
+    allProducts = prods; allTx = txs;
+    stockData = computeStock(prods, txs);
+    renderForecast();
+  } catch(e){ toast('Lỗi: '+e.message, true); }
+}
+
+function renderForecast(){
+  const period = parseInt(document.getElementById('forecast-period')?.value||'30');
+  const now = new Date();
+  const cutoff = new Date(now); cutoff.setDate(cutoff.getDate()-period);
+
+  // Lọc tx xuất trong kỳ (bỏ đổi/trả)
+  const isReturn = t=>(t.note||'').includes('không tính doanh số');
+  const outTx = allTx.filter(t=>{
+    if(t.type!=='Xuất'||isReturn(t)) return false;
+    const d = new Date(t.date||t.created_at);
+    return d >= cutoff && d <= now;
+  });
+
+  // Tổng bán kỳ
+  const totalSold = outTx.reduce((s,t)=>s+(t.quantity||0),0);
+  const totalStock = stockData.reduce((s,p)=>s+Math.max(0,p.current),0);
+  const avgPerDay = totalSold/period;
+
+  // Metrics
+  const metricsEl = document.getElementById('forecast-metrics');
+  if(metricsEl) metricsEl.innerHTML = `
+    <div class="metric"><div class="metric-label">Bán trong ${period} ngày</div><div class="metric-val">${totalSold}</div><div class="metric-sub">cái</div></div>
+    <div class="metric"><div class="metric-label">Tốc độ / ngày</div><div class="metric-val" style="color:var(--amber-t)">${avgPerDay.toFixed(1)}</div><div class="metric-sub">cái/ngày</div></div>
+    <div class="metric"><div class="metric-label">Tồn kho hiện tại</div><div class="metric-val" style="color:var(--green-t)">${totalStock}</div><div class="metric-sub">cái</div></div>
+    <div class="metric"><div class="metric-label">Hết kho sau (TB)</div><div class="metric-val" style="color:${avgPerDay>0&&totalStock/avgPerDay<LEAD_TIME*2?'var(--red-t)':'var(--dark)'}">${avgPerDay>0?Math.round(totalStock/avgPerDay)+'ng':'—'}</div><div class="metric-sub">nếu không nhập</div></div>
+  `;
+
+  // Nhóm theo product_code
+  const byCode = {};
+  outTx.forEach(t=>{
+    const k = t.product_code;
+    if(!k) return;
+    byCode[k] = (byCode[k]||0)+(t.quantity||0);
+  });
+
+  // Build rows
+  const rows = stockData.map(p=>{
+    const sold = byCode[p.code]||0;
+    const pct = totalSold>0 ? Math.round(sold/totalSold*100) : 0;
+    const spd = sold/period;
+    const stock = Math.max(0,p.current);
+    const daysLeft = spd>0 ? Math.round(stock/spd) : 999;
+    // Gợi ý đặt: đủ để bán LEAD_TIME + BUFFER_DAYS ngày
+    const need = Math.ceil(spd*(LEAD_TIME+BUFFER_DAYS));
+    const suggest = Math.max(0, need - stock);
+    return {code:p.code, name:p.name, color:p.color, size:p.size, sold, pct, spd, stock, daysLeft, suggest, need};
+  }).filter(r=>r.sold>0||r.stock>0).sort((a,b)=>b.sold-a.sold);
+
+  // Alerts
+  const urgent = rows.filter(r=>r.daysLeft<=LEAD_TIME && r.spd>0);
+  const alertEl = document.getElementById('forecast-alerts');
+  if(alertEl){
+    alertEl.innerHTML = urgent.length ? `
+      <div style="background:#FCEBEB;border:0.5px solid #F09595;border-radius:10px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;gap:10px">
+        <div style="font-size:18px">⚠️</div>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:#791F1F">${urgent.length} size cần đặt hàng ngay!</div>
+          <div style="font-size:12px;color:#A32D2D;margin-top:2px">${urgent.map(r=>`${r.name} ${r.size} (còn ${r.daysLeft} ngày)`).join(' · ')}</div>
+        </div>
+      </div>` : `<div style="background:#EAF3DE;border:0.5px solid #C0DD97;border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#27500A">✅ Tồn kho ổn — không có size nào cần đặt gấp trong ${LEAD_TIME} ngày tới</div>`;
+  }
+
+  // Bảng phân tích
+  const tbody = document.getElementById('forecast-tbody');
+  if(tbody) tbody.innerHTML = rows.map(r=>{
+    const pctBar = `<div style="display:flex;align-items:center;gap:6px">
+      <span style="min-width:30px;font-size:11px">${r.pct}%</span>
+      <div style="height:5px;border-radius:3px;background:var(--border);overflow:hidden;width:50px">
+        <div style="height:100%;width:${r.pct}%;background:#2A211C;border-radius:3px"></div>
+      </div></div>`;
+    const statusBadge = r.spd===0 ? `<span class="pill" style="background:var(--bg);color:var(--med);font-size:10px">Không bán</span>`
+      : r.daysLeft<=LEAD_TIME ? `<span class="pill" style="background:#FCEBEB;color:#791F1F;font-size:10px">⚠️ Đặt ngay!</span>`
+      : r.daysLeft<=LEAD_TIME+14 ? `<span class="pill" style="background:#FAEEDA;color:#633806;font-size:10px">Sắp cần</span>`
+      : `<span class="pill" style="background:#EAF3DE;color:#27500A;font-size:10px">Ổn</span>`;
+    const daysStr = r.spd>0 ? `<span class="pill" style="font-size:10px;${r.daysLeft<=LEAD_TIME?'background:#FCEBEB;color:#791F1F':r.daysLeft<=LEAD_TIME+14?'background:#FAEEDA;color:#633806':'background:#EAF3DE;color:#27500A'}">${r.daysLeft} ngày</span>` : `<span style="color:var(--med);font-size:11px">—</span>`;
+    return `<tr>
+      <td style="font-weight:500">${r.name} · <span style="color:var(--med)">${r.size||''}</span></td>
+      <td>${r.stock}</td>
+      <td style="text-align:center">${r.sold}</td>
+      <td style="text-align:center">${pctBar}</td>
+      <td style="text-align:center;color:var(--med)">${r.spd>0?r.spd.toFixed(1):'-'}</td>
+      <td style="text-align:center">${daysStr}</td>
+      <td style="text-align:center">${statusBadge}</td>
+    </tr>`;
+  }).join('');
+
+  // Bảng đặt hàng
+  const orderRows = rows.filter(r=>r.spd>0);
+  const orderTbody = document.getElementById('order-tbody');
+  if(orderTbody) orderTbody.innerHTML = orderRows.map(r=>{
+    const daysStr = `<span class="pill" style="font-size:10px;${r.daysLeft<=LEAD_TIME?'background:#FCEBEB;color:#791F1F':r.daysLeft<=LEAD_TIME+14?'background:#FAEEDA;color:#633806':'background:#EAF3DE;color:#27500A'}">${r.daysLeft} ngày</span>`;
+    const suggestStr = r.suggest>0 ? `<span style="color:#0C447C;font-weight:500">+${r.suggest}</span>` : `<span style="color:var(--med);font-size:11px">Chưa cần</span>`;
+    const safeCode = r.code.replace(/[^a-z0-9]/gi,'_');
+    return `<tr>
+      <td style="font-weight:500">${r.name} · <span style="color:var(--med)">${r.size||''}</span></td>
+      <td style="text-align:center">${r.stock}</td>
+      <td style="text-align:center;color:var(--med)">${r.spd.toFixed(1)}</td>
+      <td style="text-align:center">${daysStr}</td>
+      <td style="text-align:center">${suggestStr}</td>
+      <td style="text-align:center">
+        <input type="number" min="0" value="${r.suggest}" data-stock="${r.stock}" data-spd="${r.spd.toFixed(2)}"
+          id="fc-ord-${safeCode}"
+          oninput="updateForecastRow('${safeCode}',${r.stock},${r.spd.toFixed(2)},this.value)"
+          style="width:64px;padding:4px 6px;border:1.5px solid #378ADD;border-radius:6px;font-size:12px;text-align:center;background:#E6F1FB;color:#0C447C;font-weight:500">
+      </td>
+      <td style="text-align:center;font-weight:500" id="fc-tot-${safeCode}" style="color:#27500A">${r.stock+r.suggest}</td>
+      <td style="text-align:center;font-size:11px;color:var(--med)" id="fc-days-${safeCode}">${r.spd>0?Math.round((r.stock+r.suggest)/r.spd)+' ngày':'—'}</td>
+    </tr>`;
+  }).join('');
+
+  updateForecastGrand(orderRows);
+}
+
+function updateForecastRow(safeCode, stock, spd, orderVal){
+  const o = parseInt(orderVal)||0;
+  const tot = stock+o;
+  const totEl = document.getElementById('fc-tot-'+safeCode);
+  const daysEl = document.getElementById('fc-days-'+safeCode);
+  if(totEl){ totEl.textContent=tot; totEl.style.color=tot<stock?'var(--red-t)':tot>stock?'#27500A':'var(--dark)'; }
+  if(daysEl) daysEl.textContent = spd>0?Math.round(tot/spd)+' ngày':'—';
+  // Recalc grand total
+  let totalOrd=0, totalTot=0;
+  document.querySelectorAll('#order-tbody input[type=number]').forEach(inp=>{
+    const s=parseInt(inp.dataset.stock||0);
+    const v=parseInt(inp.value)||0;
+    totalOrd+=v; totalTot+=s+v;
+  });
+  const go=document.getElementById('grand-order-qty');
+  const gt=document.getElementById('grand-total-qty');
+  if(go) go.textContent=totalOrd+' cái';
+  if(gt) gt.textContent=totalTot+' cái';
+}
+
+function updateForecastGrand(rows){
+  let totalOrd=0, totalTot=0;
+  rows.forEach(r=>{ totalOrd+=r.suggest; totalTot+=r.stock+r.suggest; });
+  const go=document.getElementById('grand-order-qty');
+  const gt=document.getElementById('grand-total-qty');
+  if(go) go.textContent=totalOrd+' cái';
+  if(gt) gt.textContent=totalTot+' cái';
+}
+
 async function loadStock(){
   try {
     const [prods, txs] = await Promise.all([db.products(), db.transactions()]);
