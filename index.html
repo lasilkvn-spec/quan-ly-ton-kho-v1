@@ -3533,8 +3533,8 @@ async function saveEditOrder(){
     for(const row of rows){
       const newCode = row.querySelector('.edit-o-prod-select').value;
       const newQty = parseInt(row.querySelector('.edit-o-prod-qty').value) || 1;
-      const isPaid = isNoPaymentChannel ? false : row.querySelector('.edit-o-prod-paid').checked;
-      const amountDue = isNoPaymentChannel ? 0 : (isPaid ? 0 : (parseInt((row.querySelector('.edit-o-prod-amount').value||'0').replace(/[^\d]/g,'')) || 0));
+      const isPaid = isNoPaymentChannel ? false : (editGrabPartial ? false : row.querySelector('.edit-o-prod-paid').checked);
+      const amountDue = isNoPaymentChannel ? 0 : (editGrabPartial && rowIdx===0 ? editGrabCashRemain : (isPaid ? 0 : (parseInt((row.querySelector('.edit-o-prod-amount').value||'0').replace(/[^\d]/g,'')) || 0)));
       const origItemId = row.dataset.origItemId ? parseInt(row.dataset.origItemId) : null;
       const origCode = row.dataset.origCode;
       const origQty = parseInt(row.dataset.origQty) || 0;
@@ -3855,14 +3855,8 @@ function onGrabPartialChange(){
     if(ckEl) ckEl.value = '';
     const remEl = document.getElementById('o-grab-remaining');
     if(remEl) remEl.value = '';
-    return;
   }
-  // Tính phần còn thu = tổng COD - số đã CK (tự điền, vẫn gõ đè được)
-  const totalCOD = parseInt((document.getElementById('o-total-cod-display')?.textContent||'0').replace(/[^\d]/g,'')) || 0;
-  const ckAmt = parseInt((document.getElementById('o-grab-ck-amount')?.value||'0').replace(/[^\d]/g,'')) || 0;
-  const remaining = Math.max(0, totalCOD - ckAmt);
-  const remEl = document.getElementById('o-grab-remaining');
-  if(remEl) remEl.value = remaining.toLocaleString('vi-VN');
+  // "Shipper còn thu mặt" là ô nhập tay — KHÔNG tự tính đè lên số đã gõ
 }
 
 function onEditGrabPartialChange(){
@@ -3874,13 +3868,8 @@ function onEditGrabPartialChange(){
     if(ckEl) ckEl.value = '';
     const remEl = document.getElementById('edit-o-grab-remaining');
     if(remEl) remEl.value = '';
-    return;
   }
-  const totalCOD = parseInt((document.getElementById('edit-o-total-cod-display')?.textContent||'0').replace(/[^\d]/g,'')) || 0;
-  const ckAmt = parseInt((document.getElementById('edit-o-grab-ck-amount')?.value||'0').replace(/[^\d]/g,'')) || 0;
-  const remaining = Math.max(0, totalCOD - ckAmt);
-  const remEl = document.getElementById('edit-o-grab-remaining');
-  if(remEl) remEl.value = remaining.toLocaleString('vi-VN');
+  // "Shipper còn thu mặt" là ô nhập tay — KHÔNG tự tính đè lên số đã gõ
 }
 
 function toggleOrderPaymentFields(hide){
@@ -4091,8 +4080,8 @@ async function createOrder(){
         product_name: prod?`${prod.name} ${prod.size} · ${prod.color}`:'—',
         quantity: item.qty, channel, tracking_code: trackingCode,
         staff, note, status,
-        amount_due: isNoPaymentChannel ? 0 : (item.amountDue||0),
-        is_paid: isNoPaymentChannel ? false : (item.isPaid||false),
+        amount_due: isNoPaymentChannel ? 0 : (grabPartial ? (idx===0 ? grabCashRemain : 0) : (item.amountDue||0)),
+        is_paid: isNoPaymentChannel ? false : (grabPartial ? false : (item.isPaid||false)),
         shipping_fee: idx===0 ? shipFee : 0,
         payment_method: paymentMethod,
         kol_social: ALL_KOL_CHANNELS.includes(channel) ? (document.getElementById('o-kol-social')?.value.trim()||'') : ''
