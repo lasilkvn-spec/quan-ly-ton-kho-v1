@@ -429,18 +429,20 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
   <div class="metrics">
     <div class="metric" onclick="filterOrderStatus('')"><div class="metric-label">Tất cả hôm nay</div><div class="metric-val" id="o-all">—</div></div>
     <div class="metric" onclick="filterOrderStatus('Nợ hàng')" style="border-color:#3C3489"><div class="metric-label" style="color:#3C3489">📦 Nợ hàng</div><div class="metric-val" style="color:#3C3489" id="o-debt">—</div></div>
-    <div class="metric" onclick="filterOrderStatus('Chờ lấy')"><div class="metric-label" style="color:var(--amber-t)">Chờ lấy hàng</div><div class="metric-val" id="o-wait" style="color:var(--amber-t)">—</div></div>
-    <div class="metric" onclick="filterOrderStatus('Đang giao')"><div class="metric-label" style="color:var(--blue-t)">Đang giao</div><div class="metric-val" id="o-ship" style="color:var(--blue-t)">—</div></div>
-    <div class="metric" onclick="filterOrderStatus('Đã giao')"><div class="metric-label" style="color:var(--green-t)">Đã giao xong</div><div class="metric-val" id="o-done" style="color:var(--green-t)">—</div></div>
-    <div class="metric" onclick="filterOrderStatus('Hoàn hàng')"><div class="metric-label" style="color:var(--red-t)">Hoàn hàng</div><div class="metric-val" id="o-ret" style="color:var(--red-t)">—</div></div>
+    <div class="metric" onclick="filterOrderStatus('Đi đơn')"><div class="metric-label" style="color:var(--blue-t)">🚚 Đi đơn hôm nay</div><div class="metric-val" id="o-godon" style="color:var(--blue-t)">—</div></div>
   </div>
   <div class="toolbar">
     <div class="search-wrap"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg><input class="search-input" id="order-search" placeholder="Tìm tên, SĐT, mã vận đơn..." oninput="renderOrders()"></div>
-    <span class="chip on" data-os="" onclick="filterOrderStatus('')">Tất cả</span>
-    <span class="chip" data-os="Nợ hàng" onclick="filterOrderStatus('Nợ hàng')">📦 Nợ hàng</span>
-    <span class="chip" data-os="Chờ lấy" onclick="filterOrderStatus('Chờ lấy')">Chờ lấy</span>
-    <span class="chip" data-os="Đang giao" onclick="filterOrderStatus('Đang giao')">Đang giao</span>
-    <span class="chip" data-os="Đã giao" onclick="filterOrderStatus('Đã giao')">Đã xong</span>
+    <span class="chip on" data-ch="" onclick="filterOrderChannel('')">Tất cả</span>
+    <span class="chip" data-ch="Online" onclick="filterOrderChannel('Online')">Online</span>
+    <span class="chip" data-ch="GHN" onclick="filterOrderChannel('GHN')">GHN</span>
+    <span class="chip" data-ch="Grab" onclick="filterOrderChannel('Grab')">Grab</span>
+    <span class="chip" data-ch="Shopee" onclick="filterOrderChannel('Shopee')">Shopee</span>
+    <span class="chip" data-ch="TikTok" onclick="filterOrderChannel('TikTok')">TikTok</span>
+    <span class="chip" data-ch="KOL VN" onclick="filterOrderChannel('KOL VN')">KOL VN</span>
+    <span class="chip" data-ch="KOL Thái" onclick="filterOrderChannel('KOL Thái')">KOL Thái</span>
+    <span class="chip" data-ch="Thái Lan" onclick="filterOrderChannel('Thái Lan')">Thái Lan</span>
+    <span class="chip" data-ch="Tặng" onclick="filterOrderChannel('Tặng')">Tặng</span>
   </div>
   <div class="layout2">
     <div class="table-wrap">
@@ -740,21 +742,22 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
     <div style="font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--med);margin-bottom:6px">Phân tích theo size</div>
     <div class="table-wrap" style="margin-bottom:20px">
       <table class="table"><thead><tr>
-        <th>Sản phẩm · Size</th><th style="text-align:center">Đã bán</th><th>% trong kỳ</th>
+        <th>Sản phẩm · màu · size</th><th style="text-align:center">Đã bán</th><th>% trong kỳ</th>
         <th style="text-align:center">Tốc độ/ngày</th><th style="text-align:center">Tồn kho</th>
+        <th style="text-align:center;color:var(--blue-t)">Đang về</th>
         <th style="text-align:center">Hết sau</th><th style="text-align:center">Trạng thái</th>
       </tr></thead><tbody id="forecast-tbody"></tbody></table>
     </div>
     <div style="font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--med);margin-bottom:6px">Kế hoạch đặt hàng</div>
     <div class="table-wrap" style="margin-bottom:14px">
       <table class="table"><thead><tr>
-        <th>Sản phẩm · Size</th><th style="text-align:center">Tồn</th><th style="text-align:center">Tốc độ/ngày</th>
+        <th>Sản phẩm · màu · size</th><th style="text-align:center">Tồn</th><th style="text-align:center;color:var(--blue-t)">Đang về</th><th style="text-align:center">Tốc độ/ngày</th>
         <th style="text-align:center">Hết sau</th><th style="text-align:center;color:#0C447C">Gợi ý</th>
         <th style="text-align:center;color:#0C447C">Số muốn đặt</th><th style="text-align:center">Sau đặt</th><th style="text-align:center">Đủ thêm</th>
       </tr></thead>
       <tbody id="order-tbody"></tbody>
       <tfoot><tr style="background:var(--dark);color:#F7F3EB;font-weight:600">
-        <td style="padding:9px 12px">Tổng</td><td></td><td></td><td></td><td></td>
+        <td style="padding:9px 12px">Tổng</td><td></td><td></td><td></td><td></td><td></td>
         <td style="text-align:center;padding:9px 12px" id="grand-order-qty">—</td>
         <td style="text-align:center;padding:9px 12px" id="grand-total-qty">—</td><td></td>
       </tr></tfoot></table>
@@ -1408,7 +1411,7 @@ const db = {
 
 // ── STATE ──
 let allProducts=[], allTx=[], allOrders=[], stockData=[];
-let orderStatusFilter='', nxkTypeFilter='', stockFilter='';
+let orderStatusFilter='', orderChannelFilter='', nxkTypeFilter='', stockFilter='';
 let selectedOrderCode=null, scanSelectedProd=null;
 
 // ── UTILS ──
@@ -1416,7 +1419,14 @@ function fmtDate(d){ if(!d)return'—'; const dt=new Date(d); return`${String(dt
 function fmtDateShort(d){ if(!d)return'—'; const dt=new Date(d); return`${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`; }
 function todayStr(){ const d=new Date(); return d.toISOString().split('T')[0]; }
 function initials(n){ return (n||'?').split(' ').slice(-2).map(w=>w[0]).join('').toUpperCase().slice(0,2); }
-function pillSt(s){ const m={'Chờ lấy':'p-wait','Đang giao':'p-ship','Đã giao':'p-done','Hoàn hàng':'p-ret','Nợ hàng':'p-no-hang'}; return`<span class="pill ${m[s]||'p-wait'}">${s||'—'}</span>`; }
+function normStatus(s){ return s==='Nợ hàng' ? 'Nợ hàng' : 'Đi đơn'; }
+function channelMatch(ch, key){
+  if(key==='KOL VN') return KOL_VN_CHANNELS.includes(ch);
+  if(key==='KOL Thái') return KOL_THAI_CHANNELS.includes(ch) || ch==='KOLThai';
+  if(key==='Thái Lan') return ch==='ThaiLan';
+  return ch===key;
+}
+function pillSt(s){ const n=normStatus(s); const m={'Nợ hàng':'p-no-hang','Đi đơn':'p-ship'}; return`<span class="pill ${m[n]}">${n}</span>`; }
 function pillCh(c){
   const labels={'KOL_IG':'⭐📸 KOL IG','KOL_TT':'🎵 KOL TikTok','KOL_IG_THAI':'⭐🇹🇭📸 KOL IG Thái','KOL_TT_THAI':'🎵🇹🇭 KOL TikTok Thái'};
   const m={Online:'p-online',Shopee:'p-shopee',TikTok:'p-tiktok',KOL_IG:'p-kol',KOL_TT:'p-kol',KOL_IG_THAI:'p-kol',KOL_TT_THAI:'p-kol',ThaiLan:'p-thai','Tặng':'p-tang','Grab':'p-ship','GHN':'p-blue','Hàng mới về':'p-in','Hàng trả về':'p-in'};
@@ -1620,7 +1630,7 @@ async function shpConfirm(){
       const out=cur<it.qty; if(out) outCount++;
       orderRows.push({order_code:lb.order_code, date:isoFromVN(lb.date), customer_name:'(Shopee)', phone:'', address:'',
         product_code:it.code, product_name:pname, quantity:it.qty, channel:'Shopee', tracking_code:lb.tracking,
-        staff:'Shopee PDF', note:'Nhập từ PDF Shopee', status: out?'Nợ hàng':'Chờ lấy',
+        staff:'Shopee PDF', note:'Nhập từ PDF Shopee', status: out?'Nợ hàng':'Đi đơn',
         amount_due:0, is_paid:false, shipping_fee:idx===0?0:0, payment_method:'Chuyển khoản'});
       if(!out){ txRows.push({date:isoFromVN(lb.date), type:'Xuất', product_code:it.code, product_name:pname, color:prod?.color, size:prod?.size, quantity:it.qty, channel:'Shopee', note:'Xuất từ PDF Shopee '+lb.tracking, staff:'Shopee PDF'}); if(si) si.current-=it.qty; }
       if(!it.fromMap) newMaps[shpNorm(it.shopee_name)]={shopee_name:it.shopee_name, product_code:it.code, product_name:it.matchedName||pname};
@@ -1768,7 +1778,7 @@ async function loadDashboard(){
       </div>`).join('') : '<div style="color:var(--med);font-size:12px;padding:10px 0">Tất cả sản phẩm còn đủ hàng 🟢</div>';
 
     // Today orders
-    const todayPending = todayOrders.filter(o=>o.status==='Chờ lấy');
+    const todayPending = todayOrders.filter(o=>o.status!=='Nợ hàng');
     document.getElementById('dash-orders').innerHTML = todayPending.length ? todayPending.slice(0,5).map(o=>`
       <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--bg)">
         <div><div style="font-size:12px;font-weight:500">${o.customer_name||'—'}</div><div style="font-size:11px;color:var(--med)">${o.product_name||'—'}</div></div>
@@ -1864,17 +1874,15 @@ function renderOrders(){
   const tod=grouped.filter(o=>o.date===today);
   document.getElementById('o-all').textContent=tod.length;
   document.getElementById('o-debt').textContent=grouped.filter(o=>o.status==='Nợ hàng').length;
-  document.getElementById('o-wait').textContent=tod.filter(o=>o.status==='Chờ lấy').length;
-  document.getElementById('o-ship').textContent=tod.filter(o=>o.status==='Đang giao').length;
-  document.getElementById('o-done').textContent=tod.filter(o=>o.status==='Đã giao').length;
-  document.getElementById('o-ret').textContent=tod.filter(o=>o.status==='Hoàn hàng').length;
+  document.getElementById('o-godon').textContent=tod.filter(o=>o.status!=='Nợ hàng').length;
   document.getElementById('orders-sub').textContent=`Hôm nay ${fmtDate(new Date())} · ${tod.length} đơn`;
 
   const filtered=grouped.filter(o=>{
     const itemNames = o.items.map(i=>i.product_name).join(' ');
     const mq=!q||[o.customer_name,o.phone,o.tracking_code,itemNames].some(v=>v&&v.toLowerCase().includes(q.toLowerCase()));
-    const ms=!orderStatusFilter||o.status===orderStatusFilter;
-    return mq&&ms;
+    const ms=!orderStatusFilter||normStatus(o.status)===orderStatusFilter;
+    const mc=!orderChannelFilter||channelMatch(o.channel,orderChannelFilter);
+    return mq&&ms&&mc;
   });
 
   const body=document.getElementById('orders-body');
@@ -1949,14 +1957,19 @@ function selectOrder(orderCode){
     <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--bg)">
       <div style="font-size:12px;font-weight:500;color:var(--med);margin-bottom:8px">Cập nhật trạng thái (áp dụng cho cả đơn)</div>
       <select onchange="updateOrderStatus('${orderCode}',this.value)" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--dark);background:var(--card)">
-        ${['Nợ hàng','Chờ lấy','Đang giao','Đã giao','Hoàn hàng'].map(s=>`<option${s===groupStatus?' selected':''}>${s}</option>`).join('')}
+        ${['Nợ hàng','Đi đơn'].map(s=>`<option${s===normStatus(groupStatus)?' selected':''}>${s}</option>`).join('')}
       </select>
     </div>`;
 }
 
 function filterOrderStatus(s){
   orderStatusFilter=orderStatusFilter===s?'':s;
-  document.querySelectorAll('[data-os]').forEach(c=>c.classList.toggle('on',c.dataset.os===orderStatusFilter));
+  renderOrders();
+}
+
+function filterOrderChannel(ch){
+  orderChannelFilter=orderChannelFilter===ch?'':ch;
+  document.querySelectorAll('[data-ch]').forEach(c=>c.classList.toggle('on',c.dataset.ch===orderChannelFilter));
   renderOrders();
 }
 
@@ -4071,7 +4084,7 @@ async function createOrder(){
       const currentStock = stockItem ? stockItem.current : 0;
       const isOutOfStock = currentStock < item.qty;
       if(isOutOfStock) anyOutOfStock = true;
-      const status = isOutOfStock ? 'Nợ hàng' : 'Chờ lấy';
+      const status = isOutOfStock ? 'Nợ hàng' : 'Đi đơn';
 
       const data = {
         order_code: orderCode,
@@ -4448,6 +4461,7 @@ const BUFFER_DAYS = 30;
 let forecastPeriod = 30;
 let forecastProdFilter = null;
 let forecastMode = 'sales';
+let forecastIncoming = {};
 let allPOs = [];
 let allPOItems = [];
 
@@ -4770,9 +4784,17 @@ function setForecastMode(mode,btn){
 
 async function loadForecast(){
   try {
-    const [prods, txs] = await Promise.all([db.products(), db.transactions()]);
+    const [prods, txs, pos, poItems] = await Promise.all([db.products(), db.transactions(), dbPO.getPOs(), dbPO.getPOItems()]);
     allProducts = prods; allTx = txs;
     stockData = computeStock(prods, txs);
+    // Hàng đang về = (đã đặt − đã nhận) của các lô NCC chưa Hoàn tất
+    const activePo = new Set((pos||[]).filter(p=>p.status!=='Hoàn tất').map(p=>String(p.id)));
+    forecastIncoming = {};
+    (poItems||[]).forEach(it=>{
+      if(!activePo.has(String(it.po_id))) return;
+      const remain = (it.quantity_ordered||0) - (it.quantity_received||0);
+      if(remain>0) forecastIncoming[it.product_code] = (forecastIncoming[it.product_code]||0) + remain;
+    });
     renderForecast();
   } catch(e){ toast('Lỗi: '+e.message, true); }
 }
@@ -4849,11 +4871,12 @@ function renderForecast(){
     const pct = totalSold>0?Math.round(sold/totalSold*100):0;
     const spd = sold/period;
     const stock = Math.max(0,p.current);
-    const daysLeft = spd>0?Math.round(stock/spd):999;
+    const incoming = forecastIncoming[p.code]||0;
+    const daysLeft = spd>0?Math.round((stock+incoming)/spd):999;
     const need = Math.ceil(spd*(LEAD_TIME+BUFFER_DAYS));
-    const suggest = Math.max(0,need-stock);
-    return {code:p.code, name:p.name, color:p.color, size:p.size, sold, pct, spd, stock, daysLeft, suggest};
-  }).filter(r=>r.sold>0||r.stock>0).sort((a,b)=>b.sold-a.sold);
+    const suggest = Math.max(0,need-stock-incoming);
+    return {code:p.code, name:p.name, color:p.color, size:p.size, sold, pct, spd, stock, incoming, daysLeft, need, suggest};
+  }).filter(r=>r.sold>0||r.stock>0||r.incoming>0).sort((a,b)=>b.sold-a.sold);
 
   // Product names for chips & cards
   const prodNames = [...new Set(allRows.map(r=>r.name))];
@@ -4883,7 +4906,7 @@ function renderForecast(){
         <span style="font-size:18px;flex-shrink:0">⚠️</span>
         <div>
           <div style="font-size:13px;font-weight:600;color:#791F1F">${urgent.length} size cần đặt ngay — hết trước khi hàng kịp về!</div>
-          <div style="font-size:12px;color:#A32D2D;margin-top:2px">${urgent.map(r=>`${r.name} ${r.size} (còn ${r.daysLeft} ngày)`).join(' · ')}</div>
+          <div style="font-size:12px;color:#A32D2D;margin-top:2px">${urgent.map(r=>`${r.name} ${r.color||''} ${r.size} (còn ${r.daysLeft} ngày)`).join(' · ')}</div>
         </div></div>`
     : `<div style="background:#EAF3DE;border:0.5px solid #C0DD97;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#27500A">✅ Tồn kho ổn — không có size nào cần đặt gấp trong ${LEAD_TIME} ngày tới</div>`;
 
@@ -4898,10 +4921,15 @@ function renderForecast(){
     : days<=LEAD_TIME?`<span class="pill" style="background:#FCEBEB;color:#791F1F;font-size:10px">⚠️ Đặt ngay!</span>`
     : days<=LEAD_TIME+14?`<span class="pill" style="background:#FAEEDA;color:#633806;font-size:10px">Sắp cần</span>`
     : `<span class="pill" style="background:#EAF3DE;color:#27500A;font-size:10px">Ổn</span>`;
+  const statusBadgeRow = (r) => {
+    if(r.spd===0 && r.incoming===0) return `<span class="pill" style="background:var(--bg);color:var(--med);font-size:10px">Không bán</span>`;
+    if(r.incoming>0 && r.suggest===0) return `<span class="pill" style="background:#E6F1FB;color:#0C447C;font-size:10px">📦 Đã đặt NCC</span>`;
+    return statusBadge(r.daysLeft, r.spd);
+  };
 
   const tbody = document.getElementById('forecast-tbody');
   if(tbody) tbody.innerHTML = rows.map(r=>`<tr>
-    <td style="font-weight:500">${r.name} · <span style="color:var(--med)">${r.size||''}</span></td>
+    <td style="font-weight:500">${r.name} · <span style="font-size:11px;background:var(--bg);border-radius:5px;padding:1px 6px;color:var(--med)">${r.color||'—'}</span> · <span style="color:var(--med)">${r.size||''}</span></td>
     <td style="text-align:center">${r.sold}</td>
     <td><div style="display:flex;align-items:center;gap:5px">
       <span style="min-width:28px;font-size:11px">${r.pct}%</span>
@@ -4910,8 +4938,9 @@ function renderForecast(){
       </div></div></td>
     <td style="text-align:center;color:var(--med)">${r.spd>0?r.spd.toFixed(1):'—'}</td>
     <td style="text-align:center">${r.stock}</td>
+    <td style="text-align:center">${r.incoming>0?`<span style="color:var(--blue-t);font-weight:500">+${r.incoming}</span>`:`<span style="color:var(--med);font-size:11px">—</span>`}</td>
     <td style="text-align:center">${dayBadge(r.daysLeft,r.spd)}</td>
-    <td style="text-align:center">${statusBadge(r.daysLeft,r.spd)}</td>
+    <td style="text-align:center">${statusBadgeRow(r)}</td>
   </tr>`).join('');
 
   // Bảng đặt hàng
@@ -4922,8 +4951,9 @@ function renderForecast(){
     const afterOrder = r.stock+r.suggest;
     const extraDays = r.spd>0?Math.round(r.suggest/r.spd):0;
     return `<tr>
-      <td style="font-weight:500">${r.name} · <span style="color:var(--med)">${r.size||''}</span></td>
+      <td style="font-weight:500">${r.name} · <span style="font-size:11px;background:var(--bg);border-radius:5px;padding:1px 6px;color:var(--med)">${r.color||'—'}</span> · <span style="color:var(--med)">${r.size||''}</span></td>
       <td style="text-align:center">${r.stock}</td>
+      <td style="text-align:center">${r.incoming>0?`<span style="color:var(--blue-t);font-weight:500">+${r.incoming}</span>`:`<span style="color:var(--med);font-size:11px">—</span>`}</td>
       <td style="text-align:center;color:var(--med)">${r.spd.toFixed(1)}</td>
       <td style="text-align:center">${dayBadge(r.daysLeft,r.spd)}</td>
       <td style="text-align:center">${r.suggest>0?`<span style="color:#0C447C;font-weight:500">+${r.suggest}</span>`:`<span style="color:var(--med);font-size:11px">Chưa cần</span>`}</td>
@@ -5475,7 +5505,7 @@ async function confirmScan(){
     const orderCode=`DH${Date.now().toString().slice(-6)}`;
     await Promise.all([
       db.insertTx({date:todayStr(),type:'Xuất',product_code:p.code,product_name:`${p.name} ${p.size} · ${p.color}`,color:p.color,size:p.size,quantity:qty,channel,note:'Quét QR',staff}),
-      db.insertOrder({order_code:orderCode,date:todayStr(),customer_name:cust,phone,address:addr,product_code:p.code,product_name:`${p.name} ${p.size} · ${p.color}`,quantity:qty,channel,tracking_code:mvd,staff,status:'Chờ lấy',note:'Tạo qua quét QR'})
+      db.insertOrder({order_code:orderCode,date:todayStr(),customer_name:cust,phone,address:addr,product_code:p.code,product_name:`${p.name} ${p.size} · ${p.color}`,quantity:qty,channel,tracking_code:mvd,staff,status:'Đi đơn',note:'Tạo qua quét QR'})
     ]);
     closeModal('modal-scan'); resetScan();
     toast(`Xuất ${qty}× ${p.code} · Đơn ${orderCode} đã tạo`);
@@ -5887,7 +5917,7 @@ async function qeSaveAndNext(){
   const stockItem = stockNow.find(p=>p.code===prodCode);
   const currentStock = stockItem ? stockItem.current : 0;
   const isOutOfStock = currentStock < qty;
-  const initialStatus = isOutOfStock ? 'Nợ hàng' : 'Chờ lấy';
+  const initialStatus = isOutOfStock ? 'Nợ hàng' : 'Đi đơn';
 
   const data = {
     order_code: `DH${Date.now().toString().slice(-6)}`,
