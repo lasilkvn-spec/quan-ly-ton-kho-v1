@@ -236,6 +236,7 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
   .toast{left:12px;right:12px;bottom:12px;justify-content:center}
 }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
 
@@ -261,6 +262,10 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
     <div class="nav-item" data-page="orders" onclick="goPage('orders',this)">
       <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0-.504-1.125 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z"/></svg>
       Quản lý đơn hàng
+    </div>
+    <div class="nav-item" data-page="shopee" onclick="goPage('shopee',this)">
+      <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"/></svg>
+      Nhập Shopee (PDF)
     </div>
     <div class="nav-item" data-page="debt" onclick="goPage('debt',this)" style="position:relative">
       <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 15.75h.008v.008H12v-.008z"/></svg>
@@ -708,63 +713,108 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
 <!-- ══ DỰ BÁO ĐẶT HÀNG ══ -->
 <div id="page-forecast" class="page">
   <div class="page-header">
-    <div><div class="page-title">📊 Dự báo đặt hàng</div><div class="page-sub">Tự động tính tốc độ bán + dự báo hết kho</div></div>
-    <div class="btns">
-      <select id="forecast-period" onchange="renderForecast()" style="padding:6px 10px;border:0.5px solid var(--border);border-radius:8px;font-size:12px;background:var(--card);color:var(--dark)">
-        <option value="7">7 ngày</option>
-        <option value="30" selected>30 ngày</option>
-        <option value="60">60 ngày</option>
-      </select>
-      <button class="btn" onclick="loadForecast()">↺ Làm mới</button>
+    <div><div class="page-title">📊 Dự báo & Đặt hàng</div><div class="page-sub">Tốc độ bán · dự báo hết kho · theo dõi lô hàng NCC</div></div>
+    <div class="btns"><button class="btn" onclick="loadForecast()">↺ Làm mới</button></div>
+  </div>
+  <div style="display:flex;gap:0;border-bottom:1.5px solid var(--border);margin-bottom:16px">
+    <div id="ftab-forecast" onclick="switchForecastTab('forecast')" style="padding:9px 20px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:2.5px solid #2A211C;margin-bottom:-1.5px;color:var(--dark)">📈 Dự báo tồn kho</div>
+    <div id="ftab-po" onclick="switchForecastTab('po')" style="padding:9px 20px;font-size:13px;cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-1.5px;color:var(--med)">📦 Đơn đặt hàng NCC <span id="po-badge" style="display:none;background:#3C3489;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:4px"></span></div>
+  </div>
+
+  <div id="ftab-content-forecast">
+    <div id="forecast-alerts"></div>
+    <div class="metrics" id="forecast-metrics" style="margin-bottom:14px"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+      <div style="display:flex;gap:4px" id="forecast-period-tabs">
+        <button class="btn" data-p="7" onclick="setForecastPeriod(this)">7 ngày</button>
+        <button class="btn" data-p="30" onclick="setForecastPeriod(this)" style="background:var(--dark);color:#F7F3EB;border-color:var(--dark)">30 ngày</button>
+        <button class="btn" data-p="60" onclick="setForecastPeriod(this)">60 ngày</button>
+      </div>
+      <div style="font-size:11px;color:var(--med)">Lead time: <b style="color:var(--dark)">14 ngày</b> · Buffer: <b style="color:var(--dark)">30 ngày</b></div>
     </div>
-  </div>
-
-  <!-- Alert đặt ngay -->
-  <div id="forecast-alerts"></div>
-
-  <!-- Metrics tổng quan -->
-  <div class="metrics" id="forecast-metrics" style="margin-bottom:20px"></div>
-
-  <!-- Bảng phân tích -->
-  <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--med);margin-bottom:8px">Phân tích theo sản phẩm & size</div>
-  <div class="table-wrap" style="margin-bottom:20px">
-    <table class="table" id="forecast-table">
-      <thead><tr>
-        <th>Sản phẩm · Size</th>
-        <th>Tồn kho</th>
-        <th style="text-align:center">Đã bán</th>
-        <th style="text-align:center">% trong kỳ</th>
-        <th style="text-align:center">Tốc độ/ngày</th>
-        <th style="text-align:center">Hết sau</th>
-        <th style="text-align:center">Trạng thái</th>
-      </tr></thead>
-      <tbody id="forecast-tbody"></tbody>
-    </table>
-  </div>
-
-  <!-- Bảng đặt hàng -->
-  <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--med);margin-bottom:8px">Kế hoạch đặt hàng — lead time 14 ngày</div>
-  <div class="table-wrap">
-    <table class="table" id="order-plan-table">
-      <thead><tr>
-        <th>Sản phẩm · Size</th>
-        <th style="text-align:center">Tồn kho</th>
-        <th style="text-align:center">Tốc độ/ngày</th>
-        <th style="text-align:center">Hết sau</th>
-        <th style="text-align:center;color:#0C447C">Gợi ý đặt</th>
-        <th style="text-align:center;color:#0C447C">Số muốn đặt</th>
-        <th style="text-align:center">Tổng sau đặt</th>
-        <th style="text-align:center">Đủ thêm</th>
+    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap" id="forecast-mode-tabs">
+      <button onclick="setForecastMode('sales',this)" style="padding:6px 14px;border-radius:8px;font-size:12px;cursor:pointer;border:1.5px solid var(--dark);background:var(--dark);color:#F7F3EB">🛒 Chỉ tính bán thật (trừ KOL & Tặng)</button>
+      <button onclick="setForecastMode('all',this)" style="padding:6px 14px;border-radius:8px;font-size:12px;cursor:pointer;border:0.5px solid var(--border);background:var(--card);color:var(--med)">📦 Tính tất cả (gồm KOL & Tặng)</button>
+    </div>
+    <div id="forecast-prod-chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
+    <div style="font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--med);margin-bottom:6px">Phân tích theo size</div>
+    <div class="table-wrap" style="margin-bottom:20px">
+      <table class="table"><thead><tr>
+        <th>Sản phẩm · Size</th><th style="text-align:center">Đã bán</th><th>% trong kỳ</th>
+        <th style="text-align:center">Tốc độ/ngày</th><th style="text-align:center">Tồn kho</th>
+        <th style="text-align:center">Hết sau</th><th style="text-align:center">Trạng thái</th>
+      </tr></thead><tbody id="forecast-tbody"></tbody></table>
+    </div>
+    <div style="font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--med);margin-bottom:6px">Kế hoạch đặt hàng</div>
+    <div class="table-wrap" style="margin-bottom:14px">
+      <table class="table"><thead><tr>
+        <th>Sản phẩm · Size</th><th style="text-align:center">Tồn</th><th style="text-align:center">Tốc độ/ngày</th>
+        <th style="text-align:center">Hết sau</th><th style="text-align:center;color:#0C447C">Gợi ý</th>
+        <th style="text-align:center;color:#0C447C">Số muốn đặt</th><th style="text-align:center">Sau đặt</th><th style="text-align:center">Đủ thêm</th>
       </tr></thead>
       <tbody id="order-tbody"></tbody>
-      <tfoot><tr id="order-tfoot" style="background:var(--dark);color:#F7F3EB;font-weight:600">
-        <td style="padding:9px 12px">Tổng</td>
-        <td></td><td></td><td></td><td></td>
+      <tfoot><tr style="background:var(--dark);color:#F7F3EB;font-weight:600">
+        <td style="padding:9px 12px">Tổng</td><td></td><td></td><td></td><td></td>
         <td style="text-align:center;padding:9px 12px" id="grand-order-qty">—</td>
-        <td style="text-align:center;padding:9px 12px" id="grand-total-qty">—</td>
-        <td></td>
-      </tr></tfoot>
-    </table>
+        <td style="text-align:center;padding:9px 12px" id="grand-total-qty">—</td><td></td>
+      </tr></tfoot></table>
+    </div>
+    <div style="background:#E6F1FB;border:0.5px solid #B5D4F4;border-radius:10px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:20px">
+      <div style="font-size:12.5px;color:#0C447C">Đã điền số cần đặt? Tạo lô đặt hàng NCC để theo dõi khi nào hàng về</div>
+      <button onclick="createPOFromForecast()" style="padding:6px 14px;border-radius:7px;background:#0C447C;color:#fff;border:none;font-size:12px;cursor:pointer;white-space:nowrap">Tạo lô đặt hàng →</button>
+    </div>
+    <div style="font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--med);margin-bottom:8px">Tổng quan theo sản phẩm</div>
+    <div id="forecast-prod-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px"></div>
+  </div>
+
+  <div id="ftab-content-po" style="display:none">
+    <div class="metrics" id="po-metrics" style="margin-bottom:14px"></div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+      <button class="btn btn-primary" onclick="openCreatePO()">+ Tạo lô đặt hàng mới</button>
+    </div>
+    <div id="po-pending-section"></div>
+    <div id="po-partial-section"></div>
+    <div id="po-done-section"></div>
+  </div>
+</div>
+
+<!-- Modal PO -->
+<div class="modal-overlay" id="modal-po">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title" id="modal-po-title">📦 Tạo lô đặt hàng <span class="modal-close" onclick="closeModal('modal-po')">×</span></div>
+    <input type="hidden" id="po-edit-id">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div class="field" style="margin:0"><label>Mã lô *</label><input id="po-code" placeholder="VD: PO-001"></div>
+      <div class="field" style="margin:0"><label>Ngày đặt *</label><input id="po-date" type="date"></div>
+      <div class="field" style="margin:0"><label>Dự kiến về</label><input id="po-expected" type="date"></div>
+      <div class="field" style="margin:0"><label>Trạng thái</label>
+        <select id="po-status" style="width:100%;padding:8px 10px;border:0.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--card);color:var(--dark)">
+          <option>Chờ gửi</option><option>Đang vận chuyển</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>Ghi chú</label><input id="po-note" placeholder="Ghi chú NCC, điều khoản..."></div>
+    <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--med);margin:10px 0 6px">Sản phẩm trong lô</div>
+    <div id="po-items-container"></div>
+    <button class="btn" style="width:100%;margin-top:6px;font-size:12px" onclick="addPOItemRow()">+ Thêm sản phẩm</button>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-po')">Huỷ</button>
+      <button class="btn btn-primary" onclick="savePO()">💾 Lưu lô hàng</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal nhận hàng -->
+<div class="modal-overlay" id="modal-receive">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-title">✓ Nhận hàng <span class="modal-close" onclick="closeModal('modal-receive')">×</span></div>
+    <input type="hidden" id="receive-po-id">
+    <div style="font-size:12px;color:var(--med);margin-bottom:12px" id="receive-subtitle">Nhập số lượng thực nhận</div>
+    <div id="receive-items-container"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-receive')">Huỷ</button>
+      <button class="btn btn-primary" onclick="confirmReceive()">✓ Nhận & nhập kho</button>
+    </div>
   </div>
 </div>
 
@@ -813,6 +863,54 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
 </div>
 
 <!-- ══ PRODUCTS ══ -->
+<!-- ══ NHẬP SHOPEE TỪ PDF ══ -->
+<div id="page-shopee" class="page">
+  <div class="page-header">
+    <div><div class="page-title">Nhập đơn Shopee từ PDF</div><div class="page-sub">Upload tem vận đơn Shopee → tự đối chiếu → trừ kho &amp; tạo đơn</div></div>
+    <div class="btns">
+      <button class="btn" id="shp-checkdb" onclick="shpCheckDb()">🔍 Kiểm tra DB</button>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div id="shp-drop" onclick="document.getElementById('shp-file').click()"
+      style="border:2px dashed #D3D1C7;border-radius:10px;padding:24px;text-align:center;color:var(--muted);cursor:pointer">
+      <div style="font-size:28px">🧾</div>
+      <div style="margin-top:6px"><b>Bấm chọn</b> hoặc kéo thả file PDF tem Shopee (SPX) vào đây</div>
+      <div style="font-size:12px;margin-top:4px;opacity:.7">Đọc nhiều tem trong 1 file</div>
+      <input id="shp-file" type="file" accept="application/pdf" hidden onchange="shpHandle(this.files[0])">
+    </div>
+    <div id="shp-loadmsg" style="font-size:12px;color:var(--muted);margin-top:10px"></div>
+  </div>
+
+  <div id="shp-panel" style="display:none">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+      <div class="card"><div style="font-size:12px;color:var(--muted)">Đơn sẽ tạo</div><div style="font-size:26px;font-weight:700" id="shp-m-orders">0</div></div>
+      <div class="card"><div style="font-size:12px;color:var(--muted)">SP trừ kho</div><div style="font-size:26px;font-weight:700" id="shp-m-stock">0</div></div>
+      <div class="card"><div style="font-size:12px;color:var(--muted)">Bỏ qua (đã nhập)</div><div style="font-size:26px;font-weight:700" id="shp-m-skip">0</div></div>
+    </div>
+
+    <div class="table-wrap" style="margin-bottom:14px">
+      <table>
+        <thead><tr><th style="width:34px"></th><th>Đơn / Khách</th><th>Sản phẩm → kho</th><th style="width:50px">SL</th><th style="width:140px">Trạng thái</th></tr></thead>
+        <tbody id="shp-rows"></tbody>
+      </table>
+    </div>
+
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <button class="btn" id="shp-confirm" onclick="shpConfirm()">Xem thử (chưa trừ kho)</button>
+      <label style="font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px">
+        <input type="checkbox" id="shp-dry" checked onchange="shpToggleDry()"> Chế độ thử (không ghi vào kho)</label>
+    </div>
+    <div id="shp-result" style="display:none;margin-top:14px;padding:14px;border-radius:10px;font-size:13px;white-space:pre-wrap"></div>
+
+    <details style="margin-top:12px;font-size:12px;color:var(--muted)">
+      <summary style="cursor:pointer">Xem dữ liệu thô đọc được từ PDF (gỡ lỗi)</summary>
+      <pre id="shp-raw" style="white-space:pre-wrap;background:#FBFBF9;border:1px solid #E6E6E1;border-radius:8px;padding:10px;max-height:260px;overflow:auto;font-size:11px"></pre>
+    </details>
+  </div>
+</div>
+
 <div id="page-products" class="page">
   <div class="page-header">
     <div><div class="page-title">Danh Mục Sản Phẩm</div><div class="page-sub">Quản lý toàn bộ sản phẩm</div></div>
@@ -965,7 +1063,7 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
             </div>
             <div class="field" style="margin-bottom:0">
               <label>Shipper còn thu mặt</label>
-              <div id="o-grab-remaining" style="padding:9px 12px;background:#fff;border-radius:8px;font-size:13px;font-weight:600;color:#0C447C">0 đ</div>
+              <input id="o-grab-remaining" type="text" placeholder="0" oninput="formatMoneyInput(this)" style="padding:9px 12px;border:1px solid #B5D4F4;background:#fff;border-radius:8px;font-size:13px;font-weight:600;color:#0C447C;width:100%">
             </div>
           </div>
         </div>
@@ -1164,7 +1262,7 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
             </div>
             <div class="field" style="margin-bottom:0">
               <label>Shipper còn thu mặt</label>
-              <div id="edit-o-grab-remaining" style="padding:9px 12px;background:#fff;border-radius:8px;font-size:13px;font-weight:600;color:#0C447C">0 đ</div>
+              <input id="edit-o-grab-remaining" type="text" placeholder="0" oninput="formatMoneyInput(this)" style="padding:9px 12px;border:1px solid #B5D4F4;background:#fff;border-radius:8px;font-size:13px;font-weight:600;color:#0C447C;width:100%">
             </div>
           </div>
         </div>
@@ -1346,6 +1444,7 @@ function goPage(name, el){
   if(el) el.classList.add('active');
   if(name==='dashboard') loadDashboard();
   else if(name==='orders') loadOrders();
+  else if(name==='shopee') loadShopeeImport();
   else if(name==='nxk') loadNXK();
   else if(name==='stock') loadStock();
   else if(name==='forecast') loadForecast();
@@ -1359,6 +1458,212 @@ function goPage(name, el){
   else if(name==='kolthai') loadThailandOrders('KOLThai_ALL');
   else if(name==='kolvn') loadKolVN();
   else if(name==='finance') loadFinance();
+}
+
+// ══ NHẬP SHOPEE TỪ PDF ══
+if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+let shpSkuMap={}, shpParsed=[];
+const shpNorm=(s)=>(s||'').toLowerCase().replace(/\s+/g,' ').trim();
+const shpColorKey=(c)=>shpNorm(c).split(/[\s\-_/,]+/).filter(Boolean).sort().join('');
+const shpInt=(s)=>parseInt(String(s).replace(/[^\d]/g,''),10)||0;
+
+async function loadShopeeImport(){
+  if(!allProducts.length){ allProducts=await db.products(); }
+  if(!allTx.length){ allTx=await db.transactions(); }
+  if(!allOrders.length){ allOrders=await db.orders(); }
+  try{
+    const map=await api('shopee_sku_map?select=shopee_name,product_code,product_name');
+    shpSkuMap={}; (map||[]).forEach(m=>shpSkuMap[shpNorm(m.shopee_name)]={code:m.product_code,name:m.product_name});
+    document.getElementById('shp-loadmsg').textContent=`Sẵn sàng · ${allProducts.length} sản phẩm · ${Object.keys(shpSkuMap).length} listing đã map.`;
+  }catch(e){
+    document.getElementById('shp-loadmsg').innerHTML='<span style="color:#B91C1C">Chưa có bảng <code>shopee_sku_map</code> — chạy SQL tạo bảng trước (xem hướng dẫn). Vẫn nhập được nhưng không nhớ map.</span>';
+  }
+}
+
+async function shpHandle(file){
+  if(!file) return;
+  const lm=document.getElementById('shp-loadmsg'); lm.textContent='Đang đọc PDF…';
+  try{
+    const buf=await file.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+    const pages=[];
+    for(let i=1;i<=pdf.numPages;i++){
+      const tc=await (await pdf.getPage(i)).getTextContent();
+      pages.push(tc.items.map(it=>it.str).join(' ').replace(/\s+/g,' '));
+    }
+    document.getElementById('shp-raw').textContent=pages.map((t,i)=>'=== TEM '+(i+1)+' ===\n'+t).join('\n\n')
+      +'\n\n=== SẢN PHẨM TRONG KHO ('+allProducts.length+') ===\n'+allProducts.slice(0,80).map(p=>[p.code,p.name,p.color,p.size].join(' | ')).join('\n');
+    shpParsed=pages.map(shpParse).filter(Boolean);
+    shpParsed.forEach(shpMatch);
+    shpRender();
+    document.getElementById('shp-panel').style.display='block';
+    lm.textContent='Đọc xong '+shpParsed.length+' tem từ '+file.name;
+  }catch(e){ lm.innerHTML='<span style="color:#B91C1C">Lỗi đọc PDF: '+e.message+'</span>'; }
+}
+
+function shpParse(text){
+  const tracking=(text.match(/SPXVN\d{8,}/)||[])[0]||'';
+  let order_code=''; const codes=text.match(/\b26\d{4}[A-Z0-9]{6,10}\b/g)||[];
+  for(const c of codes){ if(c!==tracking && !/^\d+$/.test(c)){ order_code=c; break; } }
+  const date=(text.match(/\b(\d{2}-\d{2}-\d{4})\b/)||[])[1]||'';
+  const cod=shpInt((text.match(/\b(\d[\d,]*)\s*VND\b/)||[])[1]||'0');
+  const items=[]; const re=/\d+\.\s*(\[[\s\S]*?SL:\s*\d+)/g; let m;
+  while((m=re.exec(text))){
+    const full=m[1].replace(/,?\s*SL:\s*\d+\s*$/,'').trim();
+    const qty=shpInt((m[1].match(/SL:\s*(\d+)/)||[])[1]||'1');
+    const parts=full.split(',').map(s=>s.trim()).filter(Boolean);
+    const size=parts.length>=2?parts.pop():'';
+    const color=parts.length>=1?parts.pop():'';
+    const name=parts.join(', ').replace(/^\[/,'').trim();
+    items.push({shopee_name:full, name, color, size, qty});
+  }
+  if(!items.length || (!tracking && !order_code)) return null;
+  return {tracking,order_code,date,cod,items};
+}
+
+function shpBestMatch(it){
+  const tagm=it.shopee_name.match(/\[([^\]]+)\]/); const tag=tagm?shpNorm(tagm[1]):'';
+  const sName=shpNorm(it.shopee_name); const csize=shpNorm(it.size); const ccolor=shpColorKey(it.color);
+  let best=null,bestScore=0,bestExact=false;
+  allProducts.forEach(p=>{
+    const pname=shpNorm(p.name||''); if(!pname) return;
+    const psize=shpNorm(p.size); const pcolor=shpColorKey(p.color);
+    const nameHit=tag&&pname.includes(tag);
+    const sizeOk=psize&&psize===csize;
+    const colorOk=pcolor&&(pcolor===ccolor||ccolor.includes(pcolor)||pcolor.includes(ccolor));
+    let score=0;
+    if(nameHit) score+=5;
+    pname.split(/[^0-9a-zà-ỹ]+/i).filter(t=>t.length>2).forEach(t=>{ if(sName.includes(t)) score++; });
+    if(sizeOk) score+=3; if(colorOk) score+=3;
+    const exact=nameHit&&sizeOk&&colorOk; if(exact) score+=4;
+    if(score>bestScore){ bestScore=score; best=p; bestExact=exact; }
+  });
+  if(!best||bestScore<5) return null;
+  return {p:best, confident:bestExact};
+}
+
+function shpMatch(lb){
+  lb.dup = allOrders.some(o=>(lb.tracking&&o.tracking_code&&String(o.tracking_code).trim()===lb.tracking)||(lb.order_code&&o.order_code&&String(o.order_code).trim()===lb.order_code));
+  lb.items.forEach(it=>{
+    const hit=shpSkuMap[shpNorm(it.shopee_name)];
+    if(hit){ it.code=hit.code; it.matchedName=hit.name; it.state='ok'; it.auto=false; it.fromMap=true; return; }
+    const g=shpBestMatch(it);
+    if(g&&g.confident){ it.code=g.p.code; it.matchedName=g.p.name; it.state='ok'; it.auto=true; }
+    else if(g){ it.code=g.p.code; it.matchedName=g.p.name; it.state='need'; }
+    else{ it.code=''; it.matchedName=''; it.state='need'; }
+  });
+}
+
+function shpOpts(sel){
+  let h='<option value="">— Chọn sản phẩm —</option>';
+  allProducts.forEach(p=>{
+    const label=[p.name||p.code,p.color,p.size].filter(Boolean).join(' · ')+' ('+p.code+')';
+    h+='<option value="'+p.code+'" data-name="'+(p.name||'').replace(/"/g,'')+'"'+(p.code===sel?' selected':'')+'>'+label+'</option>';
+  });
+  return h;
+}
+
+function shpRender(){
+  const tb=document.getElementById('shp-rows'); tb.innerHTML='';
+  shpParsed.forEach((lb,li)=>{
+    lb.items.forEach((it,ii)=>{
+      const tr=document.createElement('tr'); if(lb.dup) tr.style.opacity='.5';
+      const cust= ii===0 ? (lb.tracking?'<div style="font-size:11px;color:var(--muted)">'+lb.tracking+'</div>':'')+'<div style="font-weight:600">'+(lb.order_code||'—')+'</div>' : '';
+      let sku,status;
+      if(lb.dup){ sku='<span style="font-size:12px;color:var(--muted)">'+(it.matchedName||it.name)+' · '+it.color+' · '+it.size+'</span>'; status='<span class="badge" style="background:#F1F1EE;color:#9CA3AF">⃠ Đã nhập</span>'; }
+      else if(it.state==='ok'&&!it.auto){ sku='<div style="font-weight:600;color:var(--green-t,#0F6E56)">'+it.matchedName+'</div><div style="font-size:11px;color:var(--muted)">'+it.color+' · '+it.size+' · '+it.code+'</div>'; status='<span class="badge" style="background:#E7F6EF;color:#0F6E56">✓ Khớp</span>'; }
+      else if(it.state==='ok'&&it.auto){ sku='<div style="font-size:11px;color:var(--muted);margin-bottom:4px">'+it.color+' · '+it.size+' · tự khớp, kiểm tra lại</div><select onchange="shpOnMap('+li+','+ii+',this)" style="padding:6px 8px;border:1px solid #E6E6E1;border-radius:6px;font-size:12px;max-width:260px">'+shpOpts(it.code)+'</select>'; status='<span class="badge" style="background:#E7F6EF;color:#0F6E56">✓ Tự khớp</span>'; }
+      else{ const help=it.code?'gợi ý sẵn, kiểm tra rồi chọn':'chọn sản phẩm'; sku='<div style="font-size:11px;color:var(--muted);margin-bottom:4px">'+it.color+' · '+it.size+' · '+help+'</div><select onchange="shpOnMap('+li+','+ii+',this)" style="padding:6px 8px;border:1px solid #E6E6E1;border-radius:6px;font-size:12px;max-width:260px">'+shpOpts(it.code)+'</select>'; status='<span class="badge" style="background:#FDF2E1;color:#B45309">⚠ Cần đối chiếu</span>'; }
+      const chk=(!lb.dup&&it.state==='ok')?'checked':''; const dis=(lb.dup||!it.code)?'disabled':'';
+      const sn='<div style="font-size:10px;color:#B4B2A9;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+it.shopee_name+'</div>';
+      tr.innerHTML='<td style="text-align:center"><input type="checkbox" class="shp-chk" data-li="'+li+'" data-ii="'+ii+'" '+chk+' '+dis+' onchange="shpRecompute()"></td>'+
+        '<td>'+cust+'</td><td>'+sn+sku+'</td><td style="text-align:center;font-weight:600">'+it.qty+'</td><td>'+status+'</td>';
+      tb.appendChild(tr);
+    });
+  });
+  shpRecompute();
+}
+
+function shpOnMap(li,ii,el){
+  const it=shpParsed[li].items[ii]; const opt=el.selectedOptions[0];
+  if(el.value){ it.code=el.value; it.matchedName=opt.dataset.name; it.state='ok'; it.auto=true; it.fromMap=false; }
+  else{ it.code=''; it.state='need'; }
+  shpRender();
+}
+
+function shpRecompute(){
+  let orders=new Set(),stock=0,skip=0;
+  shpParsed.forEach((lb,li)=>{
+    if(lb.dup){ skip++; return; }
+    lb.items.forEach((it,ii)=>{
+      const c=document.querySelector('.shp-chk[data-li="'+li+'"][data-ii="'+ii+'"]');
+      if(c&&c.checked&&it.code){ orders.add(li); stock+=it.qty; }
+    });
+  });
+  document.getElementById('shp-m-orders').textContent=orders.size;
+  document.getElementById('shp-m-stock').textContent=stock;
+  document.getElementById('shp-m-skip').textContent=skip;
+}
+
+async function shpConfirm(){
+  const dry=document.getElementById('shp-dry').checked;
+  const res=document.getElementById('shp-result'); res.style.display='none';
+  const stockNow=computeStock(allProducts,allTx);
+  const orderRows=[],txRows=[],newMaps={}; let outCount=0;
+  shpParsed.forEach((lb,li)=>{
+    if(lb.dup) return;
+    const picked=lb.items.filter((it,ii)=>{ const c=document.querySelector('.shp-chk[data-li="'+li+'"][data-ii="'+ii+'"]'); return c&&c.checked&&it.code; });
+    picked.forEach((it,idx)=>{
+      const prod=allProducts.find(p=>p.code===it.code);
+      const pname=prod?`${prod.name} ${prod.size} · ${prod.color}`:(it.matchedName||it.name);
+      const si=stockNow.find(p=>p.code===it.code); const cur=si?si.current:0;
+      const out=cur<it.qty; if(out) outCount++;
+      orderRows.push({order_code:lb.order_code, date:isoFromVN(lb.date), customer_name:'(Shopee)', phone:'', address:'',
+        product_code:it.code, product_name:pname, quantity:it.qty, channel:'Shopee', tracking_code:lb.tracking,
+        staff:'Shopee PDF', note:'Nhập từ PDF Shopee', status: out?'Nợ hàng':'Chờ lấy',
+        amount_due:0, is_paid:false, shipping_fee:idx===0?0:0, payment_method:'Chuyển khoản'});
+      if(!out){ txRows.push({date:isoFromVN(lb.date), type:'Xuất', product_code:it.code, product_name:pname, color:prod?.color, size:prod?.size, quantity:it.qty, channel:'Shopee', note:'Xuất từ PDF Shopee '+lb.tracking, staff:'Shopee PDF'}); if(si) si.current-=it.qty; }
+      if(!it.fromMap) newMaps[shpNorm(it.shopee_name)]={shopee_name:it.shopee_name, product_code:it.code, product_name:it.matchedName||pname};
+    });
+  });
+  if(!orderRows.length){ res.style.display='block'; res.style.background='#FDECEC'; res.style.color='#B91C1C'; res.textContent='Chưa có dòng nào được chọn & đối chiếu.'; return; }
+
+  if(dry){ res.style.display='block'; res.style.background='#FDF2E1'; res.style.color='#B45309';
+    res.textContent='CHẾ ĐỘ THỬ — chưa ghi gì.\nSẽ tạo '+orderRows.length+' dòng đơn, trừ kho '+txRows.reduce((s,t)=>s+t.quantity,0)+' sản phẩm'+(outCount?(', '+outCount+' dòng hết hàng → đơn Nợ hàng (chưa trừ kho)'):'')+', lưu '+Object.keys(newMaps).length+' map mới.\n\n➡️ Để ghi THẬT: bỏ tick "Chế độ thử" rồi bấm nút lần nữa.\n\nMẫu dữ liệu:\n'+JSON.stringify({order:orderRows[0],transaction:txRows[0]||'(hết hàng)'},null,2);
+    return; }
+
+  const btn=document.getElementById('shp-confirm'); btn.disabled=true; btn.textContent='Đang ghi…';
+  try{
+    if(Object.keys(newMaps).length){
+      try{ await fetch(`${SUPABASE_URL}/rest/v1/shopee_sku_map?on_conflict=shopee_name`,{method:'POST',headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},body:JSON.stringify(Object.values(newMaps))}); }catch(e){}
+    }
+    for(const o of orderRows){ const r=await db.insertOrder(o); if(r&&r[0]) allOrders.unshift(r[0]); }
+    for(const t of txRows){ const r=await db.insertTx(t); if(r&&r[0]) allTx.unshift(r[0]); }
+    res.style.display='block'; res.style.background='#E7F6EF'; res.style.color='#0F6E56';
+    res.textContent='✅ Đã tạo '+orderRows.length+' đơn Shopee và trừ kho '+txRows.reduce((s,t)=>s+t.quantity,0)+' sản phẩm. Xem ở "Quản lý đơn hàng" / "Nhập-Xuất kho".';
+    toast('Đã nhập '+orderRows.length+' đơn Shopee');
+    shpParsed.forEach(lb=>{ if(orderRows.some(o=>o.order_code&&o.order_code===lb.order_code)) lb.dup=true; });
+    shpRender();
+  }catch(e){ res.style.display='block'; res.style.background='#FDECEC'; res.style.color='#B91C1C'; res.textContent='Lỗi khi ghi: '+e.message; toast('Lỗi khi nhập đơn',true); }
+  finally{ btn.disabled=false; shpToggleDry(); }
+}
+
+function isoFromVN(d){ const m=(d||'').match(/(\d{2})-(\d{2})-(\d{4})/); return m?m[3]+'-'+m[2]+'-'+m[1]:todayStr(); }
+
+function shpToggleDry(){
+  const dry=document.getElementById('shp-dry').checked;
+  const btn=document.getElementById('shp-confirm');
+  btn.textContent = dry ? 'Xem thử (chưa trừ kho)' : '✓ Trừ kho & tạo đơn THẬT';
+  btn.className = dry ? 'btn' : 'btn btn-green';
+}
+
+async function shpCheckDb(){
+  try{
+    const o=await api('orders?order=id.desc&limit=1'); const t=await api('transactions?order=id.desc&limit=1');
+    const res=document.getElementById('shp-result'); document.getElementById('shp-panel').style.display='block';
+    res.style.display='block'; res.style.background='#FBFBF9'; res.style.color='var(--text)';
+    res.textContent='// ORDER gần nhất:\n'+JSON.stringify(o[0]||{},null,2)+'\n\n// TRANSACTION gần nhất:\n'+JSON.stringify(t[0]||{},null,2);
+  }catch(e){ toast('Lỗi: '+e.message,true); }
 }
 
 // ── COMPUTE STOCK ──
@@ -3082,6 +3387,7 @@ function updateEditOrderTotalCOD(){
   });
   const el = document.getElementById('edit-o-total-cod-display');
   if(el) el.textContent = totalAmount.toLocaleString('vi-VN') + ' đ';
+  if(document.getElementById('edit-o-grab-partial')?.checked) onEditGrabPartialChange();
 }
 
 function toggleEditOrderPaymentFields(ch){
@@ -3170,6 +3476,11 @@ function openEditOrder(orderCode){
   } else if(editGrabCkEl){
     editGrabCkEl.value = '';
   }
+  const editGrabRemEl = document.getElementById('edit-o-grab-remaining');
+  if(editGrabRemEl){
+    if(isHybrid){ const cm=(o.payment_method||'').match(/tiền mặt ([\d.,]+)đ/); editGrabRemEl.value = cm ? cm[1].replace(/\./g,',') : ''; }
+    else editGrabRemEl.value = '';
+  }
   setTimeout(()=>onEditGrabPartialChange(), 50);
 
   openModal('modal-edit-order');
@@ -3203,10 +3514,11 @@ async function saveEditOrder(){
   const editGrabCash = newCommon.channel==='Grab' && document.getElementById('edit-o-grab-cash')?.checked;
   const editGrabPartial = newCommon.channel==='Grab' && document.getElementById('edit-o-grab-partial')?.checked;
   const editGrabCkAmount = editGrabPartial ? (parseInt((document.getElementById('edit-o-grab-ck-amount')?.value||'0').replace(/[^\d]/g,''))||0) : 0;
+  const editGrabCashRemain = editGrabPartial ? (parseInt((document.getElementById('edit-o-grab-remaining')?.value||'0').replace(/[^\d]/g,''))||0) : 0;
   let editPaymentMethod = 'Chuyển khoản';
   if(newCommon.channel==='Grab'){
     if(editGrabCash) editPaymentMethod = 'Tiền mặt đã thu';
-    else if(editGrabPartial && editGrabCkAmount>0) editPaymentMethod = `Hỗn hợp: CK ${editGrabCkAmount.toLocaleString('vi-VN')}đ + tiền mặt chờ thu`;
+    else if(editGrabPartial && editGrabCkAmount>0) editPaymentMethod = `Hỗn hợp: CK ${editGrabCkAmount.toLocaleString('vi-VN')}đ + tiền mặt ${editGrabCashRemain.toLocaleString('vi-VN')}đ`;
     else editPaymentMethod = 'Tiền mặt chờ thu';
   }
   newCommon.payment_method = editPaymentMethod;
@@ -3542,15 +3854,15 @@ function onGrabPartialChange(){
     const ckEl = document.getElementById('o-grab-ck-amount');
     if(ckEl) ckEl.value = '';
     const remEl = document.getElementById('o-grab-remaining');
-    if(remEl) remEl.textContent = '0 đ';
+    if(remEl) remEl.value = '';
     return;
   }
-  // Tính phần còn thu = tổng COD - số đã CK
+  // Tính phần còn thu = tổng COD - số đã CK (tự điền, vẫn gõ đè được)
   const totalCOD = parseInt((document.getElementById('o-total-cod-display')?.textContent||'0').replace(/[^\d]/g,'')) || 0;
   const ckAmt = parseInt((document.getElementById('o-grab-ck-amount')?.value||'0').replace(/[^\d]/g,'')) || 0;
   const remaining = Math.max(0, totalCOD - ckAmt);
   const remEl = document.getElementById('o-grab-remaining');
-  if(remEl) remEl.textContent = remaining.toLocaleString('vi-VN') + ' đ';
+  if(remEl) remEl.value = remaining.toLocaleString('vi-VN');
 }
 
 function onEditGrabPartialChange(){
@@ -3561,14 +3873,14 @@ function onEditGrabPartialChange(){
     const ckEl = document.getElementById('edit-o-grab-ck-amount');
     if(ckEl) ckEl.value = '';
     const remEl = document.getElementById('edit-o-grab-remaining');
-    if(remEl) remEl.textContent = '0 đ';
+    if(remEl) remEl.value = '';
     return;
   }
   const totalCOD = parseInt((document.getElementById('edit-o-total-cod-display')?.textContent||'0').replace(/[^\d]/g,'')) || 0;
   const ckAmt = parseInt((document.getElementById('edit-o-grab-ck-amount')?.value||'0').replace(/[^\d]/g,'')) || 0;
   const remaining = Math.max(0, totalCOD - ckAmt);
   const remEl = document.getElementById('edit-o-grab-remaining');
-  if(remEl) remEl.textContent = remaining.toLocaleString('vi-VN') + ' đ';
+  if(remEl) remEl.value = remaining.toLocaleString('vi-VN');
 }
 
 function toggleOrderPaymentFields(hide){
@@ -3697,6 +4009,7 @@ function updateOrderTotalCOD(){
   // Phí ship là chi phí Shop trả riêng, KHÔNG cộng vào tiền thu từ khách (COD)
   const el = document.getElementById('o-total-cod-display');
   if(el) el.textContent = totalAmount.toLocaleString('vi-VN') + ' đ';
+  if(document.getElementById('o-grab-partial')?.checked) onGrabPartialChange();
 }
 
 function removeProductRow(rowId){
@@ -3749,10 +4062,11 @@ async function createOrder(){
   const grabCashReceived = channel==='Grab' && document.getElementById('o-grab-cash')?.checked;
   const grabPartial = channel==='Grab' && document.getElementById('o-grab-partial')?.checked;
   const grabCkAmount = grabPartial ? (parseInt((document.getElementById('o-grab-ck-amount')?.value||'0').replace(/[^\d]/g,''))||0) : 0;
+  const grabCashRemain = grabPartial ? (parseInt((document.getElementById('o-grab-remaining')?.value||'0').replace(/[^\d]/g,''))||0) : 0;
   let paymentMethod = 'Chuyển khoản';
   if(channel==='Grab'){
     if(grabCashReceived) paymentMethod = 'Tiền mặt đã thu';
-    else if(grabPartial && grabCkAmount>0) paymentMethod = `Hỗn hợp: CK ${grabCkAmount.toLocaleString('vi-VN')}đ + tiền mặt chờ thu`;
+    else if(grabPartial && grabCkAmount>0) paymentMethod = `Hỗn hợp: CK ${grabCkAmount.toLocaleString('vi-VN')}đ + tiền mặt ${grabCashRemain.toLocaleString('vi-VN')}đ`;
     else paymentMethod = 'Tiền mặt chờ thu';
   }
 
@@ -4138,8 +4452,332 @@ async function confirmNxkDelete(txId){
 // ══════════════════════════════════════
 // DỰ BÁO ĐẶT HÀNG
 // ══════════════════════════════════════
-const LEAD_TIME = 14; // ngày lead time
-const BUFFER_DAYS = 30; // buffer tồn kho sau khi nhập
+// DỰ BÁO & ĐẶT HÀNG NCC
+// ══════════════════════════════════════
+const LEAD_TIME = 14;
+const BUFFER_DAYS = 30;
+let forecastPeriod = 30;
+let forecastProdFilter = null;
+let forecastMode = 'sales';
+let allPOs = [];
+let allPOItems = [];
+
+// DB helpers for PO
+const dbPO = {
+  getPOs: ()=> apiFetch('purchase_orders?order=order_date.desc'),
+  getPOItems: ()=> apiFetch('purchase_order_items?select=*'),
+  insertPO: data=> apiFetch('purchase_orders', {method:'POST', body:JSON.stringify(data), headers:{'Content-Type':'application/json','Prefer':'return=representation'}}),
+  updatePO: (id,data)=> apiFetch(`purchase_orders?id=eq.${id}`, {method:'PATCH', body:JSON.stringify(data), headers:{'Content-Type':'application/json','Prefer':'return=representation'}}),
+  deletePO: id=> apiFetch(`purchase_orders?id=eq.${id}`, {method:'DELETE'}),
+  insertPOItem: data=> apiFetch('purchase_order_items', {method:'POST', body:JSON.stringify(data), headers:{'Content-Type':'application/json','Prefer':'return=representation'}}),
+  updatePOItem: (id,data)=> apiFetch(`purchase_order_items?id=eq.${id}`, {method:'PATCH', body:JSON.stringify(data), headers:{'Content-Type':'application/json','Prefer':'return=representation'}}),
+  deletePOItems: poId=> apiFetch(`purchase_order_items?po_id=eq.${poId}`, {method:'DELETE'}),
+};
+
+function apiFetch(path, opts={}){
+  return fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...opts,
+    headers: {'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`, ...(opts.headers||{})}
+  }).then(r=>r.json().catch(()=>[]));
+}
+
+function switchForecastTab(tab){
+  const isForecast = tab==='forecast';
+  document.getElementById('ftab-content-forecast').style.display = isForecast?'':'none';
+  document.getElementById('ftab-content-po').style.display = isForecast?'none':'';
+  const ft = document.getElementById('ftab-forecast');
+  const pt = document.getElementById('ftab-po');
+  if(ft){ ft.style.fontWeight=isForecast?'600':'400'; ft.style.color=isForecast?'var(--dark)':'var(--med)'; ft.style.borderBottomColor=isForecast?'#2A211C':'transparent'; }
+  if(pt){ pt.style.fontWeight=isForecast?'400':'600'; pt.style.color=isForecast?'var(--med)':'var(--dark)'; pt.style.borderBottomColor=isForecast?'transparent':'#2A211C'; }
+  if(!isForecast) loadPOs();
+}
+
+// ── PO FUNCTIONS ──
+async function loadPOs(){
+  try {
+    const [pos, items, prods] = await Promise.all([dbPO.getPOs(), dbPO.getPOItems(), db.products()]);
+    allPOs = Array.isArray(pos)?pos:[];
+    allPOItems = Array.isArray(items)?items:[];
+    allProducts = prods;
+    renderPOs();
+    updatePOBadge();
+  } catch(e){ toast('Lỗi load PO: '+e.message,true); }
+}
+
+function updatePOBadge(){
+  const pending = allPOs.filter(p=>p.status!=='Hoàn tất').length;
+  const badge = document.getElementById('po-badge');
+  if(badge){ badge.textContent=pending; badge.style.display=pending>0?'inline':'none'; }
+}
+
+function renderPOs(){
+  const pending = allPOs.filter(p=>p.status==='Chờ gửi'||p.status==='Đang vận chuyển');
+  const partial = allPOs.filter(p=>p.status==='Nhận một phần');
+  const done    = allPOs.filter(p=>p.status==='Hoàn tất');
+
+  // Metrics
+  const today = new Date(); today.setHours(0,0,0,0);
+  const soon = pending.filter(p=>{
+    if(!p.expected_date) return false;
+    const d=new Date(p.expected_date); d.setHours(0,0,0,0);
+    return (d-today)/(1000*86400)<=7;
+  });
+  const metricsEl=document.getElementById('po-metrics');
+  if(metricsEl) metricsEl.innerHTML=`
+    <div class="metric" style="border-color:#B5D4F4;background:var(--blue-bg)"><div class="metric-label" style="color:#0C447C">Đang chờ về</div><div class="metric-val" style="color:#0C447C">${pending.length}</div><div class="metric-sub">lô hàng</div></div>
+    <div class="metric" style="border-color:#FAC775;background:var(--amber-bg)"><div class="metric-label" style="color:#633806">Sắp về (≤7 ngày)</div><div class="metric-val" style="color:#633806">${soon.length}</div><div class="metric-sub">lô</div></div>
+    <div class="metric" style="border-color:#C5C1F7;background:#EEEDFE"><div class="metric-label" style="color:#3C3489">Nhận một phần</div><div class="metric-val" style="color:#3C3489">${partial.length}</div><div class="metric-sub">lô</div></div>
+    <div class="metric" style="border-color:#C0DD97;background:var(--green-bg)"><div class="metric-label" style="color:#27500A">Đã hoàn tất</div><div class="metric-val" style="color:#27500A">${done.length}</div><div class="metric-sub">lô tháng này</div></div>`;
+
+  const renderPOCard = (po, showReceive=true) => {
+    const items = allPOItems.filter(i=>i.po_id===po.id);
+    const totalOrdered = items.reduce((s,i)=>s+(i.quantity_ordered||0),0);
+    const totalReceived = items.reduce((s,i)=>s+(i.quantity_received||0),0);
+    const pct = totalOrdered>0?Math.round(totalReceived/totalOrdered*100):0;
+    const daysLeft = po.expected_date ? Math.ceil((new Date(po.expected_date)-new Date())/(1000*86400)) : null;
+    const statusColor = po.status==='Hoàn tất'?'background:#EAF3DE;color:#27500A'
+      :po.status==='Nhận một phần'?'background:#EEEDFE;color:#3C3489'
+      :po.status==='Đang vận chuyển'?'background:#E6F1FB;color:#0C447C'
+      :'background:#FAEEDA;color:#633806';
+    return `<div class="card" style="padding:14px 16px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--dark)">${po.po_code}
+            <span class="pill" style="${statusColor};font-size:10px;margin-left:6px">${po.status}</span>
+          </div>
+          <div style="font-size:11px;color:var(--med);margin-top:2px">
+            Đặt ${fmtDateShort(po.order_date)}
+            ${po.expected_date?` · Dự kiến về: <b style="color:${daysLeft<=7?'#633806':'var(--dark)'}">${fmtDateShort(po.expected_date)}</b>${daysLeft!==null?` (${daysLeft>0?'còn '+daysLeft:'hôm nay'} ngày)`:''}`:'' }
+          </div>
+          ${po.note?`<div style="font-size:11px;color:var(--med);margin-top:2px">${po.note}</div>`:''}
+        </div>
+        <div style="text-align:right;font-size:12px;color:var(--med)">${totalReceived}/${totalOrdered} cái</div>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">
+        ${items.map(i=>`<span style="background:var(--bg);border-radius:5px;padding:3px 8px;font-size:11.5px">${i.product_name||i.product_code} ${i.size||''} <b>×${i.quantity_ordered}</b>${i.quantity_received>0&&i.quantity_received<i.quantity_ordered?` <span style="color:#3C3489">(nhận ${i.quantity_received})</span>`:''}</span>`).join('')}
+      </div>
+      ${po.status!=='Hoàn tất'?`
+      <div style="height:4px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:6px">
+        <div style="height:100%;width:${pct}%;background:${pct===100?'#27500A':'#7F77DD'};border-radius:3px"></div>
+      </div>`:''}
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${showReceive&&po.status!=='Hoàn tất'?`<button class="btn btn-primary" style="font-size:11px;padding:5px 10px" onclick="openReceive(${po.id})">✓ Nhận hàng</button>`:''}
+        <button class="btn" style="font-size:11px;padding:5px 10px" onclick="openEditPO(${po.id})">✏️ Sửa</button>
+        ${po.status!=='Hoàn tất'?`<button class="btn" style="font-size:11px;padding:5px 10px;color:var(--red-t);border-color:var(--red-t)" onclick="deletePO(${po.id})">Xoá</button>`:''}
+      </div>
+    </div>`;
+  };
+
+  const pendingEl=document.getElementById('po-pending-section');
+  if(pendingEl) pendingEl.innerHTML=(pending.length||partial.length)?`
+    <div style="font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--med);margin-bottom:8px">Đang chờ về</div>
+    ${pending.map(p=>renderPOCard(p)).join('')}
+    ${partial.map(p=>renderPOCard(p)).join('')}`:'';
+
+  const doneEl=document.getElementById('po-done-section');
+  if(doneEl) doneEl.innerHTML=done.length?`
+    <div style="font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--med);margin:14px 0 8px">Đã hoàn tất</div>
+    ${done.map(p=>renderPOCard(p,false)).join('')}`:'';
+
+  document.getElementById('po-partial-section').innerHTML='';
+}
+
+function openCreatePO(prefillItems=[]){
+  document.getElementById('po-edit-id').value='';
+  document.getElementById('modal-po-title').innerHTML='📦 Tạo lô đặt hàng mới <span class="modal-close" onclick="closeModal(\'modal-po\')">×</span>';
+  document.getElementById('po-code').value='PO-'+(allPOs.length+1).toString().padStart(3,'0');
+  document.getElementById('po-date').value=todayStr();
+  document.getElementById('po-expected').value='';
+  document.getElementById('po-status').value='Chờ gửi';
+  document.getElementById('po-note').value='';
+  const container=document.getElementById('po-items-container');
+  container.innerHTML='';
+  if(prefillItems.length) prefillItems.forEach(i=>addPOItemRow(i));
+  else addPOItemRow();
+  openModal('modal-po');
+}
+
+function openEditPO(poId){
+  const po=allPOs.find(p=>p.id===poId); if(!po) return;
+  const items=allPOItems.filter(i=>i.po_id===poId);
+  document.getElementById('po-edit-id').value=poId;
+  document.getElementById('modal-po-title').innerHTML='✏️ Sửa lô đặt hàng <span class="modal-close" onclick="closeModal(\'modal-po\')">×</span>';
+  document.getElementById('po-code').value=po.po_code||'';
+  document.getElementById('po-date').value=po.order_date||'';
+  document.getElementById('po-expected').value=po.expected_date||'';
+  document.getElementById('po-status').value=po.status||'Chờ gửi';
+  document.getElementById('po-note').value=po.note||'';
+  const container=document.getElementById('po-items-container');
+  container.innerHTML='';
+  items.forEach(i=>addPOItemRow({product_code:i.product_code,product_name:i.product_name,size:i.size,color:i.color,qty:i.quantity_ordered}));
+  if(!items.length) addPOItemRow();
+  openModal('modal-po');
+}
+
+function addPOItemRow(prefill={}){
+  const container=document.getElementById('po-items-container');
+  const row=document.createElement('div');
+  row.style.cssText='display:grid;grid-template-columns:1fr auto auto auto;gap:6px;margin-bottom:6px;align-items:center';
+
+  // Product select
+  const sel=document.createElement('select');
+  sel.style.cssText='padding:6px 8px;border:0.5px solid var(--border);border-radius:7px;font-size:12px;background:var(--card);color:var(--dark)';
+  sel.innerHTML='<option value="">-- Chọn sản phẩm --</option>'+
+    allProducts.map(p=>`<option value="${p.code}" data-name="${p.name}" data-size="${p.size||''}" data-color="${p.color||''}" ${p.code===prefill.product_code?'selected':''}>${p.name} ${p.size||''} · ${p.color||''}</option>`).join('');
+
+  const qtyInp=document.createElement('input');
+  qtyInp.type='number'; qtyInp.min='1'; qtyInp.value=prefill.qty||1;
+  qtyInp.placeholder='SL'; qtyInp.style.cssText='width:70px;padding:6px;border:0.5px solid var(--border);border-radius:7px;font-size:12px;text-align:center';
+
+  const lbl=document.createElement('span');
+  lbl.textContent='cái'; lbl.style.cssText='font-size:12px;color:var(--med)';
+
+  const delBtn=document.createElement('button');
+  delBtn.textContent='×'; delBtn.className='btn';
+  delBtn.style.cssText='padding:4px 8px;font-size:14px;color:var(--red-t)';
+  delBtn.onclick=()=>row.remove();
+
+  row.append(sel,qtyInp,lbl,delBtn);
+  container.appendChild(row);
+}
+
+async function savePO(){
+  const editId=document.getElementById('po-edit-id').value;
+  const code=document.getElementById('po-code').value.trim();
+  if(!code){ toast('Nhập mã lô',true); return; }
+
+  const poData={
+    po_code:code, order_date:document.getElementById('po-date').value||todayStr(),
+    expected_date:document.getElementById('po-expected').value||null,
+    status:document.getElementById('po-status').value,
+    note:document.getElementById('po-note').value.trim()||null,
+  };
+
+  // Collect items
+  const itemRows=[...document.getElementById('po-items-container').children];
+  const items=itemRows.map(row=>{
+    const sel=row.querySelector('select');
+    const qty=parseInt(row.querySelector('input[type=number]').value)||0;
+    const opt=sel.selectedOptions[0];
+    if(!sel.value||!qty) return null;
+    return {product_code:sel.value,product_name:opt?.dataset.name||'',size:opt?.dataset.size||'',color:opt?.dataset.color||'',quantity_ordered:qty,quantity_received:0};
+  }).filter(Boolean);
+
+  if(!items.length){ toast('Thêm ít nhất 1 sản phẩm',true); return; }
+
+  try {
+    let poId=editId;
+    if(editId){
+      await dbPO.updatePO(editId,poData);
+      await dbPO.deletePOItems(editId);
+    } else {
+      const res=await dbPO.insertPO(poData);
+      poId=Array.isArray(res)?res[0]?.id:res?.id;
+    }
+    await Promise.all(items.map(i=>dbPO.insertPOItem({...i,po_id:poId})));
+    closeModal('modal-po');
+    toast(editId?'Đã cập nhật lô hàng ✓':'Đã tạo lô đặt hàng ✓');
+    loadPOs();
+  } catch(e){ toast('Lỗi: '+e.message,true); }
+}
+
+function openReceive(poId){
+  const po=allPOs.find(p=>p.id===poId); if(!po) return;
+  const items=allPOItems.filter(i=>i.po_id===poId);
+  document.getElementById('receive-po-id').value=poId;
+  document.getElementById('receive-subtitle').textContent=`Lô ${po.po_code} — nhập số lượng thực nhận`;
+  const container=document.getElementById('receive-items-container');
+  container.innerHTML=items.map(i=>{
+    const remaining=i.quantity_ordered-(i.quantity_received||0);
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border)">
+      <div>
+        <div style="font-size:13px;font-weight:500">${i.product_name||i.product_code} ${i.size||''}</div>
+        <div style="font-size:11px;color:var(--med)">Đặt ${i.quantity_ordered} · Đã nhận ${i.quantity_received||0} · Còn lại ${remaining}</div>
+      </div>
+      <input type="number" min="0" max="${remaining}" value="${remaining}" id="recv-${i.id}"
+        style="width:70px;padding:5px;border:1.5px solid #378ADD;border-radius:6px;font-size:12px;text-align:center;background:#E6F1FB;color:#0C447C;font-weight:500">
+    </div>`;
+  }).join('');
+  openModal('modal-receive');
+}
+
+async function confirmReceive(){
+  const poId=parseInt(document.getElementById('receive-po-id').value);
+  const items=allPOItems.filter(i=>i.po_id===poId);
+  const po=allPOs.find(p=>p.id===poId);
+  const staff=document.getElementById('o-staff')?.value||'';
+  try {
+    let allDone=true;
+    for(const item of items){
+      const inp=document.getElementById(`recv-${item.id}`);
+      const recvNow=parseInt(inp?.value)||0;
+      if(recvNow<=0) continue;
+      const newReceived=(item.quantity_received||0)+recvNow;
+      if(newReceived<item.quantity_ordered) allDone=false;
+      await dbPO.updatePOItem(item.id,{quantity_received:newReceived});
+      // Nhập kho
+      await db.insertTx({date:todayStr(),type:'Nhập',product_code:item.product_code,
+        product_name:item.product_name,color:item.color,size:item.size,
+        quantity:recvNow,channel:'Nhập hàng NCC',note:`Nhận lô ${po?.po_code||poId}`,staff});
+    }
+    // Check tất cả đã nhận đủ chưa
+    const updatedItems=allPOItems.filter(i=>i.po_id===poId).map(i=>{
+      const inp=document.getElementById(`recv-${i.id}`);
+      const recvNow=parseInt(inp?.value)||0;
+      return {...i,quantity_received:(i.quantity_received||0)+recvNow};
+    });
+    const totalOrdered=updatedItems.reduce((s,i)=>s+(i.quantity_ordered||0),0);
+    const totalReceived=updatedItems.reduce((s,i)=>s+(i.quantity_received||0),0);
+    const newStatus=totalReceived>=totalOrdered?'Hoàn tất':'Nhận một phần';
+    await dbPO.updatePO(poId,{status:newStatus});
+    closeModal('modal-receive');
+    toast(`✓ Đã nhận hàng & nhập kho — Lô ${newStatus==='Hoàn tất'?'hoàn tất!':'còn thiếu một phần'}`);
+    // Reload
+    const [pos,poItems,prods,txs]=await Promise.all([dbPO.getPOs(),dbPO.getPOItems(),db.products(),db.transactions()]);
+    allPOs=pos; allPOItems=poItems; allProducts=prods; allTx=txs;
+    stockData=computeStock(prods,txs);
+    renderPOs(); updatePOBadge();
+  } catch(e){ toast('Lỗi: '+e.message,true); }
+}
+
+async function deletePO(poId){
+  const po=allPOs.find(p=>p.id===poId);
+  if(!confirm(`Xoá lô ${po?.po_code||poId}?`)) return;
+  try {
+    await dbPO.deletePOItems(poId);
+    await dbPO.deletePO(poId);
+    toast('Đã xoá lô hàng');
+    loadPOs();
+  } catch(e){ toast('Lỗi: '+e.message,true); }
+}
+
+function createPOFromForecast(){
+  // Lấy các dòng có số muốn đặt > 0
+  const prefill=[];
+  document.querySelectorAll('#order-tbody input[type=number]').forEach(inp=>{
+    const qty=parseInt(inp.value)||0;
+    if(!qty) return;
+    const row=inp.closest('tr');
+    const nameSizeCell=row?.cells[0]?.textContent?.trim()||'';
+    // Tìm product từ allProducts match
+    const sc=inp.id.replace('fc-ord-','');
+    const prod=allProducts.find(p=>p.code.replace(/[^a-z0-9]/gi,'_')===sc||p.code===sc);
+    if(prod) prefill.push({product_code:prod.code,product_name:prod.name,size:prod.size,color:prod.color,qty});
+  });
+  switchForecastTab('po');
+  setTimeout(()=>openCreatePO(prefill),100);
+}
+
+function setForecastMode(mode,btn){
+  forecastMode=mode;
+  document.querySelectorAll('#forecast-mode-tabs button').forEach(b=>{
+    const on=b===btn;
+    b.style.background=on?'var(--dark)':'var(--card)';
+    b.style.color=on?'#F7F3EB':'var(--med)';
+    b.style.border=on?'1.5px solid var(--dark)':'0.5px solid var(--border)';
+  });
+  renderForecast();
+}
 
 async function loadForecast(){
   try {
@@ -4150,130 +4788,211 @@ async function loadForecast(){
   } catch(e){ toast('Lỗi: '+e.message, true); }
 }
 
+function setForecastPeriod(btn){
+  forecastPeriod = parseInt(btn.dataset.p);
+  document.querySelectorAll('#forecast-period-tabs .btn').forEach(b=>{
+    const on = b===btn;
+    b.style.background = on?'var(--dark)':'';
+    b.style.color = on?'#F7F3EB':'';
+    b.style.borderColor = on?'var(--dark)':'';
+  });
+  renderForecast();
+}
+
+function setForecastProdFilter(name){
+  forecastProdFilter = name;
+  renderForecast();
+}
+
 function renderForecast(){
-  const period = parseInt(document.getElementById('forecast-period')?.value||'30');
+  const period = forecastPeriod;
   const now = new Date();
   const cutoff = new Date(now); cutoff.setDate(cutoff.getDate()-period);
 
-  // Lọc tx xuất trong kỳ (bỏ đổi/trả)
   const isReturn = t=>(t.note||'').includes('không tính doanh số');
-  const outTx = allTx.filter(t=>{
+  // Legacy channels trước migrate: 'KOL', 'KOLThai', 'Gửi kol'
+  const KOL_ALL_LEGACY = [...ALL_KOL_CHANNELS, 'KOL', 'KOLThai', 'Gửi kol'];
+  const isKolOrGift = t => KOL_ALL_LEGACY.includes(t.channel) || t.channel==='Tặng'
+    || (t.channel||'').toLowerCase().includes('kol')
+    || (t.note||'').startsWith('Gửi Thái'); // KOL Thai xuất kho qua note này
+
+  // DEBUG: log channel breakdown
+  const allOutInPeriod = allTx.filter(t=>{
     if(t.type!=='Xuất'||isReturn(t)) return false;
     const d = new Date(t.date||t.created_at);
     return d >= cutoff && d <= now;
   });
+  const chBreakdown = {};
+  allOutInPeriod.forEach(t=>{
+    const k = t.channel||'(null)';
+    chBreakdown[k] = (chBreakdown[k]||0) + (t.quantity||0);
+  });
+  console.log(`[Forecast ${period}D] Tất cả xuất:`, chBreakdown);
+  console.log(`[Forecast ${period}D] Bị loại (KOL/Tặng):`, allOutInPeriod.filter(t=>isKolOrGift(t)).reduce((s,t)=>s+(t.quantity||0),0));
+  console.log(`[Forecast ${period}D] Còn lại (bán thật):`, allOutInPeriod.filter(t=>!isKolOrGift(t)).reduce((s,t)=>s+(t.quantity||0),0));
+  const outTx = allTx.filter(t=>{
+    if(t.type!=='Xuất'||isReturn(t)) return false;
+    if(forecastMode==='sales' && isKolOrGift(t)) return false;
+    const d = new Date(t.date||t.created_at);
+    return d >= cutoff && d <= now;
+  });
 
-  // Tổng bán kỳ
   const totalSold = outTx.reduce((s,t)=>s+(t.quantity||0),0);
   const totalStock = stockData.reduce((s,p)=>s+Math.max(0,p.current),0);
   const avgPerDay = totalSold/period;
 
   // Metrics
   const metricsEl = document.getElementById('forecast-metrics');
+  const modeLabel = forecastMode==='sales' ? '(trừ KOL & Tặng)' : '(gồm tất cả)';
   if(metricsEl) metricsEl.innerHTML = `
-    <div class="metric"><div class="metric-label">Bán trong ${period} ngày</div><div class="metric-val">${totalSold}</div><div class="metric-sub">cái</div></div>
+    <div class="metric"><div class="metric-label">Bán ${period}D ${modeLabel}</div><div class="metric-val">${totalSold}</div><div class="metric-sub">cái</div></div>
     <div class="metric"><div class="metric-label">Tốc độ / ngày</div><div class="metric-val" style="color:var(--amber-t)">${avgPerDay.toFixed(1)}</div><div class="metric-sub">cái/ngày</div></div>
     <div class="metric"><div class="metric-label">Tồn kho hiện tại</div><div class="metric-val" style="color:var(--green-t)">${totalStock}</div><div class="metric-sub">cái</div></div>
-    <div class="metric"><div class="metric-label">Hết kho sau (TB)</div><div class="metric-val" style="color:${avgPerDay>0&&totalStock/avgPerDay<LEAD_TIME*2?'var(--red-t)':'var(--dark)'}">${avgPerDay>0?Math.round(totalStock/avgPerDay)+'ng':'—'}</div><div class="metric-sub">nếu không nhập</div></div>
-  `;
+    <div class="metric"><div class="metric-label">Hết kho sau</div><div class="metric-val" style="color:${avgPerDay>0&&totalStock/avgPerDay<LEAD_TIME*2?'var(--red-t)':'var(--dark)'}">${avgPerDay>0?Math.round(totalStock/avgPerDay)+'ng':'—'}</div><div class="metric-sub">nếu không nhập</div></div>`;
 
-  // Nhóm theo product_code
+  // By product_code
   const byCode = {};
-  outTx.forEach(t=>{
-    const k = t.product_code;
-    if(!k) return;
-    byCode[k] = (byCode[k]||0)+(t.quantity||0);
-  });
+  outTx.forEach(t=>{ if(t.product_code) byCode[t.product_code]=(byCode[t.product_code]||0)+(t.quantity||0); });
 
   // Build rows
-  const rows = stockData.map(p=>{
+  const allRows = stockData.map(p=>{
     const sold = byCode[p.code]||0;
-    const pct = totalSold>0 ? Math.round(sold/totalSold*100) : 0;
+    const pct = totalSold>0?Math.round(sold/totalSold*100):0;
     const spd = sold/period;
     const stock = Math.max(0,p.current);
-    const daysLeft = spd>0 ? Math.round(stock/spd) : 999;
-    // Gợi ý đặt: đủ để bán LEAD_TIME + BUFFER_DAYS ngày
+    const daysLeft = spd>0?Math.round(stock/spd):999;
     const need = Math.ceil(spd*(LEAD_TIME+BUFFER_DAYS));
-    const suggest = Math.max(0, need - stock);
-    return {code:p.code, name:p.name, color:p.color, size:p.size, sold, pct, spd, stock, daysLeft, suggest, need};
+    const suggest = Math.max(0,need-stock);
+    return {code:p.code, name:p.name, color:p.color, size:p.size, sold, pct, spd, stock, daysLeft, suggest};
   }).filter(r=>r.sold>0||r.stock>0).sort((a,b)=>b.sold-a.sold);
 
+  // Product names for chips & cards
+  const prodNames = [...new Set(allRows.map(r=>r.name))];
+
+  // Chips
+  const chipsEl = document.getElementById('forecast-prod-chips');
+  if(chipsEl) chipsEl.innerHTML = [
+    {k:null,label:'Tất cả'},
+    ...prodNames.map(n=>({k:n,label:n.replace('Đầm ','')}))
+  ].map(({k,label})=>{
+    const on = forecastProdFilter===k;
+    return `<button onclick="setForecastProdFilter(${k===null?'null':`'${k.replace(/'/g,"\'")}'`})"
+      style="padding:5px 12px;border-radius:20px;font-size:11.5px;cursor:pointer;
+      border:0.5px solid ${on?'var(--dark)':'var(--border)'};
+      background:${on?'var(--dark)':'var(--card)'};
+      color:${on?'#F7F3EB':'var(--med)'}">${label}</button>`;
+  }).join('');
+
+  // Filter rows
+  const rows = forecastProdFilter ? allRows.filter(r=>r.name===forecastProdFilter) : allRows;
+
   // Alerts
-  const urgent = rows.filter(r=>r.daysLeft<=LEAD_TIME && r.spd>0);
+  const urgent = allRows.filter(r=>r.daysLeft<=LEAD_TIME&&r.spd>0);
   const alertEl = document.getElementById('forecast-alerts');
-  if(alertEl){
-    alertEl.innerHTML = urgent.length ? `
-      <div style="background:#FCEBEB;border:0.5px solid #F09595;border-radius:10px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;gap:10px">
-        <div style="font-size:18px">⚠️</div>
+  if(alertEl) alertEl.innerHTML = urgent.length
+    ? `<div style="background:#FCEBEB;border:0.5px solid #F09595;border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
+        <span style="font-size:18px;flex-shrink:0">⚠️</span>
         <div>
-          <div style="font-size:13px;font-weight:600;color:#791F1F">${urgent.length} size cần đặt hàng ngay!</div>
+          <div style="font-size:13px;font-weight:600;color:#791F1F">${urgent.length} size cần đặt ngay — hết trước khi hàng kịp về!</div>
           <div style="font-size:12px;color:#A32D2D;margin-top:2px">${urgent.map(r=>`${r.name} ${r.size} (còn ${r.daysLeft} ngày)`).join(' · ')}</div>
-        </div>
-      </div>` : `<div style="background:#EAF3DE;border:0.5px solid #C0DD97;border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#27500A">✅ Tồn kho ổn — không có size nào cần đặt gấp trong ${LEAD_TIME} ngày tới</div>`;
-  }
+        </div></div>`
+    : `<div style="background:#EAF3DE;border:0.5px solid #C0DD97;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#27500A">✅ Tồn kho ổn — không có size nào cần đặt gấp trong ${LEAD_TIME} ngày tới</div>`;
 
   // Bảng phân tích
+  const dayBadge = (days,spd) => {
+    if(spd===0) return `<span style="color:var(--med);font-size:11px">—</span>`;
+    const cls = days<=LEAD_TIME?'background:#FCEBEB;color:#791F1F':days<=LEAD_TIME+14?'background:#FAEEDA;color:#633806':'background:#EAF3DE;color:#27500A';
+    return `<span class="pill" style="${cls};font-size:10px">${days} ngày</span>`;
+  };
+  const statusBadge = (days,spd) => spd===0
+    ? `<span class="pill" style="background:var(--bg);color:var(--med);font-size:10px">Không bán</span>`
+    : days<=LEAD_TIME?`<span class="pill" style="background:#FCEBEB;color:#791F1F;font-size:10px">⚠️ Đặt ngay!</span>`
+    : days<=LEAD_TIME+14?`<span class="pill" style="background:#FAEEDA;color:#633806;font-size:10px">Sắp cần</span>`
+    : `<span class="pill" style="background:#EAF3DE;color:#27500A;font-size:10px">Ổn</span>`;
+
   const tbody = document.getElementById('forecast-tbody');
-  if(tbody) tbody.innerHTML = rows.map(r=>{
-    const pctBar = `<div style="display:flex;align-items:center;gap:6px">
-      <span style="min-width:30px;font-size:11px">${r.pct}%</span>
-      <div style="height:5px;border-radius:3px;background:var(--border);overflow:hidden;width:50px">
+  if(tbody) tbody.innerHTML = rows.map(r=>`<tr>
+    <td style="font-weight:500">${r.name} · <span style="color:var(--med)">${r.size||''}</span></td>
+    <td style="text-align:center">${r.sold}</td>
+    <td><div style="display:flex;align-items:center;gap:5px">
+      <span style="min-width:28px;font-size:11px">${r.pct}%</span>
+      <div style="width:60px;height:5px;background:var(--border);border-radius:3px;overflow:hidden;flex-shrink:0">
         <div style="height:100%;width:${r.pct}%;background:#2A211C;border-radius:3px"></div>
-      </div></div>`;
-    const statusBadge = r.spd===0 ? `<span class="pill" style="background:var(--bg);color:var(--med);font-size:10px">Không bán</span>`
-      : r.daysLeft<=LEAD_TIME ? `<span class="pill" style="background:#FCEBEB;color:#791F1F;font-size:10px">⚠️ Đặt ngay!</span>`
-      : r.daysLeft<=LEAD_TIME+14 ? `<span class="pill" style="background:#FAEEDA;color:#633806;font-size:10px">Sắp cần</span>`
-      : `<span class="pill" style="background:#EAF3DE;color:#27500A;font-size:10px">Ổn</span>`;
-    const daysStr = r.spd>0 ? `<span class="pill" style="font-size:10px;${r.daysLeft<=LEAD_TIME?'background:#FCEBEB;color:#791F1F':r.daysLeft<=LEAD_TIME+14?'background:#FAEEDA;color:#633806':'background:#EAF3DE;color:#27500A'}">${r.daysLeft} ngày</span>` : `<span style="color:var(--med);font-size:11px">—</span>`;
-    return `<tr>
-      <td style="font-weight:500">${r.name} · <span style="color:var(--med)">${r.size||''}</span></td>
-      <td>${r.stock}</td>
-      <td style="text-align:center">${r.sold}</td>
-      <td style="text-align:center">${pctBar}</td>
-      <td style="text-align:center;color:var(--med)">${r.spd>0?r.spd.toFixed(1):'-'}</td>
-      <td style="text-align:center">${daysStr}</td>
-      <td style="text-align:center">${statusBadge}</td>
-    </tr>`;
-  }).join('');
+      </div></div></td>
+    <td style="text-align:center;color:var(--med)">${r.spd>0?r.spd.toFixed(1):'—'}</td>
+    <td style="text-align:center">${r.stock}</td>
+    <td style="text-align:center">${dayBadge(r.daysLeft,r.spd)}</td>
+    <td style="text-align:center">${statusBadge(r.daysLeft,r.spd)}</td>
+  </tr>`).join('');
 
   // Bảng đặt hàng
   const orderRows = rows.filter(r=>r.spd>0);
   const orderTbody = document.getElementById('order-tbody');
   if(orderTbody) orderTbody.innerHTML = orderRows.map(r=>{
-    const daysStr = `<span class="pill" style="font-size:10px;${r.daysLeft<=LEAD_TIME?'background:#FCEBEB;color:#791F1F':r.daysLeft<=LEAD_TIME+14?'background:#FAEEDA;color:#633806':'background:#EAF3DE;color:#27500A'}">${r.daysLeft} ngày</span>`;
-    const suggestStr = r.suggest>0 ? `<span style="color:#0C447C;font-weight:500">+${r.suggest}</span>` : `<span style="color:var(--med);font-size:11px">Chưa cần</span>`;
-    const safeCode = r.code.replace(/[^a-z0-9]/gi,'_');
+    const sc = r.code.replace(/[^a-z0-9]/gi,'_');
+    const afterOrder = r.stock+r.suggest;
+    const extraDays = r.spd>0?Math.round(r.suggest/r.spd):0;
     return `<tr>
       <td style="font-weight:500">${r.name} · <span style="color:var(--med)">${r.size||''}</span></td>
       <td style="text-align:center">${r.stock}</td>
       <td style="text-align:center;color:var(--med)">${r.spd.toFixed(1)}</td>
-      <td style="text-align:center">${daysStr}</td>
-      <td style="text-align:center">${suggestStr}</td>
+      <td style="text-align:center">${dayBadge(r.daysLeft,r.spd)}</td>
+      <td style="text-align:center">${r.suggest>0?`<span style="color:#0C447C;font-weight:500">+${r.suggest}</span>`:`<span style="color:var(--med);font-size:11px">Chưa cần</span>`}</td>
       <td style="text-align:center">
-        <input type="number" min="0" value="${r.suggest}" data-stock="${r.stock}" data-spd="${r.spd.toFixed(2)}"
-          id="fc-ord-${safeCode}"
-          oninput="updateForecastRow('${safeCode}',${r.stock},${r.spd.toFixed(2)},this.value)"
+        <input type="number" min="0" value="${r.suggest}"
+          id="fc-ord-${sc}"
+          oninput="updateForecastRow('${sc}',${r.stock},${r.spd.toFixed(2)},this.value)"
           style="width:64px;padding:4px 6px;border:1.5px solid #378ADD;border-radius:6px;font-size:12px;text-align:center;background:#E6F1FB;color:#0C447C;font-weight:500">
       </td>
-      <td style="text-align:center;font-weight:500" id="fc-tot-${safeCode}" style="color:#27500A">${r.stock+r.suggest}</td>
-      <td style="text-align:center;font-size:11px;color:var(--med)" id="fc-days-${safeCode}">${r.spd>0?Math.round((r.stock+r.suggest)/r.spd)+' ngày':'—'}</td>
+      <td style="text-align:center;font-weight:500" id="fc-tot-${sc}" style="color:#27500A">${afterOrder} cái</td>
+      <td style="text-align:center;font-size:11px;color:var(--med)" id="fc-days-${sc}">${extraDays>0?'+'+extraDays+' ngày':'—'}</td>
     </tr>`;
   }).join('');
 
   updateForecastGrand(orderRows);
+
+  // Cards theo sản phẩm
+  const cardsEl = document.getElementById('forecast-prod-cards');
+  if(cardsEl){
+    const prodMap = {};
+    allRows.forEach(r=>{
+      if(!prodMap[r.name]) prodMap[r.name]={name:r.name,sold:0,stock:0,needOrder:0,sizes:[]};
+      prodMap[r.name].sold+=r.sold;
+      prodMap[r.name].stock+=r.stock;
+      if(r.suggest>0) prodMap[r.name].needOrder++;
+      if(r.sold>0) prodMap[r.name].sizes.push(`${r.size}: ${r.pct}%`);
+    });
+    cardsEl.innerHTML = Object.values(prodMap).map(p=>{
+      const on = forecastProdFilter===p.name;
+      const hasUrgent = allRows.filter(r=>r.name===p.name&&r.daysLeft<=LEAD_TIME&&r.spd>0).length>0;
+      return `<div onclick="setForecastProdFilter(${on?'null':`'${p.name.replace(/'/g,"\'")}'`})"
+        style="background:${on?'var(--dark)':'var(--bg)'};border-radius:10px;padding:10px 14px;cursor:pointer;
+        border:1.5px solid ${on?'var(--dark)':hasUrgent?'#F09595':'var(--border)'}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div style="font-size:12px;font-weight:500;color:${on?'#F7F3EB':'var(--dark)'}">${p.name.replace('Đầm ','')}</div>
+          ${hasUrgent?`<span style="font-size:9px;background:#FCEBEB;color:#791F1F;padding:1px 6px;border-radius:10px;font-weight:600">Đặt ngay</span>`:''}
+        </div>
+        <div style="display:flex;gap:10px">
+          <div><div style="font-size:16px;font-weight:500;color:${on?'#DCC6AA':'#3C3489'}">${p.sold}</div><div style="font-size:9px;text-transform:uppercase;color:${on?'rgba(220,198,170,.6)':'var(--med)'}">Bán</div></div>
+          <div><div style="font-size:16px;font-weight:500;color:${on?'#FAC775':p.needOrder>0?'#791F1F':'#27500A'}">${p.needOrder}</div><div style="font-size:9px;text-transform:uppercase;color:${on?'rgba(220,198,170,.6)':'var(--med)'}">Cần đặt</div></div>
+          <div><div style="font-size:16px;font-weight:500;color:${on?'#C0DD97':'#27500A'}">${p.stock}</div><div style="font-size:9px;text-transform:uppercase;color:${on?'rgba(220,198,170,.6)':'var(--med)'}">Tồn</div></div>
+        </div>
+        ${p.sizes.length?`<div style="font-size:10px;color:${on?'rgba(220,198,170,.5)':'var(--med)'};margin-top:6px">${p.sizes.slice(0,3).join(' · ')}</div>`:'<div style="font-size:10px;color:var(--med);margin-top:6px">Chưa có data bán</div>'}
+      </div>`;
+    }).join('');
+  }
 }
 
-function updateForecastRow(safeCode, stock, spd, orderVal){
+function updateForecastRow(sc, stock, spd, orderVal){
   const o = parseInt(orderVal)||0;
   const tot = stock+o;
-  const totEl = document.getElementById('fc-tot-'+safeCode);
-  const daysEl = document.getElementById('fc-days-'+safeCode);
-  if(totEl){ totEl.textContent=tot; totEl.style.color=tot<stock?'var(--red-t)':tot>stock?'#27500A':'var(--dark)'; }
-  if(daysEl) daysEl.textContent = spd>0?Math.round(tot/spd)+' ngày':'—';
-  // Recalc grand total
+  const totEl = document.getElementById('fc-tot-'+sc);
+  const daysEl = document.getElementById('fc-days-'+sc);
+  if(totEl){ totEl.textContent=tot+' cái'; totEl.style.color=tot<stock?'var(--red-t)':tot>stock?'#27500A':'var(--dark)'; }
+  if(daysEl) daysEl.textContent = spd>0&&o>0?'+'+Math.round(o/spd)+' ngày':'—';
   let totalOrd=0, totalTot=0;
   document.querySelectorAll('#order-tbody input[type=number]').forEach(inp=>{
-    const s=parseInt(inp.dataset.stock||0);
+    const s=parseInt(inp.closest('tr').cells[1].textContent)||0;
     const v=parseInt(inp.value)||0;
     totalOrd+=v; totalTot+=s+v;
   });
