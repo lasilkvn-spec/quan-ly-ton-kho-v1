@@ -635,6 +635,11 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
       <button type="button" id="ret-mode-free" onclick="setReturnMode('free')" class="btn" style="flex:1;font-size:12px;padding:6px;border:none;background:transparent;color:var(--med)">⚡ Đổi tự do (khỏi tìm đơn)</button>
     </div>
 
+    <div class="field2">
+      <div class="field"><label>Tên khách</label><input id="ret-cust-name" placeholder="Tên khách trả/đổi" autocomplete="off"></div>
+      <div class="field"><label>SĐT khách</label><input id="ret-cust-phone" placeholder="SĐT khách" autocomplete="off"></div>
+    </div>
+
     <div class="field" id="ret-order-wrap">
       <label>Chọn đơn hàng *</label>
       <input id="ret-order-search" type="text" placeholder="🔍 Gõ mã đơn, mã vận đơn, SĐT, hoặc tên..." oninput="filterReturnOrderSelect(this.value)" style="margin-bottom:6px" autocomplete="off">
@@ -688,7 +693,7 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
       </select>
     </div>
     <div class="field2">
-      <div class="field"><label>Mã vận đơn (đơn đổi mới gửi đi)</label><input id="ret-tracking" placeholder="VD: GHN123456, GRAB..." autocomplete="off"></div>
+      <div class="field"><label>Mã vận đơn (để dò khi hàng về)</label><input id="ret-tracking" placeholder="VD: SPXVN..., GHN..., GRAB..." autocomplete="off"></div>
       <div class="field"><label>Ghi chú thêm</label><input id="ret-note" placeholder="VD: Đổi size S → M..."></div>
     </div>
 
@@ -697,6 +702,23 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
     <div class="modal-actions">
       <button class="btn" onclick="closeModal('modal-return')">Huỷ</button>
       <button class="btn btn-primary" onclick="createReturn()">Ghi nhận</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-edit-return">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-title">✏️ Sửa thông tin đổi/trả <span class="modal-close" onclick="closeModal('modal-edit-return')">×</span></div>
+    <input type="hidden" id="er-code">
+    <div class="field2">
+      <div class="field"><label>Tên khách</label><input id="er-name" placeholder="Tên khách" autocomplete="off"></div>
+      <div class="field"><label>SĐT</label><input id="er-phone" placeholder="SĐT khách" autocomplete="off"></div>
+    </div>
+    <div class="field"><label>Mã vận đơn (để dò khi hàng về)</label><input id="er-tracking" placeholder="VD: SPXVN..., GHN..." autocomplete="off"></div>
+    <div class="field"><label>Ghi chú</label><input id="er-note" placeholder="Ghi chú kiểm tra..."></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-edit-return')">Huỷ</button>
+      <button class="btn btn-primary" onclick="saveEditReturn()">Lưu</button>
     </div>
   </div>
 </div>
@@ -2670,6 +2692,9 @@ function onReturnOrderChange(){
   const orderCode = document.getElementById('ret-order-select').value;
   const o = allOrders.find(x=>x.order_code===orderCode);
   if(o){
+    const cn=document.getElementById('ret-cust-name'), cp=document.getElementById('ret-cust-phone');
+    if(cn && !cn.value) cn.value=o.customer_name||'';
+    if(cp && !cp.value) cp.value=o.phone||'';
     const nm=document.getElementById('ret-ship-name'), ph=document.getElementById('ret-ship-phone'), ad=document.getElementById('ret-ship-address');
     if(nm && !nm.value) nm.value=o.customer_name||'';
     if(ph && !ph.value) ph.value=o.phone||'';
@@ -2728,7 +2753,7 @@ async function openReturnModal(){
   if(trackingEl) trackingEl.value='';
   const searchEl = document.getElementById('ret-order-search');
   if(searchEl) searchEl.value='';
-  ['ret-contact-handle','ret-ship-name','ret-ship-phone','ret-ship-address','ret-extra-amount'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
+  ['ret-contact-handle','ret-ship-name','ret-ship-phone','ret-ship-address','ret-extra-amount','ret-cust-name','ret-cust-phone'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
   const qEl=document.getElementById('ret-free-old-qty'); if(qEl) qEl.value='1';
   setReturnType('doi');
   populateFreeOldSelect();
@@ -2744,6 +2769,8 @@ async function createReturn(){
   const reason = document.getElementById('ret-reason').value;
   const extra = document.getElementById('ret-note').value.trim();
   const retTracking = document.getElementById('ret-tracking')?.value.trim() || '';
+  const custName = document.getElementById('ret-cust-name')?.value.trim() || '';
+  const custPhone = document.getElementById('ret-cust-phone')?.value.trim() || '';
   const type = document.getElementById('ret-type').value;
 
   if(!orderCode){ toast('Vui lòng chọn đơn hàng', true); return; }
@@ -2794,8 +2821,8 @@ async function createReturn(){
         note:`[ĐỔI HÀNG] Đổi cho đơn ${orderCode}${o.channel?` (${o.channel})`:''}${contactCh?` · liên hệ ${contactCh}${contactHandle?' '+contactHandle:''}`:''}`
       });
       // Cập nhật note + tracking cho tất cả items của đơn
-      await Promise.all(orderItems.map(i=>db.updateOrder(i.id, {note:newNote, status:'Hoàn hàng', ...(retTracking?{tracking_code:retTracking}:{})})));
-      orderItems.forEach(i=>{ i.note=newNote; i.status='Hoàn hàng'; if(retTracking) i.tracking_code=retTracking; });
+      await Promise.all(orderItems.map(i=>db.updateOrder(i.id, {note:newNote, status:'Hoàn hàng', ...(retTracking?{tracking_code:retTracking}:{}), ...(custName?{customer_name:custName}:{}), ...(custPhone?{phone:custPhone}:{})})));
+      orderItems.forEach(i=>{ i.note=newNote; i.status='Hoàn hàng'; if(retTracking) i.tracking_code=retTracking; if(custName) i.customer_name=custName; if(custPhone) i.phone=custPhone; });
       closeModal('modal-return');
       toast(`Đã ghi nhận đổi — trừ kho ${swapCode} & tạo đơn đổi giao đi (in tem ở Quản lý đơn)`);
 
@@ -2807,8 +2834,8 @@ async function createReturn(){
   } else {
     const newNote = buildReturnNote('tra', 'new', reason, extra, null);
     try {
-      await Promise.all(orderItems.map(i=>db.updateOrder(i.id, {note:newNote, status:'Hoàn hàng', ...(retTracking?{tracking_code:retTracking}:{})})));
-      orderItems.forEach(i=>{ i.note=newNote; i.status='Hoàn hàng'; if(retTracking) i.tracking_code=retTracking; });
+      await Promise.all(orderItems.map(i=>db.updateOrder(i.id, {note:newNote, status:'Hoàn hàng', ...(retTracking?{tracking_code:retTracking}:{}), ...(custName?{customer_name:custName}:{}), ...(custPhone?{phone:custPhone}:{})})));
+      orderItems.forEach(i=>{ i.note=newNote; i.status='Hoàn hàng'; if(retTracking) i.tracking_code=retTracking; if(custName) i.customer_name=custName; if(custPhone) i.phone=custPhone; });
       closeModal('modal-return');
       toast(`Đã ghi nhận trả hàng cho ${orderCode}`);
       renderReturns(); renderOrders();
@@ -2835,8 +2862,10 @@ async function createFreeExchange(){
 
   const contactCh = document.getElementById('ret-contact-channel')?.value || '';
   const contactHandle = document.getElementById('ret-contact-handle')?.value.trim() || '';
-  const shipName = document.getElementById('ret-ship-name')?.value.trim() || 'Khách đổi';
-  const shipPhone = document.getElementById('ret-ship-phone')?.value.trim() || '';
+  const custName = document.getElementById('ret-cust-name')?.value.trim() || '';
+  const custPhone = document.getElementById('ret-cust-phone')?.value.trim() || '';
+  const shipName = document.getElementById('ret-ship-name')?.value.trim() || custName || 'Khách đổi';
+  const shipPhone = document.getElementById('ret-ship-phone')?.value.trim() || custPhone || '';
   const shipAddress = document.getElementById('ret-ship-address')?.value.trim() || '';
   const extraAmount = parseInt((document.getElementById('ret-extra-amount')?.value||'').replace(/[^\d]/g,'')) || 0;
 
@@ -2866,10 +2895,10 @@ async function createFreeExchange(){
     // Bản ghi nhận hàng cũ trả về (theo dõi + cộng kho khi nhận)
     await db.insertOrder({
       order_code:ref, date:todayStr(),
-      customer_name:shipName, phone:shipPhone, address:shipAddress,
+      customer_name:custName||shipName, phone:custPhone||shipPhone, address:shipAddress,
       product_code:oldCode, product_name:oldName, quantity:oldQty,
       channel:'Đổi trả', status:'Hoàn hàng', amount_due:0, is_paid:false,
-      staff:'Đổi trả', note:retNote
+      ...(retTracking?{tracking_code:retTracking}:{}), staff:'Đổi trả', note:retNote
     });
     closeModal('modal-return');
     toast('Đã ghi nhận đổi tự do — trừ kho món mới & tạo đơn đổi giao đi');
@@ -2887,6 +2916,8 @@ async function createFreeReturn(){
   const extra = document.getElementById('ret-note').value.trim();
   const retTracking = document.getElementById('ret-tracking')?.value.trim() || '';
   if(!oldCode){ toast('Chọn sản phẩm khách trả lại', true); return; }
+  const custName = document.getElementById('ret-cust-name')?.value.trim() || '';
+  const custPhone = document.getElementById('ret-cust-phone')?.value.trim() || '';
   const oldProd = allProducts.find(p=>p.code===oldCode);
   const oldName = oldProd ? `${oldProd.name} ${oldProd.size} · ${oldProd.color}` : oldCode;
   const ref = 'TRA'+Date.now().toString().slice(-6);
@@ -2895,7 +2926,7 @@ async function createFreeReturn(){
   try {
     await db.insertOrder({
       order_code:ref, date:todayStr(),
-      customer_name:'Khách trả', phone:'', address:'',
+      customer_name:custName||'Khách trả', phone:custPhone||'', address:'',
       product_code:oldCode, product_name:oldName, quantity:oldQty,
       channel:'Đổi trả', status:'Hoàn hàng', amount_due:0, is_paid:false,
       ...(retTracking?{tracking_code:retTracking}:{}), staff:'Đổi trả', note:retNote
@@ -2906,6 +2937,38 @@ async function createFreeReturn(){
     allProducts = prods; allTx = txs; allOrders = orders;
     renderReturns(); renderOrders();
   } catch(e){ toast('Lỗi: '+e.message, true); }
+}
+
+function openEditReturn(orderCode){
+  const o=allOrders.find(x=>x.order_code===orderCode); if(!o) return;
+  const r=parseReturnNote(o.note)||{extra:''};
+  document.getElementById('er-code').value=orderCode;
+  const nm=o.customer_name||''; document.getElementById('er-name').value=(nm==='Khách trả'||nm==='Khách đổi')?'':nm;
+  document.getElementById('er-phone').value=o.phone||'';
+  document.getElementById('er-tracking').value=o.tracking_code||'';
+  document.getElementById('er-note').value=r.extra||'';
+  openModal('modal-edit-return');
+}
+async function saveEditReturn(){
+  const code=document.getElementById('er-code').value;
+  const name=document.getElementById('er-name').value.trim();
+  const phone=document.getElementById('er-phone').value.trim();
+  const tracking=document.getElementById('er-tracking').value.trim();
+  const note=document.getElementById('er-note').value.trim();
+  const rows=allOrders.filter(x=>x.order_code===code);
+  if(!rows.length){ toast('Không thấy ghi nhận', true); return; }
+  try{
+    for(const o of rows){
+      const r=parseReturnNote(o.note);
+      const patch={ customer_name: name||o.customer_name||'', phone: phone, tracking_code: tracking };
+      if(r) patch.note=buildReturnNote(r.type, r.step, r.reason, note, r.swapProductCode);
+      await db.updateOrder(o.id, patch);
+      o.customer_name=patch.customer_name; o.phone=phone; o.tracking_code=tracking; if(patch.note) o.note=patch.note;
+    }
+    closeModal('modal-edit-return');
+    toast('Đã lưu thông tin');
+    renderReturns();
+  }catch(e){ toast('Lỗi: '+e.message, true); }
 }
 
 function renderReturns(){
@@ -3011,13 +3074,18 @@ function renderReturns(){
             <span class="pill" style="background:${typeBg};color:${typeTc}">${typeLabel}</span>
             <span class="pill" style="background:${stepBg};color:${stepTc}">${stepLabel}</span>
           </div>
-          <div style="font-size:14px;font-weight:600;color:var(--dark)">${o.customer_name||'—'}</div>
+          <div style="font-size:15px;font-weight:600;color:var(--dark)">${o.customer_name||'—'}</div>
           <div style="font-size:12px;color:var(--med);margin-top:2px">${o.phone||''}</div>
+          ${o.tracking_code?`<div style="font-size:12.5px;color:var(--med);margin-top:6px">🏷 Mã vận đơn: <b style="color:var(--dark);font-family:monospace">${o.tracking_code}</b></div>`:''}
           ${swapInfo || `<div style="font-size:13px;color:var(--dark);margin-top:6px">📦 ${o.product_name||'—'} × ${o.quantity||1}</div>`}
-          <div style="font-size:11px;color:var(--med);margin-top:8px;background:var(--bg);padding:4px 10px;border-radius:8px;display:inline-block">Lý do: <b>${r.reason}</b>${r.extra?' — '+r.extra:''}</div>
+          <div style="margin-top:8px;background:var(--bg);padding:7px 11px;border-radius:8px">
+            <div style="font-size:12px;color:var(--med)">Lý do: <b style="color:var(--dark)">${r.reason}</b></div>
+            ${r.extra?`<div style="font-size:12.5px;color:var(--dark);margin-top:3px">📝 ${r.extra}</div>`:''}
+          </div>
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;min-width:150px;align-items:stretch">
           ${actionBtn}
+          <button class="btn" style="font-size:11px" onclick="openEditReturn('${o.order_code}')">✏️ Sửa thông tin</button>
           <button class="btn" style="font-size:11px;color:var(--red-t);border-color:var(--red-t);margin-top:4px" onclick="deleteReturnRecord('${o.order_code}')">🗑️ Xoá ghi nhận này</button>
         </div>
       </div>
