@@ -86,6 +86,7 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
 .pill{display:inline-block;font-size:11px;font-weight:500;padding:2px 10px;border-radius:20px;white-space:nowrap}
 .p-wait{background:var(--amber-bg);color:var(--amber-t)}
 .p-ship{background:var(--blue-bg);color:var(--blue-t)}
+.p-cho{background:#FBEED2;color:#7A5B12}
 .p-done{background:var(--green-bg);color:var(--green-t)}
 .p-ret{background:var(--red-bg);color:var(--red-t)}
 .p-no-hang{background:#3C3489;color:#fff;font-weight:700}
@@ -152,8 +153,8 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
 .qr-card.is-new{border-color:#378ADD;box-shadow:0 0 0 3px var(--blue-bg)}
 .qr-box{width:120px;height:120px;margin:0 auto 10px;background:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .qr-code-label{font-size:10px;font-family:monospace;color:var(--med);margin-bottom:3px}
-.qr-name{font-size:12px;font-weight:600;color:var(--dark);margin-bottom:2px}
-.qr-detail{font-size:11px;color:var(--med)}
+.qr-name{font-size:16px;font-weight:700;color:var(--dark);margin-bottom:3px;line-height:1.2}
+.qr-detail{font-size:14px;font-weight:600;color:var(--dark)}
 
 /* TOAST */
 .toast{position:fixed;bottom:24px;right:24px;background:var(--dark);color:#F7F3EB;padding:12px 18px;border-radius:10px;font-size:13px;z-index:999;transform:translateY(80px);opacity:0;transition:all .3s;display:flex;align-items:center;gap:8px}
@@ -268,6 +269,11 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
     <div class="nav-item" data-page="shopee" onclick="goPage('shopee',this)">
       <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"/></svg>
       Nhập Shopee/TikTok (PDF)
+    </div>
+    <div class="nav-item" data-page="fulfill" onclick="goPage('fulfill',this)" style="position:relative">
+      <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.5h13.5v9.75H3.75zM17.25 8.25h2.25l2.25 2.25v3.75H17.25z"/><circle cx="7.5" cy="17.25" r="1.5"/><circle cx="18" cy="17.25" r="1.5"/></svg>
+      🚚 Đi hàng (Quét xuất)
+      <span id="fulfill-badge" style="display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);background:#633806;color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;min-width:18px;text-align:center"></span>
     </div>
     <div class="nav-item" data-page="debt" onclick="goPage('debt',this)" style="position:relative">
       <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 15.75h.008v.008H12v-.008z"/></svg>
@@ -982,6 +988,8 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
       <button class="btn" id="shp-confirm" onclick="shpConfirm()">Xem thử (chưa trừ kho)</button>
       <label style="font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px">
         <input type="checkbox" id="shp-dry" checked onchange="shpToggleDry()"> Chế độ thử (không ghi vào kho)</label>
+      <label style="font-size:13px;color:var(--med);display:flex;align-items:center;gap:6px;font-weight:600">
+        <input type="checkbox" id="shp-queue" checked> 🚚 Chờ đi hàng (chưa trừ kho — quét khi gói mới trừ)</label>
     </div>
     <div id="shp-result" style="display:none;margin-top:14px;padding:14px;border-radius:10px;font-size:13px;white-space:pre-wrap"></div>
 
@@ -989,6 +997,61 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
       <summary style="cursor:pointer">Xem dữ liệu thô đọc được từ PDF (gỡ lỗi)</summary>
       <pre id="shp-raw" style="white-space:pre-wrap;background:#FBFBF9;border:1px solid #E6E6E1;border-radius:8px;padding:10px;max-height:260px;overflow:auto;font-size:11px"></pre>
     </details>
+  </div>
+</div>
+
+<div id="page-fulfill" class="page">
+  <div class="page-header">
+    <div><div class="page-title">🚚 Đi hàng — Quét xuất kho</div><div class="page-sub">Quét QR tem → bật đúng đơn → quét QR sản phẩm đối chiếu → xuất kho &amp; đi hàng</div></div>
+    <div class="btns">
+      <button class="btn btn-primary" onclick="openQuickShip()">⚡ Xuất nhanh (Grab/Hỏa tốc)</button>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="font-weight:600">Bước 1 · Quét mã vận đơn trên tem</div>
+      <div style="font-size:13px;color:var(--muted)">Còn chờ: <b id="ff-left" style="color:var(--dark)">0</b></div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <button class="btn" id="ff-cam-btn" onclick="ffToggleCam()">📷 Bật camera quét</button>
+      <input id="ff-scan-input" placeholder="…hoặc quét đầu đọc / gõ mã vận đơn rồi Enter" style="flex:1;min-width:200px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px" onkeydown="if(event.key==='Enter'){ffFindOrder(this.value); this.value='';}">
+    </div>
+    <div id="ff-cam-wrap" style="display:none;margin-top:12px;max-width:340px;position:relative">
+      <video id="ff-video" style="width:100%;border-radius:8px;display:block;background:#000" autoplay playsinline muted></video>
+      <canvas id="ff-canvas" style="display:none"></canvas>
+      <div style="position:absolute;inset:0;top:0;border:3px solid #633806;border-radius:8px;pointer-events:none;opacity:.55"></div>
+    </div>
+    <div id="ff-cam-status" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
+    <div id="ff-scan-msg" style="font-size:12px;margin-top:6px"></div>
+  </div>
+
+  <div id="ff-pkg" style="display:none"></div>
+
+  <div class="card">
+    <div style="font-weight:600;margin-bottom:8px">Đơn đang chờ đi hàng</div>
+    <div id="ff-queue" style="font-size:13px"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-quickship">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-title">⚡ Xuất nhanh — Grab / Hỏa tốc <span class="modal-close" onclick="closeModal('modal-quickship')">×</span></div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Dùng cho đơn đi liền chưa kịp lên web. Xuất kho + tạo đơn ngay.</div>
+    <label style="font-size:12px;font-weight:600;color:var(--med)">Sản phẩm</label>
+    <select id="qs-prod" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;font-size:13px;margin:5px 0 12px"></select>
+    <div style="display:flex;gap:10px">
+      <div style="flex:1"><label style="font-size:12px;font-weight:600;color:var(--med)">Kênh</label>
+        <select id="qs-channel" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;font-size:13px;margin-top:5px">
+          <option value="Grab">Grab</option><option value="GHN">GHN</option><option value="Online">Online</option><option value="Shopee">Shopee</option><option value="TikTok">TikTok</option>
+        </select></div>
+      <div style="width:90px"><label style="font-size:12px;font-weight:600;color:var(--med)">SL</label>
+        <input id="qs-qty" type="number" value="1" min="1" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;font-size:13px;margin-top:5px"></div>
+    </div>
+    <label style="font-size:12px;font-weight:600;color:var(--med);display:block;margin-top:12px">Tên khách (tuỳ chọn)</label>
+    <input id="qs-cust" placeholder="Để trống cũng được" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;font-size:13px;margin-top:5px">
+    <div id="qs-msg" style="font-size:12px;margin-top:10px"></div>
+    <button class="btn btn-primary" style="width:100%;margin-top:14px" onclick="quickShipConfirm()">Xuất ngay &amp; tạo đơn</button>
   </div>
 </div>
 
@@ -1499,7 +1562,7 @@ function fmtDate(d){ if(!d)return'—'; const dt=new Date(d); return`${String(dt
 function fmtDateShort(d){ if(!d)return'—'; const dt=new Date(d); return`${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`; }
 function todayStr(){ const d=new Date(); return d.toISOString().split('T')[0]; }
 function initials(n){ return (n||'?').split(' ').slice(-2).map(w=>w[0]).join('').toUpperCase().slice(0,2); }
-function normStatus(s){ return s==='Nợ hàng' ? 'Nợ hàng' : 'Đi đơn'; }
+function normStatus(s){ return s==='Nợ hàng' ? 'Nợ hàng' : (s==='Chờ đi hàng' ? 'Chờ đi hàng' : 'Đi đơn'); }
 function sizeRank(s){ return ({'XS':0,'S':1,'M':2,'L':3,'XL':4,'XXL':5,'2XL':5,'XXXL':6,'3XL':6}[(s||'').toUpperCase().trim()]) ?? 99; }
 // Sắp xếp biến thể: Tên → Màu → Size (S,M,L,XL...)
 function variantSort(a,b){
@@ -1519,7 +1582,7 @@ function channelMatch(ch, key){
   if(key==='Thái Lan') return ch==='ThaiLan';
   return ch===key;
 }
-function pillSt(s){ const n=normStatus(s); const m={'Nợ hàng':'p-no-hang','Đi đơn':'p-ship'}; return`<span class="pill ${m[n]}">${n}</span>`; }
+function pillSt(s){ const n=normStatus(s); const m={'Nợ hàng':'p-no-hang','Đi đơn':'p-ship','Chờ đi hàng':'p-cho'}; return`<span class="pill ${m[n]||''}">${n}</span>`; }
 function pillCh(c){
   const labels={'KOL_IG':'⭐📸 KOL IG','KOL_TT':'🎵 KOL TikTok','KOL_IG_THAI':'⭐🇹🇭📸 KOL IG Thái','KOL_TT_THAI':'🎵🇹🇭 KOL TikTok Thái'};
   const m={Online:'p-online',Shopee:'p-shopee',TikTok:'p-tiktok',KOL_IG:'p-kol',KOL_TT:'p-kol',KOL_IG_THAI:'p-kol',KOL_TT_THAI:'p-kol',ThaiLan:'p-thai','Tặng':'p-tang','Grab':'p-ship','GHN':'p-blue','Hàng mới về':'p-in','Hàng trả về':'p-in'};
@@ -1548,6 +1611,7 @@ function goPage(name, el){
   if(name==='dashboard') loadDashboard();
   else if(name==='orders') loadOrders();
   else if(name==='shopee') loadShopeeImport();
+  else if(name==='fulfill') loadFulfill();
   else if(name==='nxk') loadNXK();
   else if(name==='stock') loadStock();
   else if(name==='forecast') loadForecast();
@@ -1569,6 +1633,25 @@ let shpSkuMap={}, shpParsed=[];
 const shpNorm=(s)=>(s||'').toLowerCase().replace(/\s+/g,' ').trim();
 const shpColorKey=(c)=>shpNorm(c).split(/[\s\-_/,]+/).filter(Boolean).sort().join('');
 const shpInt=(s)=>parseInt(String(s).replace(/[^\d]/g,''),10)||0;
+// Nối các mảnh chữ từ PDF theo toạ độ — tránh tách rời chữ tiếng Việt ("Đ ầ m" -> "Đầm")
+function shpJoinItems(items){
+  const parts=[]; let prev=null;
+  for(const it of items){
+    const s=it.str; if(s==null) continue;
+    if(prev){
+      const fs=Math.abs(prev.transform[0])||prev.height||8;
+      const dy=Math.abs(it.transform[5]-prev.transform[5]);
+      const last=parts.length?parts[parts.length-1]:'';
+      if(dy>fs*0.5){ if(!/\s$/.test(last)) parts.push(' '); }
+      else if(prev.width>0){
+        const gap=it.transform[4]-(prev.transform[4]+prev.width);
+        if(gap>fs*0.22 && !/\s$/.test(last) && !/^\s/.test(s)) parts.push(' ');
+      }
+    }
+    parts.push(s); prev=it;
+  }
+  return parts.join('').replace(/[ \t\u00a0]+/g,' ').trim();
+}
 
 async function loadShopeeImport(){
   if(!allProducts.length){ allProducts=await db.products(); }
@@ -1592,7 +1675,7 @@ async function shpHandle(file){
     const pages=[];
     for(let i=1;i<=pdf.numPages;i++){
       const tc=await (await pdf.getPage(i)).getTextContent();
-      pages.push(tc.items.map(it=>it.str).join(' ').replace(/\s+/g,' '));
+      pages.push(shpJoinItems(tc.items));
     }
     document.getElementById('shp-raw').textContent=pages.map((t,i)=>'=== TEM '+(i+1)+' ===\n'+t).join('\n\n')
       +'\n\n=== SẢN PHẨM TRONG KHO ('+allProducts.length+') ===\n'+allProducts.slice(0,80).map(p=>[p.code,p.name,p.color,p.size].join(' | ')).join('\n');
@@ -1619,6 +1702,16 @@ function shpParse(text){
     const color=parts.length>=1?parts.pop():'';
     const name=parts.join(', ').replace(/^\[/,'').trim();
     items.push({shopee_name:full, name, color, size, qty});
+  }
+  // Định dạng Shopee mới (không có [tag]): "1.Đầm Macaroon NUDE : S, SL: 1"
+  if(!items.length){
+    const re2=/(?<![\w.])\d{1,2}\.\s*([^:]{1,70}?)\s*:\s*([^,:]{1,20}?)\s*,\s*SL:\s*(\d+)/g; let m2;
+    while((m2=re2.exec(text))){
+      const head=m2[1].trim(), size=m2[2].trim(), qty=shpInt(m2[3]);
+      if(!head || head.length<2) continue;
+      const sc=tkSplitColor(head);
+      items.push({shopee_name:`${head} : ${size}`, name:sc.name, color:sc.color, size, qty});
+    }
   }
   if(!items.length || (!tracking && !order_code)) return null;
   return {tracking,order_code,date,cod,items};
@@ -1671,12 +1764,13 @@ function shpBestMatch(it){
   allProducts.forEach(p=>{
     const pname=shpNorm(p.name||''); if(!pname) return;
     const psize=shpNorm(p.size); const pcolor=shpColorKey(p.color);
-    const nameHit=tag&&pname.includes(tag);
+    const ptoks=pname.split(/[^0-9a-zà-ỹ]+/i).filter(t=>t.length>2);
+    const nameHit=(tag&&pname.includes(tag)) || (ptoks.length>0 && ptoks.every(t=>sName.includes(t)));
     const sizeOk=psize&&psize===csize;
     const colorOk=pcolor&&(pcolor===ccolor||ccolor.includes(pcolor)||pcolor.includes(ccolor));
     let score=0;
     if(nameHit) score+=5;
-    pname.split(/[^0-9a-zà-ỹ]+/i).filter(t=>t.length>2).forEach(t=>{ if(sName.includes(t)) score++; });
+    ptoks.forEach(t=>{ if(sName.includes(t)) score++; });
     if(sizeOk) score+=3; if(colorOk) score+=3;
     const exact=nameHit&&sizeOk&&colorOk; if(exact) score+=4;
     if(score>bestScore){ bestScore=score; best=p; bestExact=exact; }
@@ -1750,6 +1844,7 @@ function shpRecompute(){
 
 async function shpConfirm(){
   const dry=document.getElementById('shp-dry').checked;
+  const queue=document.getElementById('shp-queue') ? document.getElementById('shp-queue').checked : false;
   const res=document.getElementById('shp-result'); res.style.display='none';
   const stockNow=computeStock(allProducts,allTx);
   const orderRows=[],txRows=[],newMaps={}; let outCount=0;
@@ -1764,16 +1859,16 @@ async function shpConfirm(){
       const ch=lb.channel||'Shopee';
       orderRows.push({order_code:lb.order_code, date:isoFromVN(lb.date), customer_name:lb.customer_name||'('+ch+')', phone:lb.phone||'', address:lb.address||'',
         product_code:it.code, product_name:pname, quantity:it.qty, channel:ch, tracking_code:lb.tracking,
-        staff:ch+' PDF', note:'Nhập từ PDF '+ch, status: out?'Nợ hàng':'Đi đơn',
+        staff:ch+' PDF', note:'Nhập từ PDF '+ch, status: queue?'Chờ đi hàng':(out?'Nợ hàng':'Đi đơn'),
         amount_due:0, is_paid:false, shipping_fee:idx===0?0:0, payment_method:'Chuyển khoản'});
-      if(!out){ txRows.push({date:isoFromVN(lb.date), type:'Xuất', product_code:it.code, product_name:pname, color:prod?.color, size:prod?.size, quantity:it.qty, channel:ch, note:'Xuất từ PDF '+ch+' '+lb.tracking, staff:ch+' PDF'}); if(si) si.current-=it.qty; }
+      if(!queue && !out){ txRows.push({date:isoFromVN(lb.date), type:'Xuất', product_code:it.code, product_name:pname, color:prod?.color, size:prod?.size, quantity:it.qty, channel:ch, note:'Xuất từ PDF '+ch+' '+lb.tracking, staff:ch+' PDF'}); if(si) si.current-=it.qty; }
       if(!it.fromMap) newMaps[shpNorm(it.shopee_name)]={shopee_name:it.shopee_name, product_code:it.code, product_name:it.matchedName||pname};
     });
   });
   if(!orderRows.length){ res.style.display='block'; res.style.background='#FDECEC'; res.style.color='#B91C1C'; res.textContent='Chưa có dòng nào được chọn & đối chiếu.'; return; }
 
   if(dry){ res.style.display='block'; res.style.background='#FDF2E1'; res.style.color='#B45309';
-    res.textContent='CHẾ ĐỘ THỬ — chưa ghi gì.\nSẽ tạo '+orderRows.length+' dòng đơn, trừ kho '+txRows.reduce((s,t)=>s+t.quantity,0)+' sản phẩm'+(outCount?(', '+outCount+' dòng hết hàng → đơn Nợ hàng (chưa trừ kho)'):'')+', lưu '+Object.keys(newMaps).length+' map mới.\n\n➡️ Để ghi THẬT: bỏ tick "Chế độ thử" rồi bấm nút lần nữa.\n\nMẫu dữ liệu:\n'+JSON.stringify({order:orderRows[0],transaction:txRows[0]||'(hết hàng)'},null,2);
+    res.textContent='CHẾ ĐỘ THỬ — chưa ghi gì.\n'+(queue?('Sẽ tạo '+orderRows.length+' đơn vào hàng "Chờ đi hàng" (CHƯA trừ kho — sẽ trừ khi NV quét lúc gói)'):('Sẽ tạo '+orderRows.length+' dòng đơn, trừ kho '+txRows.reduce((s,t)=>s+t.quantity,0)+' sản phẩm'+(outCount?(', '+outCount+' dòng hết hàng → đơn Nợ hàng (chưa trừ kho)'):'')))+', lưu '+Object.keys(newMaps).length+' map mới.\n\n➡️ Để ghi THẬT: bỏ tick "Chế độ thử" rồi bấm nút lần nữa.\n\nMẫu dữ liệu:\n'+JSON.stringify({order:orderRows[0],transaction:txRows[0]||(queue?'(chờ đi hàng — trừ kho khi quét)':'(hết hàng)')},null,2);
     return; }
 
   const btn=document.getElementById('shp-confirm'); btn.disabled=true; btn.textContent='Đang ghi…';
@@ -1784,7 +1879,7 @@ async function shpConfirm(){
     for(const o of orderRows){ const r=await db.insertOrder(o); if(r&&r[0]) allOrders.unshift(r[0]); }
     for(const t of txRows){ const r=await db.insertTx(t); if(r&&r[0]) allTx.unshift(r[0]); }
     res.style.display='block'; res.style.background='#E7F6EF'; res.style.color='#0F6E56';
-    res.textContent='✅ Đã tạo '+orderRows.length+' đơn và trừ kho '+txRows.reduce((s,t)=>s+t.quantity,0)+' sản phẩm. Xem ở "Quản lý đơn hàng" / "Nhập-Xuất kho".';
+    res.textContent=queue?('✅ Đã tạo '+orderRows.length+' đơn vào hàng "Chờ đi hàng". Sang menu 🚚 Đi hàng để quét xuất kho lúc gói.'):('✅ Đã tạo '+orderRows.length+' đơn và trừ kho '+txRows.reduce((s,t)=>s+t.quantity,0)+' sản phẩm. Xem ở "Quản lý đơn hàng" / "Nhập-Xuất kho".');
     toast('Đã nhập '+orderRows.length+' đơn');
     shpParsed.forEach(lb=>{ if(orderRows.some(o=>o.order_code&&o.order_code===lb.order_code)) lb.dup=true; });
     shpRender();
@@ -1793,6 +1888,186 @@ async function shpConfirm(){
 }
 
 function isoFromVN(d){ const m=(d||'').match(/(\d{2})-(\d{2})-(\d{4})/); return m?m[3]+'-'+m[2]+'-'+m[1]:todayStr(); }
+
+// ══════════ ĐI HÀNG — QUÉT XUẤT KHO ══════════
+let ffCamStream=null, ffCamInterval=null, ffMode='label', ffGroup=[], ffLastScan='', ffLastT=0;
+
+async function loadFulfill(){
+  if(!allProducts.length) allProducts=await db.products();
+  if(!allTx.length) allTx=await db.transactions();
+  if(!allOrders.length) allOrders=await db.orders();
+  ffMode='label'; ffGroup=[]; ffStopCam();
+  document.getElementById('ff-scan-msg').innerHTML=''; document.getElementById('ff-cam-status').textContent='';
+  ffRenderPkg(); ffRenderQueue();
+}
+
+function ffRenderQueue(){
+  const q=allOrders.filter(o=>o.status==='Chờ đi hàng');
+  const leftEl=document.getElementById('ff-left'); if(leftEl) leftEl.textContent=q.length;
+  const badge=document.getElementById('fulfill-badge'); if(badge){ if(q.length){badge.style.display='block';badge.textContent=q.length;}else badge.style.display='none'; }
+  const el=document.getElementById('ff-queue'); if(!el) return;
+  if(!q.length){ el.innerHTML='<div style="color:var(--muted);padding:8px 0">Chưa có đơn chờ đi hàng. Vào <b>Nhập Shopee/TikTok (PDF)</b>, bật <b>"Chờ đi hàng (chưa trừ kho)"</b> để đưa đơn vào đây.</div>'; return; }
+  const groups={};
+  q.forEach(o=>{ const k=o.tracking_code||o.order_code||('id'+o.id); (groups[k]=groups[k]||[]).push(o); });
+  el.innerHTML=Object.entries(groups).map(([k,rows])=>{
+    const o=rows[0];
+    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--border);cursor:pointer" onclick="ffFindOrder(\''+String(o.tracking_code||o.order_code||'').replace(/'/g,"")+'\')">'+
+      '<div style="min-width:0"><div style="font-size:13px;font-weight:600">'+rows.map(r=>(r.product_name||r.product_code)).join(', ')+'</div>'+
+      '<div style="font-size:11px;color:var(--muted)">'+k+' · '+(o.customer_name||'')+' · '+(o.channel||'')+'</div></div>'+
+      '<button class="btn" style="font-size:11px;padding:5px 9px;white-space:nowrap">Mở quét</button></div>';
+  }).join('');
+}
+
+function ffFindOrder(raw){
+  const code=(raw||'').trim(); if(!code) return;
+  const norm=s=>String(s||'').replace(/\s+/g,'').toLowerCase();
+  const nc=norm(code);
+  const q=allOrders.filter(o=>o.status==='Chờ đi hàng');
+  let group=q.filter(o=>o.tracking_code && (norm(o.tracking_code)===nc || norm(o.tracking_code).endsWith(nc)));
+  if(!group.length) group=q.filter(o=>o.order_code && (norm(o.order_code)===nc || norm(o.order_code).endsWith(nc)));
+  const msg=document.getElementById('ff-scan-msg');
+  if(!group.length){ msg.innerHTML='<span style="color:#B91C1C">⚠ Không thấy đơn chờ với mã: '+code+'</span>'; return; }
+  // gom theo đúng kiện của đơn vừa quét
+  const key=group[0].tracking_code||group[0].order_code;
+  group=q.filter(o=>(o.tracking_code||o.order_code)===key);
+  msg.innerHTML='';
+  ffGroup=group.map(o=>({o,scanned:false}));
+  ffMode='product';
+  ffRenderPkg();
+  const st=document.getElementById('ff-cam-status'); if(st && ffCamStream) st.textContent='Bước 2: quét QR sản phẩm để đối chiếu…';
+  const pkg=document.getElementById('ff-pkg'); if(pkg) pkg.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function ffRenderPkg(){
+  const wrap=document.getElementById('ff-pkg'); if(!wrap) return;
+  if(!ffGroup.length){ wrap.style.display='none'; wrap.innerHTML=''; return; }
+  const o0=ffGroup[0].o; const allOk=ffGroup.every(g=>g.scanned);
+  const totQty=ffGroup.reduce((s,g)=>s+(Number(g.o.quantity)||1),0);
+  wrap.style.display='block';
+  wrap.innerHTML='<div class="card" style="margin-bottom:16px;border:1.5px solid #C9A227">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'+
+      '<div style="font-weight:700">📦 '+(o0.tracking_code||o0.order_code||'')+'</div>'+
+      '<div style="font-size:12px;color:var(--muted)">'+(o0.customer_name||'')+' · '+(o0.channel||'')+'</div></div>'+
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:4px">Bước 2 · Quét QR sản phẩm để đối chiếu từng món</div>'+
+    ffGroup.map((g,i)=>{
+      const p=allProducts.find(pp=>pp.code===g.o.product_code);
+      const img=(p&&p.image_url)?'<img src="'+normalizeImageUrl(p.image_url)+'" style="width:46px;height:46px;object-fit:cover;border-radius:7px;flex-shrink:0" onerror="this.style.display=\'none\'">':'<div style="width:46px;height:46px;border-radius:7px;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-shrink:0">📦</div>';
+      return '<div style="display:flex;align-items:center;gap:11px;padding:9px 0;border-top:1px solid var(--border)">'+img+
+        '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">'+(g.o.product_name||g.o.product_code)+'</div>'+
+        '<div style="font-size:11px;color:var(--muted)">'+g.o.product_code+' · SL '+g.o.quantity+'</div></div>'+
+        (g.scanned?'<span class="badge" style="background:#E7F6EF;color:#0F6E56;white-space:nowrap">✓ Đã đối chiếu</span>':'<button class="btn" style="font-size:11px;padding:5px 9px;white-space:nowrap" onclick="ffManualMark('+i+')">Đối chiếu tay</button>')+
+        '</div>';
+    }).join('')+
+    '<div style="display:flex;gap:10px;margin-top:14px">'+
+      '<button class="btn" onclick="ffCancelPkg()">Huỷ</button>'+
+      '<button class="btn '+(allOk?'btn-primary':'')+'" id="ff-confirm" '+(allOk?'':'disabled style="opacity:.45;cursor:not-allowed"')+' onclick="ffConfirm()">✓ Đã gói — Xuất kho '+totQty+' cái</button>'+
+    '</div></div>';
+}
+
+function ffMarkProduct(raw){
+  const code=String(raw||'').trim().split('|')[0];
+  const st=document.getElementById('ff-cam-status');
+  const g=ffGroup.find(x=>!x.scanned && x.o.product_code===code);
+  if(g){ g.scanned=true; ffBeep(true); ffRenderPkg();
+    if(st) st.innerHTML = ffGroup.every(x=>x.scanned) ? '<span style="color:#0F6E56">✓ Đủ món — bấm "Đã gói — Xuất kho"</span>' : '<span style="color:#0F6E56">✓ Đúng '+code+'</span>';
+  } else {
+    const dup=ffGroup.some(x=>x.o.product_code===code);
+    ffBeep(false);
+    if(st) st.innerHTML = dup ? '<span style="color:#B45309">Món '+code+' đã đối chiếu rồi</span>' : '<span style="color:#B91C1C">✗ '+code+' KHÔNG thuộc đơn này — kiểm tra lại!</span>';
+  }
+}
+function ffManualMark(i){ if(ffGroup[i]){ ffGroup[i].scanned=true; ffRenderPkg(); } }
+function ffCancelPkg(){ ffGroup=[]; ffMode='label'; ffRenderPkg(); const st=document.getElementById('ff-cam-status'); if(st&&ffCamStream) st.textContent='Quét QR trên tem…'; }
+
+async function ffConfirm(){
+  if(!ffGroup.length || !ffGroup.every(g=>g.scanned)) return;
+  const btn=document.getElementById('ff-confirm'); if(btn){ btn.disabled=true; btn.textContent='Đang xuất…'; }
+  try{
+    for(const g of ffGroup){
+      const o=g.o; const p=allProducts.find(pp=>pp.code===o.product_code);
+      const tx={date:todayStr(), type:'Xuất', product_code:o.product_code, product_name:o.product_name, color:p?.color, size:p?.size, quantity:o.quantity, channel:o.channel, note:'Đi hàng (quét) '+(o.tracking_code||o.order_code||''), staff:'Đi hàng'};
+      const r=await db.insertTx(tx); if(r&&r[0]) allTx.unshift(r[0]);
+      await db.updateOrder(o.id,{status:'Đi đơn'}); o.status='Đi đơn';
+    }
+    toast('✅ Đã xuất kho & đi hàng '+ffGroup.length+' món');
+    ffGroup=[]; ffMode='label'; ffRenderPkg(); ffRenderQueue();
+    const st=document.getElementById('ff-cam-status'); if(st) st.textContent=ffCamStream?'Quét QR trên tem tiếp theo…':'';
+    const inp=document.getElementById('ff-scan-input'); if(inp){ inp.value=''; inp.focus(); }
+  }catch(e){ toast('Lỗi xuất kho: '+e.message,true); if(btn){ btn.disabled=false; btn.textContent='✓ Đã gói — Xuất kho'; } }
+}
+
+// ── camera ──
+async function ffToggleCam(){
+  if(ffCamStream){ ffStopCam(); return; }
+  const st=document.getElementById('ff-cam-status'); const wrap=document.getElementById('ff-cam-wrap');
+  wrap.style.display='block'; st.textContent='Đang mở camera…';
+  try{
+    ffCamStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}});
+    const v=document.getElementById('ff-video'); v.srcObject=ffCamStream; await v.play();
+    document.getElementById('ff-cam-btn').textContent='⏹ Tắt camera';
+    st.textContent = ffMode==='label'?'Đưa QR trên tem vào khung…':'Đưa QR sản phẩm vào khung…';
+    ffCamInterval=setInterval(ffScanFrame,250);
+  }catch(e){
+    wrap.style.display='none';
+    if(e.name==='NotAllowedError') st.innerHTML='❌ Bị chặn camera. Cần mở app qua <b>https</b> rồi cho phép camera. (Tạm thời dùng ô gõ mã bên cạnh.)';
+    else if(e.name==='NotFoundError') st.textContent='Không thấy camera trên thiết bị này.';
+    else st.textContent='Lỗi camera: '+e.message;
+  }
+}
+function ffStopCam(){
+  if(ffCamInterval){ clearInterval(ffCamInterval); ffCamInterval=null; }
+  if(ffCamStream){ ffCamStream.getTracks().forEach(t=>t.stop()); ffCamStream=null; }
+  const wrap=document.getElementById('ff-cam-wrap'); if(wrap) wrap.style.display='none';
+  const b=document.getElementById('ff-cam-btn'); if(b) b.textContent='📷 Bật camera quét';
+}
+function ffScanFrame(){
+  try{
+    const v=document.getElementById('ff-video'); if(!v||v.readyState!==v.HAVE_ENOUGH_DATA) return;
+    const c=document.getElementById('ff-canvas'); c.width=v.videoWidth; c.height=v.videoHeight;
+    const ctx=c.getContext('2d'); ctx.drawImage(v,0,0,c.width,c.height);
+    const d=ctx.getImageData(0,0,c.width,c.height);
+    const code=jsQR(d.data,d.width,d.height,{inversionAttempts:'dontInvert'});
+    if(code){
+      const t=code.data.trim(); const now=Date.now();
+      if(t===ffLastScan && now-ffLastT<1500) return;
+      ffLastScan=t; ffLastT=now;
+      if(ffMode==='label') ffFindOrder(t); else ffMarkProduct(t);
+    }
+  }catch(e){}
+}
+function ffBeep(ok){
+  try{ const a=new (window.AudioContext||window.webkitAudioContext)(); const o=a.createOscillator(); const g=a.createGain();
+    o.connect(g); g.connect(a.destination); o.frequency.value=ok?880:240; g.gain.value=.08; o.start();
+    setTimeout(()=>{o.stop();a.close();}, ok?110:240);
+  }catch(e){}
+}
+
+// ── Xuất nhanh ──
+function openQuickShip(){
+  const sel=document.getElementById('qs-prod'); const stock=computeStock(allProducts,allTx);
+  sel.innerHTML=stock.map(p=>'<option value="'+p.code+'">'+[p.name,p.color,p.size].filter(Boolean).join(' · ')+' — tồn '+p.current+' ('+p.code+')</option>').join('');
+  document.getElementById('qs-qty').value=1; document.getElementById('qs-cust').value=''; document.getElementById('qs-msg').innerHTML='';
+  document.getElementById('qs-channel').value='Grab';
+  openModal('modal-quickship');
+}
+async function quickShipConfirm(){
+  const code=document.getElementById('qs-prod').value;
+  const ch=document.getElementById('qs-channel').value;
+  const qty=parseInt(document.getElementById('qs-qty').value)||1;
+  const cust=document.getElementById('qs-cust').value.trim();
+  const msg=document.getElementById('qs-msg');
+  const p=allProducts.find(pp=>pp.code===code);
+  if(!p){ msg.innerHTML='<span style="color:#B91C1C">Chưa chọn sản phẩm.</span>'; return; }
+  const pname=`${p.name} ${p.size} · ${p.color}`;
+  try{
+    const tx={date:todayStr(), type:'Xuất', product_code:p.code, product_name:pname, color:p.color, size:p.size, quantity:qty, channel:ch, note:'Xuất nhanh đi hàng', staff:'Đi hàng'};
+    const rt=await db.insertTx(tx); if(rt&&rt[0]) allTx.unshift(rt[0]);
+    const order={order_code:'QS'+Date.now().toString().slice(-8), date:todayStr(), customer_name:cust||'(Xuất nhanh)', phone:'', address:'', product_code:p.code, product_name:pname, quantity:qty, channel:ch, tracking_code:'', staff:'Đi hàng', note:'Xuất nhanh (đi liền)', status:'Đi đơn', amount_due:0, is_paid:false, shipping_fee:0, payment_method:'Chuyển khoản'};
+    const ro=await db.insertOrder(order); if(ro&&ro[0]) allOrders.unshift(ro[0]);
+    toast('✅ Đã xuất nhanh '+qty+' × '+p.name);
+    closeModal('modal-quickship'); ffRenderQueue();
+  }catch(e){ msg.innerHTML='<span style="color:#B91C1C">Lỗi: '+e.message+'</span>'; }
+}
 
 function shpToggleDry(){
   const dry=document.getElementById('shp-dry').checked;
@@ -2211,6 +2486,8 @@ function updateDebtBadge(){
   } else {
     badge.style.display = 'none';
   }
+  const fb=document.getElementById('fulfill-badge');
+  if(fb){ const fc=allOrders.filter(o=>o.status==='Chờ đi hàng').length; if(fc>0){ fb.textContent=fc; fb.style.display='inline-block'; } else fb.style.display='none'; }
 }
 
 // ══════════════════════════════════════
@@ -5868,10 +6145,10 @@ function printOneQR(qbId, code, name, color, size){
           body{font-family:Arial,sans-serif;background:#f5f5f5;display:flex;flex-direction:column;align-items:center;padding:20px;gap:12px}
           .label{width:50mm;height:50mm;padding:2.5mm;border:0.5px solid #ccc;border-radius:1.5mm;text-align:center;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.8mm}
           .brand{font-size:6.5px;letter-spacing:2px;color:#aaa;text-transform:uppercase}
-          img{width:36mm;height:36mm;display:block}
+          img{width:33mm;height:33mm;display:block}
           .code{font-size:7px;font-family:monospace;color:#999}
-          .name{font-size:8.5px;font-weight:700;color:#2A211C;line-height:1.2}
-          .detail{font-size:7.5px;color:#5B4636}
+          .name{font-size:11px;font-weight:700;color:#2A211C;line-height:1.2}
+          .detail{font-size:10px;font-weight:700;color:#2A211C}
           .print-btn{padding:8px 20px;background:#2A211C;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500}
           .hint{font-size:11px;color:#888;text-align:center;max-width:200px;line-height:1.5}
           @media print{
