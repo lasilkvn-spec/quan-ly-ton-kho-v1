@@ -141,6 +141,7 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
 /* SCAN */
 .scan-box{background:var(--bg);border:2px dashed var(--border);border-radius:12px;padding:24px;text-align:center;margin-bottom:16px}
 @keyframes scanLine{0%{top:10%}100%{top:90%}}
+.ff-corner{position:absolute;width:26px;height:26px;border:0 solid #FFD24A;box-sizing:border-box}
 .scan-icon{font-size:48px;margin-bottom:10px}
 .scan-anim{display:none}
 .scan-anim.active{display:block}
@@ -1014,16 +1015,10 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
       <div style="font-size:13px;color:var(--muted)">Còn chờ: <b id="ff-left" style="color:var(--dark)">0</b></div>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-      <button class="btn" id="ff-cam-btn" onclick="ffToggleCam()">📷 Bật camera quét</button>
+      <button class="btn btn-primary" onclick="ffScan('label')">📷 Quét mã vận đơn</button>
       <input id="ff-scan-input" placeholder="…hoặc quét đầu đọc / gõ mã vận đơn rồi Enter" style="flex:1;min-width:200px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px" onkeydown="if(event.key==='Enter'){ffFindOrder(this.value); this.value='';}">
     </div>
-    <div id="ff-cam-wrap" style="display:none;margin-top:12px;max-width:340px;position:relative">
-      <video id="ff-video" style="width:100%;border-radius:8px;display:block;background:#000" autoplay playsinline muted></video>
-      <canvas id="ff-canvas" style="display:none"></canvas>
-      <div style="position:absolute;inset:0;top:0;border:3px solid #633806;border-radius:8px;pointer-events:none;opacity:.55"></div>
-    </div>
-    <div id="ff-cam-status" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
-    <div id="ff-scan-msg" style="font-size:12px;margin-top:6px"></div>
+    <div id="ff-scan-msg" style="font-size:12px;margin-top:8px"></div>
   </div>
 
   <div id="ff-pkg" style="display:none"></div>
@@ -1032,6 +1027,23 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
     <div style="font-weight:600;margin-bottom:8px">Đơn đang chờ đi hàng</div>
     <div id="ff-queue" style="font-size:13px"></div>
   </div>
+</div>
+
+<div id="ff-scan-overlay" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.92);flex-direction:column;align-items:center;justify-content:center;padding:24px">
+  <div id="ff-scan-hint" style="color:#fff;font-size:16px;font-weight:600;margin-bottom:16px;text-align:center"></div>
+  <div style="width:100%;max-width:320px;position:relative;border-radius:16px;overflow:hidden;background:#000">
+    <video id="ff-video" style="width:100%;display:block;min-height:260px;object-fit:cover" autoplay playsinline muted></video>
+    <canvas id="ff-canvas" style="display:none"></canvas>
+    <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:66%;aspect-ratio:1;pointer-events:none">
+      <span class="ff-corner" style="top:0;left:0;border-width:3px 0 0 3px;border-top-left-radius:8px"></span>
+      <span class="ff-corner" style="top:0;right:0;border-width:3px 3px 0 0;border-top-right-radius:8px"></span>
+      <span class="ff-corner" style="bottom:0;left:0;border-width:0 0 3px 3px;border-bottom-left-radius:8px"></span>
+      <span class="ff-corner" style="bottom:0;right:0;border-width:0 3px 3px 0;border-bottom-right-radius:8px"></span>
+      <div style="position:absolute;left:8%;right:8%;height:2px;background:#FFD24A;box-shadow:0 0 8px #FFD24A;animation:scanLine 1.6s ease-in-out infinite"></div>
+    </div>
+  </div>
+  <div id="ff-scan-ostatus" style="color:#FFD24A;font-size:14px;margin-top:16px;text-align:center;min-height:20px"></div>
+  <button class="btn" style="margin-top:18px;background:#fff;min-width:120px" onclick="ffStopScan()">Đóng</button>
 </div>
 
 <div class="modal-overlay" id="modal-quickship">
@@ -1896,8 +1908,8 @@ async function loadFulfill(){
   if(!allProducts.length) allProducts=await db.products();
   if(!allTx.length) allTx=await db.transactions();
   if(!allOrders.length) allOrders=await db.orders();
-  ffMode='label'; ffGroup=[]; ffStopCam();
-  document.getElementById('ff-scan-msg').innerHTML=''; document.getElementById('ff-cam-status').textContent='';
+  ffMode='label'; ffGroup=[]; ffStopScan();
+  document.getElementById('ff-scan-msg').innerHTML='';
   ffRenderPkg(); ffRenderQueue();
 }
 
@@ -1914,28 +1926,28 @@ function ffRenderQueue(){
     return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--border);cursor:pointer" onclick="ffFindOrder(\''+String(o.tracking_code||o.order_code||'').replace(/'/g,"")+'\')">'+
       '<div style="min-width:0"><div style="font-size:13px;font-weight:600">'+rows.map(r=>(r.product_name||r.product_code)).join(', ')+'</div>'+
       '<div style="font-size:11px;color:var(--muted)">'+k+' · '+(o.customer_name||'')+' · '+(o.channel||'')+'</div></div>'+
-      '<button class="btn" style="font-size:11px;padding:5px 9px;white-space:nowrap">Mở quét</button></div>';
+      '<button class="btn" style="font-size:11px;padding:5px 9px;white-space:nowrap">Mở đơn ▸</button></div>';
   }).join('');
 }
 
 function ffFindOrder(raw){
-  const code=(raw||'').trim(); if(!code) return;
+  const code=(raw||'').trim(); if(!code) return false;
   const norm=s=>String(s||'').replace(/\s+/g,'').toLowerCase();
   const nc=norm(code);
   const q=allOrders.filter(o=>o.status==='Chờ đi hàng');
   let group=q.filter(o=>o.tracking_code && (norm(o.tracking_code)===nc || norm(o.tracking_code).endsWith(nc)));
   if(!group.length) group=q.filter(o=>o.order_code && (norm(o.order_code)===nc || norm(o.order_code).endsWith(nc)));
   const msg=document.getElementById('ff-scan-msg');
-  if(!group.length){ msg.innerHTML='<span style="color:#B91C1C">⚠ Không thấy đơn chờ với mã: '+code+'</span>'; return; }
-  // gom theo đúng kiện của đơn vừa quét
+  if(!group.length){ msg.innerHTML='<span style="color:#B91C1C">⚠ Không thấy đơn chờ với mã: '+code+'</span>'; return false; }
   const key=group[0].tracking_code||group[0].order_code;
   group=q.filter(o=>(o.tracking_code||o.order_code)===key);
   msg.innerHTML='';
   ffGroup=group.map(o=>({o,scanned:false}));
   ffMode='product';
+  ffBeep(true);
   ffRenderPkg();
-  const st=document.getElementById('ff-cam-status'); if(st && ffCamStream) st.textContent='Bước 2: quét QR sản phẩm để đối chiếu…';
   const pkg=document.getElementById('ff-pkg'); if(pkg) pkg.scrollIntoView({behavior:'smooth',block:'start'});
+  return true;
 }
 
 function ffRenderPkg(){
@@ -1955,9 +1967,10 @@ function ffRenderPkg(){
       return '<div style="display:flex;align-items:center;gap:11px;padding:9px 0;border-top:1px solid var(--border)">'+img+
         '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">'+(g.o.product_name||g.o.product_code)+'</div>'+
         '<div style="font-size:11px;color:var(--muted)">'+g.o.product_code+' · SL '+g.o.quantity+'</div></div>'+
-        (g.scanned?'<span class="badge" style="background:#E7F6EF;color:#0F6E56;white-space:nowrap">✓ Đã đối chiếu</span>':'<button class="btn" style="font-size:11px;padding:5px 9px;white-space:nowrap" onclick="ffManualMark('+i+')">Đối chiếu tay</button>')+
+        (g.scanned?'<span class="badge" style="background:#E7F6EF;color:#0F6E56;white-space:nowrap">✓ Đã đối chiếu</span>':'<span class="badge" style="background:#FBEED2;color:#7A5B12;white-space:nowrap">⏳ Chờ quét QR</span>')+
         '</div>';
     }).join('')+
+    (!allOk ? '<button class="btn btn-primary" style="width:100%;margin-top:12px" onclick="ffScan(\'product\')">📷 Quét QR sản phẩm ('+ffGroup.filter(g=>!g.scanned).length+' món còn lại)</button>' : '')+
     '<div style="display:flex;gap:10px;margin-top:14px">'+
       '<button class="btn" onclick="ffCancelPkg()">Huỷ</button>'+
       '<button class="btn '+(allOk?'btn-primary':'')+'" id="ff-confirm" '+(allOk?'':'disabled style="opacity:.45;cursor:not-allowed"')+' onclick="ffConfirm()">✓ Đã gói — Xuất kho '+totQty+' cái</button>'+
@@ -1966,18 +1979,23 @@ function ffRenderPkg(){
 
 function ffMarkProduct(raw){
   const code=String(raw||'').trim().split('|')[0];
-  const st=document.getElementById('ff-cam-status');
+  const os=document.getElementById('ff-scan-ostatus');
   const g=ffGroup.find(x=>!x.scanned && x.o.product_code===code);
   if(g){ g.scanned=true; ffBeep(true); ffRenderPkg();
-    if(st) st.innerHTML = ffGroup.every(x=>x.scanned) ? '<span style="color:#0F6E56">✓ Đủ món — bấm "Đã gói — Xuất kho"</span>' : '<span style="color:#0F6E56">✓ Đúng '+code+'</span>';
-  } else {
-    const dup=ffGroup.some(x=>x.o.product_code===code);
-    ffBeep(false);
-    if(st) st.innerHTML = dup ? '<span style="color:#B45309">Món '+code+' đã đối chiếu rồi</span>' : '<span style="color:#B91C1C">✗ '+code+' KHÔNG thuộc đơn này — kiểm tra lại!</span>';
+    if(os) os.innerHTML = ffGroup.every(x=>x.scanned) ? '✓ Đủ món!' : '✓ Đúng '+code;
+    return 'ok';
   }
+  // lỡ quét trúng QR trên tem (mã vận đơn) -> nhắc nhẹ, không báo lỗi
+  if(/^SPXVN/i.test(code) || /^\d{10,}$/.test(code) || ffGroup.some(x=>(x.o.tracking_code||'')===code)){
+    if(os) os.innerHTML='Đưa QR <b>SẢN PHẨM</b> vào khung (không phải QR trên tem)';
+    return 'skip';
+  }
+  const dup=ffGroup.some(x=>x.o.product_code===code);
+  ffBeep(false);
+  if(os) os.innerHTML = dup ? '<span style="color:#fff">Món '+code+' đã quét rồi</span>' : '<span style="color:#FCA5A5">✗ '+code+' KHÔNG thuộc đơn — kiểm tra lại!</span>';
+  return dup?'dup':'no';
 }
-function ffManualMark(i){ if(ffGroup[i]){ ffGroup[i].scanned=true; ffRenderPkg(); } }
-function ffCancelPkg(){ ffGroup=[]; ffMode='label'; ffRenderPkg(); const st=document.getElementById('ff-cam-status'); if(st&&ffCamStream) st.textContent='Quét QR trên tem…'; }
+function ffCancelPkg(){ ffGroup=[]; ffMode='label'; ffStopScan(); ffRenderPkg(); }
 
 async function ffConfirm(){
   if(!ffGroup.length || !ffGroup.every(g=>g.scanned)) return;
@@ -1991,34 +2009,38 @@ async function ffConfirm(){
     }
     toast('✅ Đã xuất kho & đi hàng '+ffGroup.length+' món');
     ffGroup=[]; ffMode='label'; ffRenderPkg(); ffRenderQueue();
-    const st=document.getElementById('ff-cam-status'); if(st) st.textContent=ffCamStream?'Quét QR trên tem tiếp theo…':'';
     const inp=document.getElementById('ff-scan-input'); if(inp){ inp.value=''; inp.focus(); }
   }catch(e){ toast('Lỗi xuất kho: '+e.message,true); if(btn){ btn.disabled=false; btn.textContent='✓ Đã gói — Xuất kho'; } }
 }
 
-// ── camera ──
-async function ffToggleCam(){
-  if(ffCamStream){ ffStopCam(); return; }
-  const st=document.getElementById('ff-cam-status'); const wrap=document.getElementById('ff-cam-wrap');
-  wrap.style.display='block'; st.textContent='Đang mở camera…';
+// ── camera (overlay toàn màn hình, quét được là tự đóng) ──
+async function ffScan(mode){
+  ffMode=mode; ffLastScan='';
+  const ov=document.getElementById('ff-scan-overlay'); const v=document.getElementById('ff-video');
+  ov.style.display='flex';
+  document.getElementById('ff-scan-hint').textContent = mode==='label'?'Đưa QR trên TEM vào khung':'Đưa QR trên SẢN PHẨM vào khung';
+  const os=document.getElementById('ff-scan-ostatus'); os.innerHTML='Đang mở camera…';
+  if(ffCamInterval){ clearInterval(ffCamInterval); ffCamInterval=null; }
+  if(ffCamStream){ try{ ffCamStream.getTracks().forEach(t=>t.stop()); }catch(e){} ffCamStream=null; }
   try{
-    ffCamStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}});
-    const v=document.getElementById('ff-video'); v.srcObject=ffCamStream; await v.play();
-    document.getElementById('ff-cam-btn').textContent='⏹ Tắt camera';
-    st.textContent = ffMode==='label'?'Đưa QR trên tem vào khung…':'Đưa QR sản phẩm vào khung…';
-    ffCamInterval=setInterval(ffScanFrame,250);
+    let stream;
+    try{ stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}}); }
+    catch(e1){ stream=await navigator.mediaDevices.getUserMedia({video:true}); }
+    ffCamStream=stream;
+    v.setAttribute('playsinline',''); v.muted=true; v.srcObject=stream;
+    await v.play().catch(()=>{});
+    os.innerHTML='';
+    ffCamInterval=setInterval(ffScanFrame,200);
   }catch(e){
-    wrap.style.display='none';
-    if(e.name==='NotAllowedError') st.innerHTML='❌ Bị chặn camera. Cần mở app qua <b>https</b> rồi cho phép camera. (Tạm thời dùng ô gõ mã bên cạnh.)';
-    else if(e.name==='NotFoundError') st.textContent='Không thấy camera trên thiết bị này.';
-    else st.textContent='Lỗi camera: '+e.message;
+    if(e.name==='NotAllowedError') os.innerHTML='❌ Bị chặn camera. Mở app qua https rồi cho phép camera.';
+    else if(e.name==='NotFoundError') os.innerHTML='Không thấy camera trên thiết bị này.';
+    else os.innerHTML='Lỗi camera: '+e.message;
   }
 }
-function ffStopCam(){
+function ffStopScan(){
   if(ffCamInterval){ clearInterval(ffCamInterval); ffCamInterval=null; }
   if(ffCamStream){ ffCamStream.getTracks().forEach(t=>t.stop()); ffCamStream=null; }
-  const wrap=document.getElementById('ff-cam-wrap'); if(wrap) wrap.style.display='none';
-  const b=document.getElementById('ff-cam-btn'); if(b) b.textContent='📷 Bật camera quét';
+  const ov=document.getElementById('ff-scan-overlay'); if(ov) ov.style.display='none';
 }
 function ffScanFrame(){
   try{
@@ -2027,11 +2049,14 @@ function ffScanFrame(){
     const ctx=c.getContext('2d'); ctx.drawImage(v,0,0,c.width,c.height);
     const d=ctx.getImageData(0,0,c.width,c.height);
     const code=jsQR(d.data,d.width,d.height,{inversionAttempts:'dontInvert'});
-    if(code){
-      const t=code.data.trim(); const now=Date.now();
-      if(t===ffLastScan && now-ffLastT<1500) return;
-      ffLastScan=t; ffLastT=now;
-      if(ffMode==='label') ffFindOrder(t); else ffMarkProduct(t);
+    if(!code) return;
+    const t=code.data.trim(); const now=Date.now();
+    if(t===ffLastScan && now-ffLastT<1200) return;
+    ffLastScan=t; ffLastT=now;
+    if(ffMode==='label'){
+      if(ffFindOrder(t)) ffStopScan();   // quét được tem → tự tắt camera
+    } else {
+      if(ffMarkProduct(t)==='ok') ffStopScan();   // đúng món → tự tắt camera
     }
   }catch(e){}
 }
