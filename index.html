@@ -1982,7 +1982,8 @@ function ffMarkProduct(raw){
   const os=document.getElementById('ff-scan-ostatus');
   const g=ffGroup.find(x=>!x.scanned && x.o.product_code===code);
   if(g){ g.scanned=true; ffBeep(true); ffRenderPkg();
-    if(os) os.innerHTML = ffGroup.every(x=>x.scanned) ? '✓ Đủ món!' : '✓ Đúng '+code;
+    const left=ffGroup.filter(x=>!x.scanned).length;
+    if(os) os.innerHTML = left===0 ? '✓ Đủ món — đang đóng…' : '✓ Đúng '+code+' · còn '+left+' món, quét tiếp';
     return 'ok';
   }
   // lỡ quét trúng QR trên tem (mã vận đơn) -> nhắc nhẹ, không báo lỗi
@@ -2056,7 +2057,8 @@ function ffScanFrame(){
     if(ffMode==='label'){
       if(ffFindOrder(t)) ffStopScan();   // quét được tem → tự tắt camera
     } else {
-      if(ffMarkProduct(t)==='ok') ffStopScan();   // đúng món → tự tắt camera
+      const r=ffMarkProduct(t);
+      if(r==='ok' && ffGroup.every(g=>g.scanned)) ffStopScan();   // đối chiếu xong TẤT CẢ món → tự thoát
     }
   }catch(e){}
 }
