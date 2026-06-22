@@ -237,6 +237,7 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
 }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -619,17 +620,54 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
       <button type="button" id="ret-type-tra" onclick="setReturnType('tra')" class="btn" style="flex:1">↩️ Trả hàng</button>
     </div>
     <input type="hidden" id="ret-type" value="doi">
+    <input type="hidden" id="ret-mode" value="order">
 
-    <div class="field">
+    <div id="ret-mode-row" style="display:flex;gap:6px;margin-bottom:12px;background:var(--bg);padding:4px;border-radius:9px">
+      <button type="button" id="ret-mode-order" onclick="setReturnMode('order')" class="btn" style="flex:1;font-size:12px;padding:6px;border:none;background:var(--card);font-weight:600">🔍 Tìm đơn gốc</button>
+      <button type="button" id="ret-mode-free" onclick="setReturnMode('free')" class="btn" style="flex:1;font-size:12px;padding:6px;border:none;background:transparent;color:var(--med)">⚡ Đổi tự do (khỏi tìm đơn)</button>
+    </div>
+
+    <div class="field" id="ret-order-wrap">
       <label>Chọn đơn hàng *</label>
-      <input id="ret-order-search" type="text" placeholder="🔍 Gõ mã đơn, SĐT, hoặc tên khách..." oninput="filterReturnOrderSelect(this.value)" style="margin-bottom:6px" autocomplete="off">
+      <input id="ret-order-search" type="text" placeholder="🔍 Gõ mã đơn, mã vận đơn, SĐT, hoặc tên..." oninput="filterReturnOrderSelect(this.value)" style="margin-bottom:6px" autocomplete="off">
       <select id="ret-order-select" onchange="onReturnOrderChange();syncReturnSearch()" size="4" style="height:auto;min-height:80px;border-radius:8px"></select>
+    </div>
+
+    <div class="field" id="ret-free-old-wrap" style="display:none">
+      <label>Hàng khách trả lại *</label>
+      <div class="field2">
+        <select id="ret-free-old-prod"><option value="">-- Chọn sản phẩm khách trả --</option></select>
+        <input id="ret-free-old-qty" type="number" min="1" value="1" placeholder="SL" style="max-width:80px">
+      </div>
+      <div style="font-size:11px;color:var(--med);margin-top:4px">Món này sẽ được cộng lại kho sau khi bạn nhận về và kiểm đạt chuẩn (qua các bước trong danh sách Đổi trả).</div>
     </div>
 
     <div class="field" id="ret-swap-wrap">
       <label>Đổi sang sản phẩm *</label>
       <select id="ret-swap-prod"><option value="">-- Chọn sản phẩm đổi sang --</option></select>
       <div id="ret-swap-stock-info" style="font-size:11px;color:var(--med);margin-top:4px"></div>
+    </div>
+
+    <div id="ret-exchange-wrap" style="background:#FAFAF8;border:0.5px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:600;color:var(--med);margin-bottom:8px">📦 ĐƠN ĐỔI GIAO ĐI (tạo đơn mới để in tem)</div>
+      <div class="field2">
+        <div class="field"><label>Liên hệ đổi qua</label>
+          <select id="ret-contact-channel">
+            <option value="Instagram">Instagram</option>
+            <option value="TikTok">TikTok</option>
+            <option value="Zalo">Zalo</option>
+            <option value="Shopee chat">Shopee chat</option>
+            <option value="Facebook">Facebook</option>
+          </select>
+        </div>
+        <div class="field"><label>Username/Nick khách</label><input id="ret-contact-handle" placeholder="@username" autocomplete="off"></div>
+      </div>
+      <div class="field2">
+        <div class="field"><label>Người nhận</label><input id="ret-ship-name" placeholder="Tên người nhận" autocomplete="off"></div>
+        <div class="field"><label>SĐT</label><input id="ret-ship-phone" placeholder="SĐT lấy qua chat" autocomplete="off"></div>
+      </div>
+      <div class="field"><label>Địa chỉ giao đơn đổi</label><input id="ret-ship-address" placeholder="Địa chỉ (đơn Shopee giấu nên lấy lại qua chat)" autocomplete="off"></div>
+      <div class="field"><label>Khách bù thêm (đ) — nếu có</label><input id="ret-extra-amount" placeholder="0" inputmode="numeric" oninput="formatMoneyInput(this)" autocomplete="off"></div>
     </div>
 
     <div class="field"><label>Lý do *</label>
@@ -821,6 +859,45 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
   </div>
 </div>
 
+<!-- ══ TRẢ HÀNG LỖI VỀ NCC ══ -->
+<div class="modal-overlay" id="modal-po-return">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title">↩ Trả hàng lỗi về NCC <span class="modal-close" onclick="closeModal('modal-po-return')">×</span></div>
+    <input type="hidden" id="poreturn-po-id">
+    <div style="font-size:12px;color:var(--med);margin-bottom:12px" id="poreturn-subtitle">Nhập số hàng lỗi cần trả lại nhà cung cấp</div>
+    <div id="poreturn-items-container"></div>
+    <div style="font-size:12px;font-weight:600;color:var(--med);margin:14px 0 7px">Nhà cung cấp xử lý thế nào?</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <label style="flex:1;min-width:190px;border:1.5px solid #378ADD;border-radius:8px;padding:9px 11px;cursor:pointer;font-size:12.5px;display:flex;gap:7px;align-items:flex-start" id="poret-opt-resend">
+        <input type="radio" name="poreturn-mode" value="resend" checked onchange="poReturnRecompute()" style="margin-top:2px">
+        <span><b>Gửi bù lại</b><br><span style="font-size:11px;color:var(--med)">Lô mở lại "còn thiếu", chờ nhận bù</span></span>
+      </label>
+      <label style="flex:1;min-width:190px;border:0.5px solid var(--border);border-radius:8px;padding:9px 11px;cursor:pointer;font-size:12.5px;display:flex;gap:7px;align-items:flex-start" id="poret-opt-refund">
+        <input type="radio" name="poreturn-mode" value="refund" onchange="poReturnRecompute()" style="margin-top:2px">
+        <span><b>Hoàn tiền / bỏ</b><br><span style="font-size:11px;color:var(--med)">Lô giữ nguyên, chỉ trừ kho</span></span>
+      </label>
+    </div>
+    <div id="poreturn-summary" style="margin-top:14px;padding:10px 12px;background:var(--bg);border-radius:8px;font-size:13px"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-po-return')">Huỷ</button>
+      <button class="btn btn-danger" onclick="confirmPOReturn()">↩ Xác nhận trả</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ GỬI ĐƠN CHO NCC ══ -->
+<div class="modal-overlay" id="modal-po-send">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-title">📤 Gửi đơn cho NCC <span class="modal-close" onclick="closeModal('modal-po-send')">×</span></div>
+    <div id="po-send-sheet" style="background:#fff;border:1px solid var(--border);border-radius:10px;overflow:hidden"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="copyPONcc()">📋 Copy nội dung</button>
+      <button class="btn" onclick="printPONcc()">🖨️ In</button>
+      <button class="btn btn-primary" onclick="downloadPONcc()">📷 Tải ảnh</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ BÁO CÁO ══ -->
 <div id="page-report" class="page">
   <div class="page-header">
@@ -917,12 +994,12 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
 <div id="page-products" class="page">
   <div class="page-header">
     <div><div class="page-title">Danh Mục Sản Phẩm</div><div class="page-sub">Quản lý toàn bộ sản phẩm</div></div>
-    <div class="btns"><button class="btn btn-primary" onclick="openModal('modal-product')">+ Thêm sản phẩm</button></div>
+    <div class="btns"><button class="btn btn-primary" onclick="openAddProduct()">+ Thêm sản phẩm</button></div>
   </div>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Ảnh</th><th>Mã SP</th><th>Tên sản phẩm</th><th>Màu sắc</th><th>Size</th><th>Tồn đầu kỳ</th><th>Ngưỡng CB</th><th>Ảnh URL</th><th>Tạo lúc</th></tr></thead>
-      <tbody id="products-body"><tr><td colspan="9"><div class="loading"><div class="spinner"></div></div></td></tr></tbody>
+      <thead><tr><th>Ảnh</th><th>Mã SP</th><th>Tên sản phẩm</th><th>Màu sắc</th><th>Size</th><th>Tồn đầu kỳ</th><th>Ngưỡng CB</th><th>Ảnh URL</th><th>Tạo lúc</th><th>Thao tác</th></tr></thead>
+      <tbody id="products-body"><tr><td colspan="10"><div class="loading"><div class="spinner"></div></div></td></tr></tbody>
     </table>
   </div>
 </div>
@@ -1183,7 +1260,8 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
 <!-- Modal: Thêm sản phẩm -->
 <div class="modal-overlay" id="modal-product">
   <div class="modal">
-    <div class="modal-title">Thêm sản phẩm mới <span class="modal-close" onclick="closeModal('modal-product')">×</span></div>
+    <div class="modal-title" id="product-modal-title">Thêm sản phẩm mới <span class="modal-close" onclick="closeModal('modal-product')">×</span></div>
+    <input type="hidden" id="p-edit-code">
     <div class="field2">
       <div class="field"><label>Mã SP *</label><input id="p-code" placeholder="P013"></div>
       <div class="field"><label>Tên sản phẩm *</label><input id="p-name" placeholder="Đầm Butterfly"></div>
@@ -1399,13 +1477,14 @@ const api = async (path, opts={}) => {
 };
 
 const db = {
-  products: () => api('products?order=code'),
+  products: async () => { const r = await api('products?order=code'); return (Array.isArray(r)?r:[]).sort(variantSort); },
   transactions: (filter='') => api(`transactions?order=date.desc,created_at.desc&limit=500${filter}`),
   orders: (filter='') => api(`orders?order=date.desc,id.desc&limit=500${filter}`),
   insertTx: (d) => api('transactions', {method:'POST', body:JSON.stringify(d)}),
   insertOrder: (d) => api('orders', {method:'POST', body:JSON.stringify(d)}),
   insertProduct: (d) => api('products', {method:'POST', body:JSON.stringify(d)}),
   deleteProduct: (code) => fetch(`${SUPABASE_URL}/rest/v1/products?code=eq.${encodeURIComponent(code)}`, {method:'DELETE', headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json'}}),
+  updateProduct: (code, d) => fetch(`${SUPABASE_URL}/rest/v1/products?code=eq.${encodeURIComponent(code)}`, {method:'PATCH', headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json'}, body:JSON.stringify(d)}),
   updateOrder: (id, d) => api(`orders?id=eq.${id}`, {method:'PATCH', body:JSON.stringify(d)}),
 };
 
@@ -1420,6 +1499,19 @@ function fmtDateShort(d){ if(!d)return'—'; const dt=new Date(d); return`${Stri
 function todayStr(){ const d=new Date(); return d.toISOString().split('T')[0]; }
 function initials(n){ return (n||'?').split(' ').slice(-2).map(w=>w[0]).join('').toUpperCase().slice(0,2); }
 function normStatus(s){ return s==='Nợ hàng' ? 'Nợ hàng' : 'Đi đơn'; }
+function sizeRank(s){ return ({'XS':0,'S':1,'M':2,'L':3,'XL':4,'XXL':5,'2XL':5,'XXXL':6,'3XL':6}[(s||'').toUpperCase().trim()]) ?? 99; }
+// Sắp xếp biến thể: Tên → Màu → Size (S,M,L,XL...)
+function variantSort(a,b){
+  const an=a.name||a.product_name||'', bn=b.name||b.product_name||'';
+  const n=an.localeCompare(bn,'vi'); if(n) return n;
+  const c=(a.color||'').localeCompare(b.color||'','vi'); if(c) return c;
+  return sizeRank(a.size)-sizeRank(b.size);
+}
+// Sắp lô NCC theo thứ tự thời gian (1, 2, 3...)
+function poSort(a,b){
+  const d=new Date(a.order_date||a.created_at||0)-new Date(b.order_date||b.created_at||0);
+  return d || ((a.id||0)-(b.id||0));
+}
 function channelMatch(ch, key){
   if(key==='KOL VN') return KOL_VN_CHANNELS.includes(ch);
   if(key==='KOL Thái') return KOL_THAI_CHANNELS.includes(ch) || ch==='KOLThai';
@@ -2119,12 +2211,35 @@ function setReturnType(type){
     doiBtn.style.background = 'var(--purple-bg)'; doiBtn.style.color = '#3C3489'; doiBtn.style.borderColor = '#3C3489'; doiBtn.style.fontWeight = '600';
     traBtn.style.background = ''; traBtn.style.color = ''; traBtn.style.borderColor = ''; traBtn.style.fontWeight = '';
     document.getElementById('ret-swap-wrap').style.display = 'block';
+    document.getElementById('ret-exchange-wrap').style.display = 'block';
   } else {
     traBtn.style.background = 'var(--red-bg)'; traBtn.style.color = '#791F1F'; traBtn.style.borderColor = '#791F1F'; traBtn.style.fontWeight = '600';
     doiBtn.style.background = ''; doiBtn.style.color = ''; doiBtn.style.borderColor = ''; doiBtn.style.fontWeight = '';
     document.getElementById('ret-swap-wrap').style.display = 'none';
+    document.getElementById('ret-exchange-wrap').style.display = 'none';
   }
+  // Cả Đổi và Trả đều có 2 chế độ: tìm đơn gốc / tự do
+  document.getElementById('ret-mode-row').style.display = 'flex';
+  setReturnMode(document.getElementById('ret-mode').value || 'order');
+}
+
+function setReturnMode(mode){
+  document.getElementById('ret-mode').value = mode;
+  const bO=document.getElementById('ret-mode-order'), bF=document.getElementById('ret-mode-free');
+  const on='flex:1;font-size:12px;padding:6px;border:none;background:var(--card);font-weight:600;color:var(--dark)';
+  const off='flex:1;font-size:12px;padding:6px;border:none;background:transparent;color:var(--med);font-weight:400';
+  if(bO) bO.style.cssText = mode==='order'?on:off;
+  if(bF) bF.style.cssText = mode==='free'?on:off;
+  document.getElementById('ret-order-wrap').style.display = mode==='order'?'block':'none';
+  document.getElementById('ret-free-old-wrap').style.display = mode==='free'?'block':'none';
+  if(mode==='free'){ populateFreeOldSelect(); }
   updateReturnInfoBox();
+}
+
+function populateFreeOldSelect(){
+  const sel=document.getElementById('ret-free-old-prod'); if(!sel) return;
+  sel.innerHTML='<option value="">-- Chọn sản phẩm khách trả --</option>'+
+    allProducts.map(p=>`<option value="${p.code}">${p.code} · ${p.name} ${p.size||''} · ${p.color||''}</option>`).join('');
 }
 
 async function loadReturns(){
@@ -2155,6 +2270,7 @@ function populateReturnOrderSelect(filterText=''){
   const filtered = q
     ? _returnEligibleOrders.filter(o=>
         (o.order_code||'').toLowerCase().includes(q) ||
+        (o.tracking_code||'').toLowerCase().includes(q) ||
         (o.customer_name||'').toLowerCase().includes(q) ||
         (o.phone||'').includes(q) ||
         o.items.some(i=>(i.product_name||'').toLowerCase().includes(q))
@@ -2170,9 +2286,10 @@ function populateReturnOrderSelect(filterText=''){
     return;
   }
   sel.innerHTML = filtered.map(o=>{
-    const totalQty = o.items.reduce((s,i)=>s+(i.quantity||0),0);
     const prodNames = o.items.map(i=>i.product_name||'').join(', ');
-    return `<option value="${o.order_code}">${o.order_code} · ${o.customer_name||'—'} (${o.phone||'—'}) · ${prodNames} · ${pillStatusText(o.status)}</option>`;
+    const who = (o.customer_name && o.customer_name!=='(Shopee)') ? o.customer_name : (o.channel||'');
+    const trk = o.tracking_code ? ' · '+o.tracking_code : '';
+    return `<option value="${o.order_code}">${o.order_code} · ${fmtDateShort(o.date)} · ${who} · ${prodNames}${trk}</option>`;
   }).join('');
 }
 
@@ -2203,12 +2320,35 @@ function populateSwapProductSelect(){
 }
 
 function onReturnOrderChange(){
+  // Tự điền thông tin giao cho đơn đổi từ đơn gốc
+  const orderCode = document.getElementById('ret-order-select').value;
+  const o = allOrders.find(x=>x.order_code===orderCode);
+  if(o){
+    const nm=document.getElementById('ret-ship-name'), ph=document.getElementById('ret-ship-phone'), ad=document.getElementById('ret-ship-address');
+    if(nm && !nm.value) nm.value=o.customer_name||'';
+    if(ph && !ph.value) ph.value=o.phone||'';
+    if(ad && !ad.value) ad.value=o.address||'';
+    // Nếu đơn gốc là Shopee, gợi ý lấy lại địa chỉ qua chat
+    const ap=document.getElementById('ret-ship-address');
+    if(ap && o.channel==='Shopee') ap.placeholder='Đơn Shopee giấu địa chỉ — nhập địa chỉ thật lấy qua IG/chat';
+  }
   updateReturnInfoBox();
 }
 
 function updateReturnInfoBox(){
   const box = document.getElementById('ret-info-box');
   if(!box) return;
+  const mode = document.getElementById('ret-mode')?.value || 'order';
+  if(currentReturnType==='doi' && mode==='free'){
+    box.style.background = '#EAF3DE'; box.style.color = '#27500A';
+    box.innerHTML = 'Đổi tự do — không cần đơn gốc. Bấm "Ghi nhận" sẽ <b>trừ kho món mới</b> + tạo <b>đơn đổi giao đi</b>. Món cũ <b>cộng lại kho khi bạn bấm "đã nhận hàng về"</b>.';
+    return;
+  }
+  if(currentReturnType==='tra' && mode==='free'){
+    box.style.background = '#FCEBEB'; box.style.color = '#791F1F';
+    box.innerHTML = 'Trả tự do — không cần đơn gốc. <b>Không trừ/cộng kho ngay.</b> Khi nhận hàng về & kiểm đạt chuẩn, bấm <b>"Nhập lại tồn kho"</b> để cộng lại kho.';
+    return;
+  }
   const orderCode = document.getElementById('ret-order-select').value;
   const o = allOrders.find(x=>x.order_code===orderCode);
   const orderItems = allOrders.filter(x=>x.order_code===orderCode);
@@ -2242,11 +2382,18 @@ async function openReturnModal(){
   if(trackingEl) trackingEl.value='';
   const searchEl = document.getElementById('ret-order-search');
   if(searchEl) searchEl.value='';
+  ['ret-contact-handle','ret-ship-name','ret-ship-phone','ret-ship-address','ret-extra-amount'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
+  const qEl=document.getElementById('ret-free-old-qty'); if(qEl) qEl.value='1';
   setReturnType('doi');
+  populateFreeOldSelect();
+  setReturnMode('order');
   openModal('modal-return');
 }
 
 async function createReturn(){
+  const _mode = document.getElementById('ret-mode')?.value || 'order';
+  const _type0 = document.getElementById('ret-type').value;
+  if(_mode==='free'){ return _type0==='tra' ? createFreeReturn() : createFreeExchange(); }
   const orderCode = document.getElementById('ret-order-select').value;
   const reason = document.getElementById('ret-reason').value;
   const extra = document.getElementById('ret-note').value.trim();
@@ -2273,18 +2420,38 @@ async function createReturn(){
       return;
     }
 
-    const newNote = buildReturnNote('doi', 'sent', reason, extra, swapCode);
+    const contactCh = document.getElementById('ret-contact-channel')?.value || '';
+    const contactHandle = document.getElementById('ret-contact-handle')?.value.trim() || '';
+    const shipName = document.getElementById('ret-ship-name')?.value.trim() || o.customer_name || '';
+    const shipPhone = document.getElementById('ret-ship-phone')?.value.trim() || o.phone || '';
+    const shipAddress = document.getElementById('ret-ship-address')?.value.trim() || o.address || '';
+    const extraAmount = parseInt((document.getElementById('ret-extra-amount')?.value||'').replace(/[^\d]/g,'')) || 0;
+
+    const extraFull = `${extra}${extra?' · ':''}Gốc ${o.channel||''} ${orderCode}${contactCh?` · liên hệ ${contactCh}${contactHandle?' '+contactHandle:''}`:''}`.trim();
+    const newNote = buildReturnNote('doi', 'sent', reason, extraFull, swapCode);
     try {
       await db.insertTx({
         date:todayStr(), type:'Xuất', product_code:swapCode, product_name:`${swapProd.name} ${swapProd.size} · ${swapProd.color}`,
         color:swapProd.color, size:swapProd.size, quantity:totalQty, channel:o.channel,
         note:'[ĐỔI HÀNG - không tính doanh số] Gửi thay cho '+orderCode, staff:o.staff
       });
+      // Tạo ĐƠN ĐỔI GIAO ĐI (đơn mới, giao trực tiếp, để in tem & theo dõi) — không trừ kho thêm
+      await db.insertOrder({
+        order_code:`${orderCode}-DOI`, date:todayStr(),
+        customer_name:shipName, phone:shipPhone, address:shipAddress,
+        product_code:swapCode, product_name:`${swapProd.name} ${swapProd.size} · ${swapProd.color}`,
+        quantity:totalQty,
+        channel:'Online', status:'Đi đơn',
+        amount_due:extraAmount, is_paid:extraAmount<=0,
+        ...(retTracking?{tracking_code:retTracking}:{}),
+        staff:o.staff, kol_social:contactHandle||null,
+        note:`[ĐỔI HÀNG] Đổi cho đơn ${orderCode}${o.channel?` (${o.channel})`:''}${contactCh?` · liên hệ ${contactCh}${contactHandle?' '+contactHandle:''}`:''}`
+      });
       // Cập nhật note + tracking cho tất cả items của đơn
       await Promise.all(orderItems.map(i=>db.updateOrder(i.id, {note:newNote, status:'Hoàn hàng', ...(retTracking?{tracking_code:retTracking}:{})})));
       orderItems.forEach(i=>{ i.note=newNote; i.status='Hoàn hàng'; if(retTracking) i.tracking_code=retTracking; });
       closeModal('modal-return');
-      toast(`Đã ghi nhận đổi hàng — đã trừ kho ${swapCode}`);
+      toast(`Đã ghi nhận đổi — trừ kho ${swapCode} & tạo đơn đổi giao đi (in tem ở Quản lý đơn)`);
 
       const [prods, txs, orders] = await Promise.all([db.products(), db.transactions(), db.orders()]);
       allProducts = prods; allTx = txs; allOrders = orders;
@@ -2301,6 +2468,98 @@ async function createReturn(){
       renderReturns(); renderOrders();
     } catch(e){ toast('Lỗi: '+e.message, true); }
   }
+}
+
+async function createFreeExchange(){
+  const swapCode = document.getElementById('ret-swap-prod').value;
+  const oldCode = document.getElementById('ret-free-old-prod').value;
+  const oldQty = parseInt(document.getElementById('ret-free-old-qty').value)||1;
+  const reason = document.getElementById('ret-reason').value;
+  const extra = document.getElementById('ret-note').value.trim();
+  const retTracking = document.getElementById('ret-tracking')?.value.trim() || '';
+  if(!oldCode){ toast('Chọn sản phẩm khách trả lại', true); return; }
+  if(!swapCode){ toast('Chọn sản phẩm đổi sang', true); return; }
+
+  const stockNow = computeStock(allProducts, allTx);
+  const swapProd = stockNow.find(p=>p.code===swapCode);
+  const oldProd = allProducts.find(p=>p.code===oldCode);
+  if(!swapProd || swapProd.current < oldQty){
+    toast(`Không đủ hàng để đổi! Tồn hiện tại chỉ có ${swapProd?swapProd.current:0} cái`, true); return;
+  }
+
+  const contactCh = document.getElementById('ret-contact-channel')?.value || '';
+  const contactHandle = document.getElementById('ret-contact-handle')?.value.trim() || '';
+  const shipName = document.getElementById('ret-ship-name')?.value.trim() || 'Khách đổi';
+  const shipPhone = document.getElementById('ret-ship-phone')?.value.trim() || '';
+  const shipAddress = document.getElementById('ret-ship-address')?.value.trim() || '';
+  const extraAmount = parseInt((document.getElementById('ret-extra-amount')?.value||'').replace(/[^\d]/g,'')) || 0;
+
+  const ref = 'DOI'+Date.now().toString().slice(-6);
+  const oldName = oldProd ? `${oldProd.name} ${oldProd.size} · ${oldProd.color}` : oldCode;
+  const swapName = `${swapProd.name} ${swapProd.size} · ${swapProd.color}`;
+  const contactTag = contactCh ? ` · liên hệ ${contactCh}${contactHandle?' '+contactHandle:''}` : '';
+  const extraFull = `${extra}${extra?' · ':''}Đổi tự do${contactTag}`.trim();
+  const retNote = buildReturnNote('doi', 'sent', reason, extraFull, swapCode);
+
+  try {
+    // Trừ kho món mới
+    await db.insertTx({
+      date:todayStr(), type:'Xuất', product_code:swapCode, product_name:swapName,
+      color:swapProd.color, size:swapProd.size, quantity:oldQty, channel:'Đổi tự do',
+      note:'[ĐỔI HÀNG - không tính doanh số] Gửi đổi tự do', staff:'Đổi trả'
+    });
+    // Đơn đổi giao đi (để in tem & theo dõi)
+    await db.insertOrder({
+      order_code:`${ref}-DOI`, date:todayStr(),
+      customer_name:shipName, phone:shipPhone, address:shipAddress,
+      product_code:swapCode, product_name:swapName, quantity:oldQty,
+      channel:'Online', status:'Đi đơn', amount_due:extraAmount, is_paid:extraAmount<=0,
+      ...(retTracking?{tracking_code:retTracking}:{}), staff:'Đổi trả', kol_social:contactHandle||null,
+      note:`[ĐỔI HÀNG] Đổi tự do${contactTag}`
+    });
+    // Bản ghi nhận hàng cũ trả về (theo dõi + cộng kho khi nhận)
+    await db.insertOrder({
+      order_code:ref, date:todayStr(),
+      customer_name:shipName, phone:shipPhone, address:shipAddress,
+      product_code:oldCode, product_name:oldName, quantity:oldQty,
+      channel:'Đổi trả', status:'Hoàn hàng', amount_due:0, is_paid:false,
+      staff:'Đổi trả', note:retNote
+    });
+    closeModal('modal-return');
+    toast('Đã ghi nhận đổi tự do — trừ kho món mới & tạo đơn đổi giao đi');
+
+    const [prods, txs, orders] = await Promise.all([db.products(), db.transactions(), db.orders()]);
+    allProducts = prods; allTx = txs; allOrders = orders;
+    renderReturns(); renderOrders();
+  } catch(e){ toast('Lỗi: '+e.message, true); }
+}
+
+async function createFreeReturn(){
+  const oldCode = document.getElementById('ret-free-old-prod').value;
+  const oldQty = parseInt(document.getElementById('ret-free-old-qty').value)||1;
+  const reason = document.getElementById('ret-reason').value;
+  const extra = document.getElementById('ret-note').value.trim();
+  const retTracking = document.getElementById('ret-tracking')?.value.trim() || '';
+  if(!oldCode){ toast('Chọn sản phẩm khách trả lại', true); return; }
+  const oldProd = allProducts.find(p=>p.code===oldCode);
+  const oldName = oldProd ? `${oldProd.name} ${oldProd.size} · ${oldProd.color}` : oldCode;
+  const ref = 'TRA'+Date.now().toString().slice(-6);
+  const extraFull = `${extra}${extra?' · ':''}Trả tự do`.trim();
+  const retNote = buildReturnNote('tra', 'new', reason, extraFull, null);
+  try {
+    await db.insertOrder({
+      order_code:ref, date:todayStr(),
+      customer_name:'Khách trả', phone:'', address:'',
+      product_code:oldCode, product_name:oldName, quantity:oldQty,
+      channel:'Đổi trả', status:'Hoàn hàng', amount_due:0, is_paid:false,
+      ...(retTracking?{tracking_code:retTracking}:{}), staff:'Đổi trả', note:retNote
+    });
+    closeModal('modal-return');
+    toast('Đã ghi nhận trả hàng tự do — theo dõi ở danh sách Đổi trả');
+    const [prods, txs, orders] = await Promise.all([db.products(), db.transactions(), db.orders()]);
+    allProducts = prods; allTx = txs; allOrders = orders;
+    renderReturns(); renderOrders();
+  } catch(e){ toast('Lỗi: '+e.message, true); }
 }
 
 function renderReturns(){
@@ -2754,7 +3013,7 @@ function renderThailandPage(channel){
                  <span style="font-size:13px;cursor:pointer;margin-left:4px" onclick="openEditOrder('${o.order_code}')">✏️</span>
                  <button class="btn" style="font-size:10px;padding:3px 7px;color:var(--red-t);border-color:var(--red-t);margin-left:2px" onclick="unmarkThaiOrderSent('${o.order_code}','KOLThai_ALL')">↩</button>`;
 
-          return `<tr style="border-bottom:0.5px solid var(--bg);${isPosted?'opacity:.5':''}">
+          return `<tr style="border-bottom:0.5px solid var(--bg);${(isSent && isPosted)?'opacity:.5':''}">
             <td style="padding:8px 10px">
               ${!isSent?`<input type="checkbox" id="${checkId}" data-order-code="${o.order_code}" data-channel="${o.channel}"
                 style="width:15px;height:15px;cursor:pointer;accent-color:#2A211C" onchange="onThaiCheckChange('kolthai')">`:''}
@@ -2826,9 +3085,9 @@ async function unmarkThaiOrderSent(orderCode, channel){
   if(!items.length) return;
 
   try {
-    // Khôi phục status về Chờ lấy (chờ gửi), xoá sent_date
+    // Khôi phục status về Chờ lấy (chờ gửi), xoá sent_date, xoá cờ lên bài + nhắc bài
     await Promise.all(items.map(i=>
-      db.updateOrder(i.id, {status:'Chờ lấy', sent_date:null})
+      db.updateOrder(i.id, {status:'Chờ lấy', sent_date:null, kol_posted_date:null, kol_remind:0})
     ));
 
     // Xoá transaction xuất kho liên quan đến lô gửi này
@@ -2931,8 +3190,7 @@ function printThaiLabels(orderCodes){
     </div>
   </div>`).join('');
 
-  const printWin = window.open('','_blank','width=900,height=700');
-  printWin.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>In tem — ${orders.length} đơn</title>
+  const __printHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>In tem — ${orders.length} đơn</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     @page{size:75mm 100mm;margin:0mm}
@@ -2992,8 +3250,29 @@ function printThaiLabels(orderCodes){
     <button onclick="window.close()" style="background:#666;margin-left:6px">Đóng</button>
   </div>
   ${labelHtml}
-  </body></html>`);
-  printWin.document.close();
+  </body></html>`;
+  thaiPrintOut(__printHtml);
+}
+
+// In tem: thử mở cửa sổ; nếu bị chặn popup (sau await) thì dùng iframe ẩn tự in
+function thaiPrintOut(html){
+  let printWin=null;
+  try { printWin = window.open('','_blank','width=900,height=700'); } catch(e){ printWin=null; }
+  if(printWin){
+    printWin.document.write(html);
+    printWin.document.close();
+    return;
+  }
+  // Popup bị chặn → in qua iframe ẩn
+  let frame=document.getElementById('thai-print-frame');
+  if(frame) frame.remove();
+  frame=document.createElement('iframe');
+  frame.id='thai-print-frame';
+  frame.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0';
+  document.body.appendChild(frame);
+  const fdoc=frame.contentWindow.document;
+  fdoc.open(); fdoc.write(html); fdoc.close();
+  setTimeout(()=>{ try{ frame.contentWindow.focus(); frame.contentWindow.print(); }catch(e){ toast('Không mở được cửa sổ in — cho phép popup cho trang này nhé',true); } }, 400);
 }
 
 async function markThailandBatchSent(){
@@ -4514,6 +4793,7 @@ function updatePOBadge(){
 }
 
 function renderPOs(){
+  allPOs.sort(poSort);
   const pending = allPOs.filter(p=>p.status==='Chờ gửi'||p.status==='Đang vận chuyển');
   const partial = allPOs.filter(p=>p.status==='Nhận một phần');
   const done    = allPOs.filter(p=>p.status==='Hoàn tất');
@@ -4533,7 +4813,7 @@ function renderPOs(){
     <div class="metric" style="border-color:#C0DD97;background:var(--green-bg)"><div class="metric-label" style="color:#27500A">Đã hoàn tất</div><div class="metric-val" style="color:#27500A">${done.length}</div><div class="metric-sub">lô tháng này</div></div>`;
 
   const renderPOCard = (po, showReceive=true) => {
-    const items = allPOItems.filter(i=>i.po_id===po.id);
+    const items = allPOItems.filter(i=>i.po_id===po.id).sort(variantSort);
     const totalOrdered = items.reduce((s,i)=>s+(i.quantity_ordered||0),0);
     const totalReceived = items.reduce((s,i)=>s+(i.quantity_received||0),0);
     const pct = totalOrdered>0?Math.round(totalReceived/totalOrdered*100):0;
@@ -4565,6 +4845,8 @@ function renderPOs(){
       </div>`:''}
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         ${showReceive&&po.status!=='Hoàn tất'?`<button class="btn btn-primary" style="font-size:11px;padding:5px 10px" onclick="openReceive(${po.id})">✓ Nhận hàng</button>`:''}
+        ${totalReceived>0?`<button class="btn" style="font-size:11px;padding:5px 10px;color:#B45309;border-color:#FAC775" onclick="openPOReturn(${po.id})">↩ Trả lỗi</button>`:''}
+        <button class="btn" style="font-size:11px;padding:5px 10px;color:var(--blue-t);border-color:#A9CBEF" onclick="openPOSend(${po.id})">📤 Gửi NCC</button>
         <button class="btn" style="font-size:11px;padding:5px 10px" onclick="openEditPO(${po.id})">✏️ Sửa</button>
         ${po.status!=='Hoàn tất'?`<button class="btn" style="font-size:11px;padding:5px 10px;color:var(--red-t);border-color:var(--red-t)" onclick="deletePO(${po.id})">Xoá</button>`:''}
       </div>
@@ -4602,7 +4884,7 @@ function openCreatePO(prefillItems=[]){
 
 function openEditPO(poId){
   const po=allPOs.find(p=>p.id===poId); if(!po) return;
-  const items=allPOItems.filter(i=>i.po_id===poId);
+  const items=allPOItems.filter(i=>i.po_id===poId).sort(variantSort);
   document.getElementById('po-edit-id').value=poId;
   document.getElementById('modal-po-title').innerHTML='✏️ Sửa lô đặt hàng <span class="modal-close" onclick="closeModal(\'modal-po\')">×</span>';
   document.getElementById('po-code').value=po.po_code||'';
@@ -4688,20 +4970,53 @@ function openReceive(poId){
   const po=allPOs.find(p=>p.id===poId); if(!po) return;
   const items=allPOItems.filter(i=>i.po_id===poId);
   document.getElementById('receive-po-id').value=poId;
-  document.getElementById('receive-subtitle').textContent=`Lô ${po.po_code} — nhập số lượng thực nhận`;
+  document.getElementById('receive-subtitle').textContent=`Lô ${po.po_code} — đếm hàng thực tế rồi nhập số nhận`;
   const container=document.getElementById('receive-items-container');
-  container.innerHTML=items.map(i=>{
-    const remaining=i.quantity_ordered-(i.quantity_received||0);
-    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border)">
-      <div>
-        <div style="font-size:13px;font-weight:500">${i.product_name||i.product_code} ${i.size||''}</div>
-        <div style="font-size:11px;color:var(--med)">Đặt ${i.quantity_ordered} · Đã nhận ${i.quantity_received||0} · Còn lại ${remaining}</div>
+  const rowsHtml=items.map(i=>{
+    const rem=i.quantity_ordered-(i.quantity_received||0);
+    const done=rem<=0;
+    return `<div style="padding:10px 0;border-bottom:0.5px solid var(--border)">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:500">${i.product_name||i.product_code} · <span style="font-size:11px;background:var(--bg);border-radius:5px;padding:1px 6px;color:var(--med)">${i.color||'—'}</span> · ${i.size||''}</div>
+          <div style="font-size:11px;color:var(--med);margin-top:2px">Đặt ${i.quantity_ordered} · đã nhận ${i.quantity_received||0} · còn lại <b>${rem}</b></div>
+        </div>
+        ${done?`<span class="pill" style="background:#EAF3DE;color:#27500A;font-size:10px;white-space:nowrap">✓ Đã đủ</span>`
+          :`<div style="display:flex;align-items:center;gap:5px">
+              <input type="number" min="0" value="${rem}" id="recv-${i.id}" data-rem="${rem}" oninput="recvRecompute()"
+                style="width:60px;padding:5px;border:1.5px solid #378ADD;border-radius:6px;font-size:12px;text-align:center;background:#E6F1FB;color:#0C447C;font-weight:500">
+              <button class="btn" style="font-size:10px;padding:4px 7px" onclick="document.getElementById('recv-${i.id}').value='${rem}';recvRecompute()">đủ</button>
+              <label style="font-size:10px;color:var(--med);display:flex;align-items:center;gap:2px"><input type="checkbox"> kiểm</label>
+            </div>`}
       </div>
-      <input type="number" min="0" max="${remaining}" value="${remaining}" id="recv-${i.id}"
-        style="width:70px;padding:5px;border:1.5px solid #378ADD;border-radius:6px;font-size:12px;text-align:center;background:#E6F1FB;color:#0C447C;font-weight:500">
+      <div class="recv-warn" data-id="${i.id}" style="font-size:11px;color:#B45309;margin-top:4px;display:none"></div>
     </div>`;
   }).join('');
+  const hist=allTx.filter(t=>(t.note||'').includes(po.po_code)).sort((a,b)=>new Date(b.date||b.created_at)-new Date(a.date||a.created_at));
+  const histHtml=hist.length?`<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+    <div style="font-size:11px;font-weight:600;color:var(--med);margin-bottom:6px">📋 Lịch sử nhận / trả lô này</div>
+    ${hist.map(t=>`<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--med);padding:2px 0">
+      <span>${fmtDateShort(t.date)} · ${t.staff||'—'}</span>
+      <span style="color:${t.type==='Nhập'?'#27500A':'#B45309'}">${t.type==='Nhập'?'+':'−'}${t.quantity} ${t.product_name||t.product_code}</span></div>`).join('')}
+  </div>`:'';
+  container.innerHTML=rowsHtml+`<div id="recv-summary" style="margin-top:12px;padding:10px 12px;background:var(--bg);border-radius:8px;font-size:13px"></div>`+histHtml;
+  recvRecompute();
   openModal('modal-receive');
+}
+
+function recvRecompute(){
+  let session=0, over=0;
+  document.querySelectorAll('input[id^="recv-"]').forEach(inp=>{
+    if(inp.type!=='number') return;
+    const rem=parseInt(inp.dataset.rem)||0;
+    let v=parseInt(inp.value)||0; if(v<0)v=0;
+    session+=v;
+    const id=inp.id.replace('recv-','');
+    const w=document.querySelector(`.recv-warn[data-id="${id}"]`);
+    if(w){ if(v>rem){ over+=(v-rem); w.style.display='block'; w.innerHTML=`⚠️ Nhận thừa ${v-rem} so với số còn lại`; } else w.style.display='none'; }
+  });
+  const sm=document.getElementById('recv-summary');
+  if(sm) sm.innerHTML=`<b>Đợt này nhận: +${session} món</b>`+(over>0?`<div style="color:#B45309;margin-top:3px">⚠️ Có ${over} món vượt số đặt — kiểm lại trước khi xác nhận</div>`:'');
 }
 
 async function confirmReceive(){
@@ -4741,6 +5056,172 @@ async function confirmReceive(){
     stockData=computeStock(prods,txs);
     renderPOs(); updatePOBadge();
   } catch(e){ toast('Lỗi: '+e.message,true); }
+}
+
+function openPOReturn(poId){
+  const po=allPOs.find(p=>p.id===poId); if(!po) return;
+  const items=allPOItems.filter(i=>i.po_id===poId && (i.quantity_received||0)>0).sort(variantSort);
+  if(!items.length){ toast('Lô này chưa nhận hàng nào để trả',true); return; }
+  document.getElementById('poreturn-po-id').value=poId;
+  document.getElementById('poreturn-subtitle').textContent=`Lô ${po.po_code} — nhập số hàng lỗi trả lại NCC`;
+  document.getElementById('poreturn-items-container').innerHTML=items.map(i=>{
+    const recv=i.quantity_received||0;
+    return `<div style="padding:10px 0;border-bottom:0.5px solid var(--border)">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:500">${i.product_name||i.product_code} · <span style="font-size:11px;background:var(--bg);border-radius:5px;padding:1px 6px;color:var(--med)">${i.color||'—'}</span> · ${i.size||''}</div>
+          <div style="font-size:11px;color:var(--med);margin-top:2px">Đã nhận ${recv} · trả lỗi tối đa ${recv}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:5px">
+          <span style="font-size:11px;color:var(--med)">Trả</span>
+          <input type="number" min="0" max="${recv}" value="0" id="poret-${i.id}" data-recv="${recv}" oninput="poReturnRecompute()"
+            style="width:60px;padding:5px;border:1.5px solid #E24B4A;border-radius:6px;font-size:12px;text-align:center;background:#FCEBEB;color:#791F1F;font-weight:500">
+        </div>
+      </div>
+      <div class="poret-warn" data-id="${i.id}" style="font-size:11px;color:#B45309;margin-top:4px;display:none"></div>
+    </div>`;
+  }).join('');
+  poReturnRecompute();
+  openModal('modal-po-return');
+}
+
+function poReturnRecompute(){
+  let ret=0;
+  document.querySelectorAll('input[id^="poret-"]').forEach(inp=>{
+    if(inp.type!=='number') return;
+    const recv=parseInt(inp.dataset.recv)||0;
+    let v=parseInt(inp.value)||0; if(v<0)v=0;
+    const id=inp.id.replace('poret-','');
+    const w=document.querySelector(`.poret-warn[data-id="${id}"]`);
+    if(w){ if(v>recv){ w.style.display='block'; w.innerHTML=`⚠️ Không thể trả nhiều hơn số đã nhận (${recv})`; } else w.style.display='none'; }
+    ret+=Math.min(v,recv);
+  });
+  const mode=document.querySelector('input[name=poreturn-mode]:checked')?.value||'resend';
+  const r1=document.getElementById('poret-opt-resend'), r2=document.getElementById('poret-opt-refund');
+  if(r1) r1.style.border = mode==='resend'?'1.5px solid #378ADD':'0.5px solid var(--border)';
+  if(r2) r2.style.border = mode==='refund'?'1.5px solid #378ADD':'0.5px solid var(--border)';
+  const sm=document.getElementById('poreturn-summary');
+  if(sm) sm.innerHTML=`<b>Trả ${ret} món lỗi về NCC</b> · kho giảm ${ret} món`+
+    (ret>0?(mode==='resend'
+      ? `<div style="color:#0C447C;margin-top:3px">↻ Lô mở lại — còn thiếu ${ret} món, chờ NCC gửi bù</div>`
+      : `<div style="color:var(--med);margin-top:3px">✓ Lô giữ nguyên trạng thái — chỉ trừ kho phần lỗi</div>`):'');
+}
+
+async function confirmPOReturn(){
+  const poId=parseInt(document.getElementById('poreturn-po-id').value);
+  const items=allPOItems.filter(i=>i.po_id===poId);
+  const po=allPOs.find(p=>p.id===poId);
+  const mode=document.querySelector('input[name=poreturn-mode]:checked')?.value||'resend';
+  const staff=document.getElementById('o-staff')?.value||'';
+  try {
+    let any=false;
+    for(const item of items){
+      const inp=document.getElementById(`poret-${item.id}`);
+      let retNow=parseInt(inp?.value)||0;
+      const recv=item.quantity_received||0;
+      if(retNow<=0) continue;
+      if(retNow>recv) retNow=recv;
+      any=true;
+      // Trừ kho: Xuất kênh "Trả NCC"
+      await db.insertTx({date:todayStr(),type:'Xuất',product_code:item.product_code,
+        product_name:item.product_name,color:item.color,size:item.size,
+        quantity:retNow,channel:'Trả NCC',note:`Trả lỗi lô ${po?.po_code||poId}`,staff});
+      // Gửi bù → giảm đã nhận để lô mở lại "còn thiếu"
+      if(mode==='resend'){
+        await dbPO.updatePOItem(item.id,{quantity_received:Math.max(0,recv-retNow)});
+      }
+    }
+    if(!any){ toast('Chưa nhập số hàng trả',true); return; }
+    if(mode==='resend'){ await dbPO.updatePO(poId,{status:'Nhận một phần'}); }
+    closeModal('modal-po-return');
+    toast(mode==='resend'?'↩ Đã trả hàng lỗi — lô chờ NCC gửi bù':'↩ Đã trả hàng lỗi & trừ kho');
+    const [pos,poItems,prods,txs]=await Promise.all([dbPO.getPOs(),dbPO.getPOItems(),db.products(),db.transactions()]);
+    allPOs=pos; allPOItems=poItems; allProducts=prods; allTx=txs;
+    stockData=computeStock(prods,txs);
+    renderPOs(); updatePOBadge();
+  } catch(e){ toast('Lỗi: '+e.message,true); }
+}
+
+let poSendCurrent=null;
+function openPOSend(poId){
+  const po=allPOs.find(p=>p.id===poId); if(!po) return;
+  const items=allPOItems.filter(i=>i.po_id===poId).sort(variantSort).map(i=>{
+    const prod=allProducts.find(p=>p.code===i.product_code)||{};
+    return {...i, image_url:prod.image_url||'', cost_price:prod.cost_price||0};
+  });
+  poSendCurrent={po,items};
+  const totalQty=items.reduce((s,i)=>s+(i.quantity_ordered||0),0);
+  const totalMoney=items.reduce((s,i)=>s+(i.quantity_ordered||0)*(i.cost_price||0),0);
+  const fmtVND=n=>(n||0).toLocaleString('vi-VN')+'đ';
+  const rows=items.map(i=>`<div style="display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:0.5px solid #eee">
+    ${i.image_url
+      ? `<img src="${normalizeImageUrl(i.image_url)}" style="width:50px;height:50px;object-fit:cover;border-radius:8px;border:1px solid #eee;flex-shrink:0" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div style="display:none;width:50px;height:50px;border-radius:8px;background:#f3f3f0;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📷</div>`
+      : `<div style="width:50px;height:50px;border-radius:8px;background:#f3f3f0;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📷</div>`}
+    <div style="flex:1;min-width:0">
+      <div style="font-size:14px;font-weight:500;color:#1f1f1f">${i.product_name||i.product_code}</div>
+      <div style="font-size:12px;color:#777;margin-top:2px"><span style="background:#f3f3f0;border-radius:5px;padding:1px 7px;margin-right:4px">${i.color||'—'}</span>Size ${i.size||''}${i.cost_price?` · ${fmtVND(i.cost_price)}/cái`:''}</div>
+    </div>
+    <div style="font-size:15px;font-weight:600;white-space:nowrap;color:#1f1f1f">×${i.quantity_ordered}</div>
+  </div>`).join('');
+  document.getElementById('po-send-sheet').innerHTML=`
+    <div style="padding:14px 16px;border-bottom:0.5px solid #eee">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <div style="font-weight:700;font-size:16px;color:#1f1f1f">LàSilk · Đặt hàng</div>
+        <div style="font-size:12px;color:#777">${fmtDate(new Date(po.order_date||todayStr()))}</div>
+      </div>
+      <div style="font-size:12px;color:#777;margin-top:2px">Lô ${po.po_code}${po.expected_date?` · mong nhận ${fmtDate(new Date(po.expected_date))}`:''}</div>
+    </div>
+    ${rows}
+    <div style="padding:12px 16px;border-top:0.5px solid #eee;font-size:14px;color:#1f1f1f">
+      <div style="display:flex;justify-content:space-between;font-weight:600"><span>Tổng cộng</span><span>${totalQty} món</span></div>
+      ${totalMoney>0?`<div style="display:flex;justify-content:space-between;margin-top:4px;color:#777"><span>Tạm tính tiền nhập</span><span>${fmtVND(totalMoney)}</span></div>`:''}
+    </div>
+    ${po.note?`<div style="padding:11px 16px;border-top:0.5px solid #eee;font-size:13px;color:#444;background:#fafaf8"><b>Ghi chú:</b> ${po.note}</div>`:''}`;
+  openModal('modal-po-send');
+}
+
+function copyPONcc(){
+  if(!poSendCurrent) return;
+  const {po,items}=poSendCurrent;
+  const lines=items.map(i=>`• ${i.product_name||i.product_code} · ${i.color||''} · ${i.size||''} × ${i.quantity_ordered}`);
+  const totalQty=items.reduce((s,i)=>s+(i.quantity_ordered||0),0);
+  const txt=`LàSilk - ĐẶT HÀNG (Lô ${po.po_code})\n${fmtDate(new Date(po.order_date||todayStr()))}\n\n${lines.join('\n')}\n\nTổng: ${totalQty} món${po.note?`\n\nGhi chú: ${po.note}`:''}`;
+  navigator.clipboard.writeText(txt).then(()=>toast('📋 Đã copy — dán vào Zalo/chat gửi NCC')).catch(()=>toast('Không copy được',true));
+}
+
+function printPONcc(){
+  const sheet=document.getElementById('po-send-sheet');
+  const w=window.open('','_blank');
+  w.document.write(`<html><head><title>Đặt hàng NCC - ${poSendCurrent?.po?.po_code||''}</title>
+    <style>body{font-family:-apple-system,Arial,sans-serif;margin:0;padding:16px}*{box-sizing:border-box}</style></head>
+    <body><div style="border:1px solid #ddd;border-radius:10px;overflow:hidden;max-width:560px;margin:0 auto">${sheet.innerHTML}</div></body></html>`);
+  w.document.close(); setTimeout(()=>{w.focus();w.print();},500);
+}
+
+function proxyImgUrl(url){
+  if(!url) return url;
+  const clean=url.replace(/^https?:\/\//,'');
+  return 'https://images.weserv.nl/?url='+encodeURIComponent(clean);
+}
+
+async function downloadPONcc(){
+  const sheet=document.getElementById('po-send-sheet');
+  if(typeof html2canvas==='undefined'){ toast('Chưa tải được thư viện ảnh — dùng nút In nhé',true); return; }
+  toast('Đang tạo ảnh…');
+  // Clone + chuyển ảnh qua proxy CORS để chụp được ảnh Google Drive
+  const clone=sheet.cloneNode(true);
+  clone.style.cssText='position:fixed;left:-9999px;top:0;width:'+sheet.offsetWidth+'px;background:#fff';
+  clone.querySelectorAll('img').forEach(img=>{ img.crossOrigin='anonymous'; img.src=proxyImgUrl(img.getAttribute('src')); });
+  document.body.appendChild(clone);
+  try {
+    await Promise.all([...clone.querySelectorAll('img')].map(img=>img.complete?Promise.resolve():new Promise(r=>{img.onload=img.onerror=r;})));
+    const canvas=await html2canvas(clone,{scale:2,useCORS:true,backgroundColor:'#ffffff'});
+    const a=document.createElement('a');
+    a.download=`DatHang-${poSendCurrent?.po?.po_code||'NCC'}.png`;
+    a.href=canvas.toDataURL('image/png'); a.click();
+    toast('📷 Đã tải ảnh — gửi cho NCC qua Zalo/chat');
+  } catch(e){ toast('Lỗi tạo ảnh: '+e.message+' — thử nút In nhé',true); }
+  finally { clone.remove(); }
 }
 
 async function deletePO(poId){
@@ -4876,7 +5357,11 @@ function renderForecast(){
     const need = Math.ceil(spd*(LEAD_TIME+BUFFER_DAYS));
     const suggest = Math.max(0,need-stock-incoming);
     return {code:p.code, name:p.name, color:p.color, size:p.size, sold, pct, spd, stock, incoming, daysLeft, need, suggest};
-  }).filter(r=>r.sold>0||r.stock>0||r.incoming>0).sort((a,b)=>b.sold-a.sold);
+  }).filter(r=>r.sold>0||r.stock>0||r.incoming>0).sort((a,b)=>{
+    const n=(a.name||'').localeCompare(b.name||'','vi'); if(n) return n;
+    const c=(a.color||'').localeCompare(b.color||'','vi'); if(c) return c;
+    return sizeRank(a.size)-sizeRank(b.size);
+  });
 
   // Product names for chips & cards
   const prodNames = [...new Set(allRows.map(r=>r.name))];
@@ -5053,7 +5538,7 @@ function renderStock(){
     <tr>
       <td style="width:50px;padding:6px 8px">
         ${p.image_url
-          ? `<img src="${p.image_url}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid var(--border)" onerror="this.style.display='none'">`
+          ? `<img src="${normalizeImageUrl(p.image_url)}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid var(--border)" onerror="this.style.display='none'">`
           : `<div style="width:40px;height:40px;background:var(--bg);border-radius:6px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:16px">👗</div>`}
       </td>
       <td style="font-family:monospace;font-size:12px">${p.code}</td>
@@ -5193,7 +5678,7 @@ function renderQR(prods, newCode=null){
     card.innerHTML=`
       <button class="qr-delete" onclick="deleteProduct('${p.code}','${p.name}')" title="Xoá sản phẩm">✕</button>
       ${p.code===newCode?'<div style="position:absolute;top:8px;right:8px;background:var(--blue-bg);color:var(--blue-t);font-size:9px;font-weight:600;padding:2px 7px;border-radius:6px">Mới</div>':''}
-      ${p.image_url?`<img src="${p.image_url}" style="width:100%;height:90px;object-fit:cover;border-radius:8px;margin-bottom:6px;border:1px solid var(--border)" onerror="this.style.display='none'">`:''}
+      ${p.image_url?`<img src="${normalizeImageUrl(p.image_url)}" style="width:100%;height:90px;object-fit:cover;border-radius:8px;margin-bottom:6px;border:1px solid var(--border)" onerror="this.style.display='none'">`:''}
       <div class="qr-box" id="qb-${i}"></div>
       <div class="qr-code-label">${p.code}</div>
       <div class="qr-name">${p.name}</div>
@@ -5222,7 +5707,7 @@ async function addNewProduct(){
   const code=`P${String(maxCode+1).padStart(3,'0')}`;
   try {
     const npImg=document.getElementById('np-image').value.trim();
-    await db.insertProduct({code,name,color,size,stock_initial:stock,threshold:5,image_url:npImg||null});
+    await db.insertProduct({code,name,color,size,stock_initial:stock,threshold:5,image_url:normalizeImageUrl(npImg)});
     const prods=await db.products(); allProducts=prods;
     renderQR(prods,code);
     ['np-name','np-color'].forEach(id=>document.getElementById(id).value='');
@@ -5292,14 +5777,46 @@ function printOneQR(qbId, code, name, color, size){
 }
 
 async function deleteProduct(code, name){
+  name = name || (allProducts.find(p=>p.code===code)?.name||'');
   if(!confirm(`Xoá sản phẩm ${code} · ${name}?\n\nLưu ý: Lịch sử nhập xuất vẫn giữ lại.`)) return;
   try {
     await db.deleteProduct(code);
     allProducts = allProducts.filter(p=>p.code!==code);
     stockData = computeStock(allProducts, allTx);
-    renderQR(allProducts);
+    if(document.getElementById('page-products')?.classList.contains('active')) loadProducts();
+    if(document.getElementById('page-qr')?.classList.contains('active')) renderQR(allProducts);
     toast(`Đã xoá ${code} · ${name}`);
   } catch(e){ toast('Lỗi xoá: '+e.message, true); }
+}
+
+function openAddProduct(){
+  document.getElementById('p-edit-code').value='';
+  document.getElementById('product-modal-title').firstChild.textContent='Thêm sản phẩm mới ';
+  document.getElementById('p-code').value=''; document.getElementById('p-code').disabled=false;
+  document.getElementById('p-name').value='';
+  document.getElementById('p-color').value='';
+  document.getElementById('p-size').value='S';
+  document.getElementById('p-stock').value='0';
+  document.getElementById('p-threshold').value='5';
+  document.getElementById('p-image').value='';
+  document.getElementById('p-image-preview').style.display='none';
+  openModal('modal-product');
+}
+
+function editProduct(code){
+  const p=allProducts.find(x=>x.code===code); if(!p) return;
+  document.getElementById('p-edit-code').value=code;
+  document.getElementById('product-modal-title').firstChild.textContent=`Sửa sản phẩm ${code} `;
+  document.getElementById('p-code').value=p.code; document.getElementById('p-code').disabled=true;
+  document.getElementById('p-name').value=p.name||'';
+  document.getElementById('p-color').value=p.color||'';
+  document.getElementById('p-size').value=p.size||'S';
+  document.getElementById('p-stock').value=p.stock_initial||0;
+  document.getElementById('p-threshold').value=p.threshold||5;
+  document.getElementById('p-image').value=p.image_url||'';
+  const prev=document.getElementById('p-image-preview'), img=document.getElementById('p-img-tag');
+  if(p.image_url){ prev.style.display='block'; img.src=p.image_url; } else prev.style.display='none';
+  openModal('modal-product');
 }
 
 // ── PRODUCTS ──
@@ -5310,7 +5827,7 @@ async function loadProducts(){
       <tr>
         <td style="width:56px;padding:6px 10px">
           ${p.image_url
-            ? `<img src="${p.image_url}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--border)" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" /><div style="display:none;width:44px;height:44px;background:var(--bg);border-radius:6px;border:1px solid var(--border);align-items:center;justify-content:center;font-size:9px;color:var(--med)">Lỗi</div>`
+            ? `<img src="${normalizeImageUrl(p.image_url)}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--border)" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" /><div style="display:none;width:44px;height:44px;background:var(--bg);border-radius:6px;border:1px solid var(--border);align-items:center;justify-content:center;font-size:9px;color:var(--med)">Lỗi</div>`
             : `<div style="width:44px;height:44px;background:var(--bg);border-radius:6px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:18px">👗</div>`
           }
         </td>
@@ -5328,18 +5845,31 @@ async function loadProducts(){
           }
         </td>
         <td style="font-size:11px;color:var(--med)">${fmtDate(p.created_at)}</td>
+        <td style="white-space:nowrap">
+          <button onclick="editProduct('${p.code}')" style="font-size:11px;padding:4px 9px;border:1px solid var(--border);border-radius:6px;background:var(--bg);cursor:pointer;margin-right:4px">✏️ Sửa</button>
+          <button onclick="deleteProduct('${p.code}')" style="font-size:11px;padding:4px 9px;border:1px solid var(--red-t);border-radius:6px;background:#FCEBEB;color:var(--red-t);cursor:pointer">🗑 Xoá</button>
+        </td>
       </tr>`).join('');
   } catch(e){ toast('Lỗi: '+e.message,true); }
 }
 
 async function saveProduct(){
+  const editCode=document.getElementById('p-edit-code').value;
   const code=document.getElementById('p-code').value.trim();
   const name=document.getElementById('p-name').value.trim();
   if(!code||!name){toast('Vui lòng điền mã và tên sản phẩm',true);return;}
-  const imageUrl=document.getElementById('p-image').value.trim();
+  const imageUrl=normalizeImageUrl(document.getElementById('p-image').value);
+  const data={name,color:document.getElementById('p-color').value,size:document.getElementById('p-size').value,stock_initial:parseInt(document.getElementById('p-stock').value)||0,threshold:parseInt(document.getElementById('p-threshold').value)||5,image_url:imageUrl};
   try {
-    await db.insertProduct({code,name,color:document.getElementById('p-color').value,size:document.getElementById('p-size').value,stock_initial:parseInt(document.getElementById('p-stock').value)||0,threshold:parseInt(document.getElementById('p-threshold').value)||5,image_url:imageUrl||null});
-    closeModal('modal-product'); toast(`Đã thêm ${code}`); loadProducts();
+    if(editCode){
+      await db.updateProduct(editCode, data);
+      document.getElementById('p-code').disabled=false;
+      closeModal('modal-product'); toast(`Đã cập nhật ${editCode}`);
+    } else {
+      await db.insertProduct({code, ...data});
+      closeModal('modal-product'); toast(`Đã thêm ${code}`);
+    }
+    loadProducts();
   } catch(e){ toast('Lỗi: '+e.message,true); }
 }
 
@@ -5355,14 +5885,26 @@ document.addEventListener('input', e=>{
 });
 
 // Edit image modal
+// Chuyển link Google Drive (dạng share) → link ảnh hiển thị được
+function normalizeImageUrl(url){
+  if(!url) return null;
+  url=url.trim(); if(!url) return null;
+  if(url.includes('drive.google.com')){
+    const m = url.match(/\/file\/d\/([-\w]+)/) || url.match(/[?&]id=([-\w]+)/);
+    if(m) return `https://drive.google.com/thumbnail?id=${m[1]}&sz=w1000`;
+  }
+  return url;
+}
+
 async function editImage(code, currentUrl, name){
-  const newUrl = prompt(`Nhập link ảnh cho ${code} · ${name}:\n\nLink hiện tại: ${currentUrl||'Chưa có'}\n\nDán link ảnh mới vào đây:`, currentUrl||'');
+  const newUrl = prompt(`Nhập link ảnh cho ${code} · ${name}:\n\nLink hiện tại: ${currentUrl||'Chưa có'}\n\nDán link ảnh mới vào đây:\n(Link Google Drive sẽ tự chuyển — nhớ để file ở chế độ "Bất kỳ ai có link đều xem")`, currentUrl||'');
   if(newUrl===null) return; // cancelled
+  const cleanUrl = normalizeImageUrl(newUrl);
   try {
     await fetch(`${SUPABASE_URL}/rest/v1/products?code=eq.${encodeURIComponent(code)}`,{
       method:'PATCH',
       headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json'},
-      body:JSON.stringify({image_url: newUrl.trim()||null})
+      body:JSON.stringify({image_url: cleanUrl||null})
     });
     toast(`Đã cập nhật ảnh cho ${code}`);
     loadProducts();
@@ -5379,7 +5921,7 @@ function showScanModal(){
   const stock=computeStock(prods,allTx);
   list.innerHTML=stock.map((p,i)=>`
     <div onclick="selectScanProd(${i})" id="spl-${i}" style="padding:10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:all .15s;${p.current<=0?'opacity:.4;cursor:not-allowed':''}">
-      ${p.image_url?`<img src="${p.image_url}" style="width:100%;height:50px;object-fit:cover;border-radius:5px;margin-bottom:4px" onerror="this.style.display='none'">`:''}
+      ${p.image_url?`<img src="${normalizeImageUrl(p.image_url)}" style="width:100%;height:50px;object-fit:cover;border-radius:5px;margin-bottom:4px" onerror="this.style.display='none'">`:''}
       <div style="font-size:10px;font-family:monospace;color:var(--med)">${p.code}</div>
       <div style="font-size:12px;font-weight:500">${p.name} ${p.size}</div>
       <div style="font-size:11px;color:var(--med)">${p.color} · <span class="${stockClass(p.current)}">${p.current} cái</span></div>
