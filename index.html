@@ -238,6 +238,7 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -266,7 +267,7 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
     </div>
     <div class="nav-item" data-page="shopee" onclick="goPage('shopee',this)">
       <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"/></svg>
-      Nhập Shopee (PDF)
+      Nhập Shopee/TikTok (PDF)
     </div>
     <div class="nav-item" data-page="debt" onclick="goPage('debt',this)" style="position:relative">
       <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 15.75h.008v.008H12v-.008z"/></svg>
@@ -946,7 +947,7 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
 <!-- ══ NHẬP SHOPEE TỪ PDF ══ -->
 <div id="page-shopee" class="page">
   <div class="page-header">
-    <div><div class="page-title">Nhập đơn Shopee từ PDF</div><div class="page-sub">Upload tem vận đơn Shopee → tự đối chiếu → trừ kho &amp; tạo đơn</div></div>
+    <div><div class="page-title">Nhập đơn Shopee / TikTok từ PDF</div><div class="page-sub">Upload tem Shopee (SPX) hoặc TikTok (J&amp;T) → tự nhận diện → đối chiếu → trừ kho &amp; tạo đơn</div></div>
     <div class="btns">
       <button class="btn" id="shp-checkdb" onclick="shpCheckDb()">🔍 Kiểm tra DB</button>
     </div>
@@ -956,7 +957,7 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
     <div id="shp-drop" onclick="document.getElementById('shp-file').click()"
       style="border:2px dashed #D3D1C7;border-radius:10px;padding:24px;text-align:center;color:var(--muted);cursor:pointer">
       <div style="font-size:28px">🧾</div>
-      <div style="margin-top:6px"><b>Bấm chọn</b> hoặc kéo thả file PDF tem Shopee (SPX) vào đây</div>
+      <div style="margin-top:6px"><b>Bấm chọn</b> hoặc kéo thả file PDF tem Shopee (SPX) hoặc TikTok (J&amp;T) vào đây</div>
       <div style="font-size:12px;margin-top:4px;opacity:.7">Đọc nhiều tem trong 1 file</div>
       <input id="shp-file" type="file" accept="application/pdf" hidden onchange="shpHandle(this.files[0])">
     </div>
@@ -1595,7 +1596,7 @@ async function shpHandle(file){
     }
     document.getElementById('shp-raw').textContent=pages.map((t,i)=>'=== TEM '+(i+1)+' ===\n'+t).join('\n\n')
       +'\n\n=== SẢN PHẨM TRONG KHO ('+allProducts.length+') ===\n'+allProducts.slice(0,80).map(p=>[p.code,p.name,p.color,p.size].join(' | ')).join('\n');
-    shpParsed=pages.map(shpParse).filter(Boolean);
+    shpParsed=pages.map(p=>shpParse(p)||tkParse(p)).filter(Boolean);
     shpParsed.forEach(shpMatch);
     shpRender();
     document.getElementById('shp-panel').style.display='block';
@@ -1621,6 +1622,46 @@ function shpParse(text){
   }
   if(!items.length || (!tracking && !order_code)) return null;
   return {tracking,order_code,date,cod,items};
+}
+
+// Tách tên sản phẩm và màu từ phần "tên ... màu" của tem TikTok, dựa trên màu có sẵn trong kho
+function tkSplitColor(s){
+  const colorSet={};
+  [...new Set(allProducts.map(p=>p.color).filter(Boolean))].forEach(c=>{ colorSet[shpColorKey(c)]=c; });
+  const toks=s.trim().split(/\s+/).filter(Boolean);
+  for(let n=Math.min(5,toks.length); n>=1; n--){
+    const key=shpColorKey(toks.slice(-n).join(' '));
+    if(key && colorSet[key]) return {color:toks.slice(-n).join(' ').replace(/\s*-\s*/g,'-').trim(), name:toks.slice(0,toks.length-n).join(' ').replace(/^\[[^\]]*\]\s*/,'').trim()};
+  }
+  return {color:toks[toks.length-1]||'', name:toks.slice(0,-1).join(' ').replace(/^\[[^\]]*\]\s*/,'').trim()};
+}
+
+// Đọc tem TikTok Shop (J&T) — trả về cùng định dạng như shpParse
+function tkParse(text){
+  if(!/TikTok|Order ID:|chuyển phát nhanh/i.test(text)) return null;
+  const order_code=(text.match(/Order ID:\s*(\d{10,})/)||[])[1]||'';
+  const tracking=(text.match(/\b(\d{12,13})\b/)||[])[1]||'';
+  let date='';
+  const dm=text.match(/Thời gian đặt hàng:\s*(\d{4})-(\d{2})-(\d{2})/);
+  if(dm) date=`${dm[3]}-${dm[2]}-${dm[1]}`;
+  const phone=(text.match(/\(\+84\)[\d*]+/)||[])[0]||'';
+  const items=[];
+  const bm=text.match(/Product Name\s+SKU\s+Seller SKU\s+Qty([\s\S]*?)Qty Total:/);
+  if(bm){
+    let block=bm[1].replace(/\s+/g,' ').trim();
+    const ci=block.lastIndexOf(',');
+    if(ci>=0){
+      const left=block.slice(0,ci).trim();
+      const right=block.slice(ci+1).trim();
+      const sq=right.match(/^([^\d]+?)\s*(\d+)\s*$/);
+      const size=sq?sq[1].trim():right.trim();
+      const qty=sq?parseInt(sq[2]):1;
+      const sc=tkSplitColor(left);
+      items.push({shopee_name:`${left}, ${size}`, name:sc.name, color:sc.color, size, qty});
+    }
+  }
+  if(!order_code || !items.length) return null;
+  return {channel:'TikTok', tracking, order_code, date, cod:0, customer_name:'(TikTok)', phone, address:'', items};
 }
 
 function shpBestMatch(it){
@@ -1720,11 +1761,12 @@ async function shpConfirm(){
       const pname=prod?`${prod.name} ${prod.size} · ${prod.color}`:(it.matchedName||it.name);
       const si=stockNow.find(p=>p.code===it.code); const cur=si?si.current:0;
       const out=cur<it.qty; if(out) outCount++;
-      orderRows.push({order_code:lb.order_code, date:isoFromVN(lb.date), customer_name:'(Shopee)', phone:'', address:'',
-        product_code:it.code, product_name:pname, quantity:it.qty, channel:'Shopee', tracking_code:lb.tracking,
-        staff:'Shopee PDF', note:'Nhập từ PDF Shopee', status: out?'Nợ hàng':'Đi đơn',
+      const ch=lb.channel||'Shopee';
+      orderRows.push({order_code:lb.order_code, date:isoFromVN(lb.date), customer_name:lb.customer_name||'('+ch+')', phone:lb.phone||'', address:lb.address||'',
+        product_code:it.code, product_name:pname, quantity:it.qty, channel:ch, tracking_code:lb.tracking,
+        staff:ch+' PDF', note:'Nhập từ PDF '+ch, status: out?'Nợ hàng':'Đi đơn',
         amount_due:0, is_paid:false, shipping_fee:idx===0?0:0, payment_method:'Chuyển khoản'});
-      if(!out){ txRows.push({date:isoFromVN(lb.date), type:'Xuất', product_code:it.code, product_name:pname, color:prod?.color, size:prod?.size, quantity:it.qty, channel:'Shopee', note:'Xuất từ PDF Shopee '+lb.tracking, staff:'Shopee PDF'}); if(si) si.current-=it.qty; }
+      if(!out){ txRows.push({date:isoFromVN(lb.date), type:'Xuất', product_code:it.code, product_name:pname, color:prod?.color, size:prod?.size, quantity:it.qty, channel:ch, note:'Xuất từ PDF '+ch+' '+lb.tracking, staff:ch+' PDF'}); if(si) si.current-=it.qty; }
       if(!it.fromMap) newMaps[shpNorm(it.shopee_name)]={shopee_name:it.shopee_name, product_code:it.code, product_name:it.matchedName||pname};
     });
   });
@@ -1742,8 +1784,8 @@ async function shpConfirm(){
     for(const o of orderRows){ const r=await db.insertOrder(o); if(r&&r[0]) allOrders.unshift(r[0]); }
     for(const t of txRows){ const r=await db.insertTx(t); if(r&&r[0]) allTx.unshift(r[0]); }
     res.style.display='block'; res.style.background='#E7F6EF'; res.style.color='#0F6E56';
-    res.textContent='✅ Đã tạo '+orderRows.length+' đơn Shopee và trừ kho '+txRows.reduce((s,t)=>s+t.quantity,0)+' sản phẩm. Xem ở "Quản lý đơn hàng" / "Nhập-Xuất kho".';
-    toast('Đã nhập '+orderRows.length+' đơn Shopee');
+    res.textContent='✅ Đã tạo '+orderRows.length+' đơn và trừ kho '+txRows.reduce((s,t)=>s+t.quantity,0)+' sản phẩm. Xem ở "Quản lý đơn hàng" / "Nhập-Xuất kho".';
+    toast('Đã nhập '+orderRows.length+' đơn');
     shpParsed.forEach(lb=>{ if(orderRows.some(o=>o.order_code&&o.order_code===lb.order_code)) lb.dup=true; });
     shpRender();
   }catch(e){ res.style.display='block'; res.style.background='#FDECEC'; res.style.color='#B91C1C'; res.textContent='Lỗi khi ghi: '+e.message; toast('Lỗi khi nhập đơn',true); }
@@ -3139,12 +3181,75 @@ async function markSelectedThaiSent(channel){
   const checks = [...document.querySelectorAll('input[type=checkbox][data-channel]')].filter(c=>c.checked && (channel==='KOLThai_ALL' ? KOL_THAI_CHANNELS.includes(c.dataset.channel) : c.dataset.channel===channel));
   if(!checks.length){ toast('Chưa chọn đơn nào', true); return; }
   const codes = checks.map(c=>c.dataset.orderCode);
-  if(!confirm(`Gửi ${codes.length} đơn đã chọn?\nTồn kho sẽ được trừ ngay sau khi xác nhận.\n\nSau khi gửi, cửa sổ in tem sẽ tự mở.`)) return;
+  if(!confirm(`Gửi ${codes.length} đơn đã chọn?\nTồn kho sẽ được trừ ngay sau khi xác nhận.\n\nSau khi gửi sẽ hỏi: tải PDF tem hay in giấy.`)) return;
   for(const code of codes){
     await markThaiOrderSent(code);
   }
-  // Mở cửa sổ in tem cho các đơn vừa gửi
-  printThaiLabels(codes);
+  // Cho chọn: tải PDF thẳng file hoặc mở cửa sổ in
+  if(confirm('Đã gửi ✓\n\nOK = Tải file PDF tem về máy\nHuỷ = Mở cửa sổ In giấy')){
+    await downloadThaiLabelsPDF(codes);
+  } else {
+    printThaiLabels(codes);
+  }
+}
+
+async function downloadThaiLabelsPDF(orderCodes){
+  const orders = orderCodes.map(code=>{
+    const items = allOrders.filter(o=>o.order_code===code);
+    if(!items.length) return null;
+    const o = items[0];
+    const prodLines = items.map(i=>i.product_name||'—').join(', ');
+    const totalQty = items.reduce((s,i)=>s+(i.quantity||0),0);
+    return {order_code:code, customer_name:o.customer_name||'—', phone:o.phone||'', address:o.address||'', social:o.kol_social||'', product:prodLines, qty:totalQty, date:fmtDate(o.date||todayStr()), channel:o.channel};
+  }).filter(Boolean);
+  if(!orders.length){ toast('Không có đơn nào để tải', true); return; }
+  if(typeof window.jspdf==='undefined' || typeof html2canvas==='undefined'){ toast('Đang tải thư viện PDF, đợi 1-2 giây rồi thử lại', true); return; }
+
+  const css = `.label{width:75mm;height:100mm;border:0.5px solid #bbb;padding:4mm;display:flex;flex-direction:column;font-family:Arial,sans-serif;color:#111;overflow:hidden;background:#fff;box-sizing:border-box;margin-bottom:4mm}
+  .label *{box-sizing:border-box}
+  .label-brand{display:flex;align-items:flex-start;justify-content:space-between;border-bottom:1px solid #222;padding-bottom:2mm;margin-bottom:2.5mm}
+  .brand-name{font-size:8.5pt;font-weight:700;letter-spacing:.5px;text-transform:uppercase;line-height:1.2}
+  .brand-tagline{font-size:5pt;color:#666;text-transform:uppercase;margin-top:.5mm;letter-spacing:.3px}
+  .brand-code{font-size:6.5pt;font-weight:700;margin-top:.5mm}
+  .qty-badge{background:#111;color:#fff;font-size:7pt;font-weight:700;padding:1mm 2.5mm;border-radius:1mm;white-space:nowrap;flex-shrink:0;margin-left:3mm;margin-top:1mm}
+  .lbl-title{font-size:4.5pt;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#888;margin-bottom:1mm}
+  .lbl-name{font-size:10pt;font-weight:700;color:#111;line-height:1.15;margin-bottom:.8mm}
+  .lbl-phone{font-size:7.5pt;color:#111;margin-bottom:.5mm;font-weight:700}
+  .lbl-social{font-size:6.5pt;color:#555}
+  .lbl-addr{font-size:6.5pt;color:#111;line-height:1.45;font-weight:700}
+  .lbl-divider{border:none;border-top:0.5px dashed #ccc;margin:2mm 0}
+  .lbl-prod-box{background:#f2f2f2;border-radius:1mm;padding:1.5mm 2.5mm;flex:1}
+  .lbl-prod-name{font-size:8pt;font-weight:700;color:#111;line-height:1.3}
+  .lbl-footer{margin-top:auto;border-top:0.5px solid #ddd;padding-top:1.5mm;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+  .lbl-order{font-size:5.5pt;color:#888;font-family:monospace}
+  .lbl-channel{font-size:5.5pt;color:#aaa}`;
+  const labelHtml = orders.map(o=>`<div class="label">
+    <div class="label-brand"><div><div class="brand-name">LàSilk</div><div class="brand-tagline">VIETNAM · 0364000709</div><div class="brand-code">MÃ KH: W3417</div></div><div class="qty-badge">× ${o.qty}</div></div>
+    <div style="margin-bottom:1.5mm"><div class="lbl-title">Người nhận</div><div class="lbl-name">${o.customer_name}</div><div class="lbl-phone">${o.phone||'—'}</div>${o.social?`<div class="lbl-social">📱 ${o.social}</div>`:''}</div>
+    <div style="margin-bottom:1mm"><div class="lbl-title">Địa chỉ</div><div class="lbl-addr">${o.address||'<em style="color:#bbb">Chưa nhập</em>'}</div></div>
+    <div class="lbl-divider"></div>
+    <div style="margin-bottom:auto"><div class="lbl-title">Sản phẩm</div><div class="lbl-prod-box"><div class="lbl-prod-name">${o.product}</div></div></div>
+    <div class="lbl-footer"><div class="lbl-order">${o.order_code} · ${o.date}</div><div class="lbl-channel">${o.channel||''}</div></div>
+  </div>`).join('');
+
+  const wrap = document.createElement('div');
+  wrap.style.cssText='position:fixed;left:-99999px;top:0;background:#fff';
+  wrap.innerHTML = `<style>${css}</style>${labelHtml}`;
+  document.body.appendChild(wrap);
+  toast('Đang tạo PDF…');
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({unit:'mm', format:[75,100], orientation:'portrait'});
+    const labels = wrap.querySelectorAll('.label');
+    for(let i=0;i<labels.length;i++){
+      const canvas = await html2canvas(labels[i], {scale:3, backgroundColor:'#ffffff'});
+      if(i>0) doc.addPage([75,100],'portrait');
+      doc.addImage(canvas.toDataURL('image/png'),'PNG',0,0,75,100);
+    }
+    doc.save('Tem-Thai-'+labels.length+'.pdf');
+    toast('📄 Đã tải PDF tem');
+  } catch(e){ toast('Lỗi tạo PDF: '+e.message, true); }
+  finally { wrap.remove(); }
 }
 
 function printThaiLabels(orderCodes){
@@ -3233,23 +3338,42 @@ function printThaiLabels(orderCodes){
     .qty-badge{background:#111;color:#fff;font-size:7pt;font-weight:700;padding:1mm 2.5mm;border-radius:1mm;white-space:nowrap;flex-shrink:0;margin-left:3mm;margin-top:1mm}
     .lbl-title{font-size:4.5pt;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#888;margin-bottom:1mm}
     .lbl-name{font-size:10pt;font-weight:700;color:#111;line-height:1.15;margin-bottom:.8mm}
-    .lbl-phone{font-size:7pt;color:#333;margin-bottom:.5mm}
+    .lbl-phone{font-size:7.5pt;color:#111;margin-bottom:.5mm;font-weight:700}
     .lbl-social{font-size:6.5pt;color:#555}
-    .lbl-addr{font-size:6pt;color:#333;line-height:1.45}
+    .lbl-addr{font-size:6.5pt;color:#111;line-height:1.45;font-weight:700}
     .lbl-divider{border:none;border-top:0.5px dashed #ccc;margin:2mm 0}
     .lbl-prod-box{background:#f2f2f2;border-radius:1mm;padding:1.5mm 2.5mm;flex:1}
     .lbl-prod-name{font-size:8pt;font-weight:700;color:#111;line-height:1.3}
     .lbl-footer{margin-top:auto;border-top:0.5px solid #ddd;padding-top:1.5mm;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
     .lbl-order{font-size:5.5pt;color:#888;font-family:monospace}
     .lbl-channel{font-size:5.5pt;color:#aaa}
-  </style></head><body>
+  </style><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"><\/script><script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"><\/script></head><body>
   <div class="no-print">
     <div style="margin-bottom:6px;font-size:13px;color:#333">📋 <b>${orders.length} tem</b> — khổ 75×100mm, mỗi tem 1 tờ</div>
-    <div style="font-size:11px;color:#666;margin-bottom:8px">💾 Lưu PDF: In ngay → máy in chọn <b>"Save as PDF"</b> → khổ giấy đặt <b>Custom: 75×100mm</b></div>
-    <button onclick="window.print()">🖨️ In ngay / Lưu PDF</button>
+    <div style="font-size:11px;color:#666;margin-bottom:8px">Bấm <b>Tải PDF</b> để lưu thẳng file · hoặc <b>In ngay</b> rồi chọn máy in (khổ 75×100mm)</div>
+    <button onclick="downloadThaiPDF(this)">📄 Tải PDF</button>
+    <button onclick="window.print()" style="margin-left:6px">🖨️ In ngay</button>
     <button onclick="window.close()" style="background:#666;margin-left:6px">Đóng</button>
   </div>
   ${labelHtml}
+  <script>
+  async function downloadThaiPDF(btn){
+    if(!window.jspdf||!window.html2canvas){ alert('Đang tải thư viện PDF, đợi 1-2 giây rồi bấm lại nhé'); return; }
+    const oldTxt=btn.textContent; btn.disabled=true; btn.textContent='Đang tạo PDF…';
+    try{
+      const { jsPDF } = window.jspdf;
+      const doc=new jsPDF({unit:'mm',format:[75,100],orientation:'portrait'});
+      const labels=document.querySelectorAll('.label');
+      for(let i=0;i<labels.length;i++){
+        const canvas=await html2canvas(labels[i],{scale:3,backgroundColor:'#ffffff'});
+        if(i>0) doc.addPage([75,100],'portrait');
+        doc.addImage(canvas.toDataURL('image/png'),'PNG',0,0,75,100);
+      }
+      doc.save('Tem-Thai-'+labels.length+'.pdf');
+    }catch(e){ alert('Lỗi tạo PDF: '+e.message); }
+    btn.disabled=false; btn.textContent=oldTxt;
+  }
+  <\/script>
   </body></html>`;
   thaiPrintOut(__printHtml);
 }
