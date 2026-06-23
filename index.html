@@ -267,6 +267,10 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
       <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0-.504-1.125 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z"/></svg>
       Quản lý đơn hàng
     </div>
+    <div class="nav-item" data-page="grab" onclick="goPage('grab',this)">
+      <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-6V6.75h6v12z"/></svg>
+      🛵 Đơn Grab
+    </div>
     <div class="nav-item" data-page="shopee" onclick="goPage('shopee',this)">
       <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"/></svg>
       Nhập Shopee/TikTok (PDF)
@@ -544,6 +548,8 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
   <div class="metrics" style="margin-bottom:16px">
     <div class="metric" style="border-color:#3C3489;background:var(--purple-bg)"><div class="metric-label" style="color:#3C3489">Tổng đơn đang nợ</div><div class="metric-val" style="color:#3C3489" id="debt-count">0</div><div class="metric-sub">đơn chưa có hàng</div></div>
   </div>
+  <div id="debt-origin-tabs" style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap"></div>
+  <div id="debt-prod-chips" style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap"></div>
   <div id="debt-list"></div>
 </div>
 
@@ -796,6 +802,7 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
     <div class="metrics" id="forecast-metrics" style="margin-bottom:14px"></div>
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
       <div style="display:flex;gap:4px" id="forecast-period-tabs">
+        <button class="btn" data-p="3" onclick="setForecastPeriod(this)">3 ngày</button>
         <button class="btn" data-p="7" onclick="setForecastPeriod(this)">7 ngày</button>
         <button class="btn" data-p="30" onclick="setForecastPeriod(this)" style="background:var(--dark);color:#F7F3EB;border-color:var(--dark)">30 ngày</button>
         <button class="btn" data-p="60" onclick="setForecastPeriod(this)">60 ngày</button>
@@ -1023,12 +1030,19 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
   </div>
 </div>
 
+<div id="page-grab" class="page">
+  <div class="page-header">
+    <div><div class="page-title">🛵 Đơn Grab</div><div class="page-sub">Đơn giao Grab — in tem 70×100mm cho shipper</div></div>
+  </div>
+  <div class="card" style="margin-bottom:14px">
+    <div style="font-size:13px;color:var(--med)">Tổng đơn Grab: <b id="grab-count" style="color:var(--dark)">0</b></div>
+  </div>
+  <div id="grab-list"></div>
+</div>
+
 <div id="page-fulfill" class="page">
   <div class="page-header">
     <div><div class="page-title">🚚 Đi hàng — Quét xuất kho</div><div class="page-sub">Quét QR tem → bật đúng đơn → quét QR sản phẩm đối chiếu → xuất kho &amp; đi hàng</div></div>
-    <div class="btns">
-      <button class="btn btn-primary" onclick="openQuickShip()">⚡ Xuất nhanh (Grab/Hỏa tốc)</button>
-    </div>
   </div>
 
   <div class="card" style="margin-bottom:16px">
@@ -1644,6 +1658,7 @@ function goPage(name, el){
   if(el) el.classList.add('active');
   if(name==='dashboard') loadDashboard();
   else if(name==='orders') loadOrders();
+  else if(name==='grab') loadGrabOrders();
   else if(name==='shopee') loadShopeeImport();
   else if(name==='fulfill') loadFulfill();
   else if(name==='nxk') loadNXK();
@@ -1945,11 +1960,31 @@ function ffRenderQueue(){
   q.forEach(o=>{ const k=o.tracking_code||o.order_code||('id'+o.id); (groups[k]=groups[k]||[]).push(o); });
   el.innerHTML=Object.entries(groups).map(([k,rows])=>{
     const o=rows[0];
-    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--border);cursor:pointer" onclick="ffFindOrder(\''+String(o.tracking_code||o.order_code||'').replace(/'/g,"")+'\')">'+
-      '<div style="min-width:0"><div style="font-size:13px;font-weight:600">'+rows.map(r=>(r.product_name||r.product_code)).join(', ')+'</div>'+
+    const kk=String(o.tracking_code||o.order_code||'').replace(/'/g,"");
+    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--border)">'+
+      '<div style="min-width:0;flex:1;cursor:pointer" onclick="ffFindOrder(\''+kk+'\')"><div style="font-size:13px;font-weight:600">'+rows.map(r=>(r.product_name||r.product_code)).join(', ')+'</div>'+
       '<div style="font-size:11px;color:var(--muted)">'+k+' · '+(o.customer_name||'')+' · '+(o.channel||'')+'</div></div>'+
-      '<button class="btn" style="font-size:11px;padding:5px 9px;white-space:nowrap">Mở đơn ▸</button></div>';
+      '<div style="display:flex;gap:6px;flex-shrink:0">'+
+        '<button class="btn" style="font-size:11px;padding:5px 9px;white-space:nowrap" onclick="ffFindOrder(\''+kk+'\')">Mở đơn ▸</button>'+
+        '<button class="btn" style="font-size:11px;padding:5px 8px;color:var(--red-t);border-color:var(--red-t)" onclick="ffDeleteOrder(\''+kk+'\')" title="Xoá đơn khỏi hàng chờ">🗑</button>'+
+      '</div></div>';
   }).join('');
+}
+
+async function ffDeleteOrder(key){
+  if(!key) return;
+  const rows=allOrders.filter(o=>o.status==='Chờ đi hàng' && String(o.tracking_code||o.order_code||'')===key);
+  if(!rows.length){ toast('Không thấy đơn',true); return; }
+  if(!confirm('Xoá đơn này khỏi hàng chờ đi? ('+rows.length+' món · chưa trừ kho nên không ảnh hưởng tồn)')) return;
+  try{
+    for(const o of rows){
+      await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${o.id}`,{method:'DELETE',headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}});
+    }
+    allOrders=allOrders.filter(o=>!(o.status==='Chờ đi hàng' && String(o.tracking_code||o.order_code||'')===key));
+    if(ffGroup.length && String(ffGroup[0].o.tracking_code||ffGroup[0].o.order_code||'')===key){ ffGroup=[]; ffMode='label'; ffRenderPkg(); }
+    toast('Đã xoá đơn khỏi hàng chờ');
+    ffRenderQueue();
+  }catch(e){ toast('Lỗi xoá: '+e.message,true); }
 }
 
 function ffFindOrder(raw){
@@ -1993,8 +2028,9 @@ function ffRenderPkg(){
         '</div>';
     }).join('')+
     (!allOk ? '<button class="btn btn-primary" style="width:100%;margin-top:12px" onclick="ffScan(\'product\')">📷 Quét QR sản phẩm ('+ffGroup.filter(g=>!g.scanned).length+' món còn lại)</button>' : '')+
-    '<div style="display:flex;gap:10px;margin-top:14px">'+
+    '<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">'+
       '<button class="btn" onclick="ffCancelPkg()">Huỷ</button>'+
+      '<button class="btn" style="border-color:#C9A227;color:#7A5B12" onclick="ffOverrideConfirm()" title="Cần mật mã quản lý">🔑 Xác nhận không quét</button>'+
       '<button class="btn '+(allOk?'btn-primary':'')+'" id="ff-confirm" '+(allOk?'':'disabled style="opacity:.45;cursor:not-allowed"')+' onclick="ffConfirm()">✓ Đã gói — Xuất kho '+totQty+' cái</button>'+
     '</div></div>';
 }
@@ -2020,6 +2056,17 @@ function ffMarkProduct(raw){
 }
 function ffCancelPkg(){ ffGroup=[]; ffMode='label'; ffStopScan(); ffRenderPkg(); }
 
+function getFfPw(){ return localStorage.getItem('lasilk_ff_pw') || '2580'; }
+function setFfPw(){ const p=prompt('Đặt mật mã mới cho nút "Xác nhận không quét":'); if(p){ localStorage.setItem('lasilk_ff_pw',p); toast('Đã đổi mật mã'); } }
+function ffOverrideConfirm(){
+  if(!ffGroup.length) return;
+  const pw=prompt('Nhập mật mã quản lý để xác nhận đơn KHÔNG cần quét:');
+  if(pw===null) return;
+  if(pw!==getFfPw()){ toast('Sai mật mã',true); return; }
+  ffGroup.forEach(g=>g.scanned=true);
+  ffRenderPkg();
+  ffConfirm();
+}
 async function ffConfirm(){
   if(!ffGroup.length || !ffGroup.every(g=>g.scanned)) return;
   const btn=document.getElementById('ff-confirm'); if(btn){ btn.disabled=true; btn.textContent='Đang xuất…'; }
@@ -2078,6 +2125,8 @@ function ffScanFrame(){
     ffLastScan=t; ffLastT=now;
     if(ffMode==='label'){
       if(ffFindOrder(t)) ffStopScan();   // quét được tem → tự tắt camera
+    } else if(ffMode==='grab'){
+      grabMark(t);   // grabMark tự xử lý: đủ món → xuất kho & tắt camera
     } else {
       const r=ffMarkProduct(t);
       if(r==='ok' && ffGroup.every(g=>g.scanned)) ffStopScan();   // đối chiếu xong TẤT CẢ món → tự thoát
@@ -2454,13 +2503,49 @@ async function loadDebtOrders(){
   } catch(e){ toast('Lỗi: '+e.message,true); }
 }
 
+let debtFilterOrigin = 'all';
+let debtFilterProd = null;
+function setDebtOrigin(o){ debtFilterOrigin=o; renderDebtList(); }
+function setDebtProd(p){ debtFilterProd=p; renderDebtList(); }
+function isThaiOrder(o){
+  return o.channel==='ThaiLan' || (typeof KOL_THAI_CHANNELS!=='undefined' && KOL_THAI_CHANNELS.includes(o.channel)) || (o.channel==='KOLThai') || (o.note||'').startsWith('Gửi Thái');
+}
 function renderDebtList(){
-  const debtOrders = allOrders.filter(o=>o.status==='Nợ hàng');
+  const allDebt = allOrders.filter(o=>o.status==='Nợ hàng');
+
+  // Bộ lọc VN / Thái
+  const byOrigin = debtFilterOrigin==='vn' ? allDebt.filter(o=>!isThaiOrder(o))
+                 : debtFilterOrigin==='thai' ? allDebt.filter(o=>isThaiOrder(o))
+                 : allDebt;
+  // Bộ lọc theo sản phẩm (tên SP)
+  const prodNameOf = o => { const p=allProducts.find(pp=>pp.code===o.product_code); return p?p.name:(o.product_name||'—'); };
+  const debtOrders = debtFilterProd ? byOrigin.filter(o=>prodNameOf(o)===debtFilterProd) : byOrigin;
+
   document.getElementById('debt-count').textContent = debtOrders.length;
   const listEl = document.getElementById('debt-list');
 
-  if(debtOrders.length===0){
+  // Tabs VN/Thái
+  const vnCount=allDebt.filter(o=>!isThaiOrder(o)).length, thaiCount=allDebt.filter(o=>isThaiOrder(o)).length;
+  const otabs=[{k:'all',l:'Tất cả',c:allDebt.length},{k:'vn',l:'🇻🇳 Đơn VN',c:vnCount},{k:'thai',l:'🇹🇭 Đơn Thái',c:thaiCount}];
+  const otEl=document.getElementById('debt-origin-tabs');
+  if(otEl) otEl.innerHTML=otabs.map(t=>{ const on=debtFilterOrigin===t.k;
+    return `<div onclick="setDebtOrigin('${t.k}')" style="display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:10px;font-size:12.5px;font-weight:500;cursor:pointer;border:1.5px solid ${on?'#3C3489':'var(--border)'};background:${on?'#3C3489':'var(--card)'};color:${on?'#fff':'var(--dark)'}">${t.l}<span style="padding:0 7px;border-radius:20px;font-size:10px;font-weight:700;background:${on?'rgba(255,255,255,.25)':'var(--bg)'};color:${on?'#fff':'var(--med)'}">${t.c}</span></div>`;
+  }).join('');
+
+  // Chips theo sản phẩm (trong phạm vi origin đang chọn)
+  const prodNames=[...new Set(byOrigin.map(prodNameOf))];
+  const pcEl=document.getElementById('debt-prod-chips');
+  if(pcEl) pcEl.innerHTML = (prodNames.length?[{k:null,l:'Tất cả SP'},...prodNames.map(n=>({k:n,l:n.replace('Đầm ','')}))]:[]).map(({k,l})=>{
+    const on=debtFilterProd===k;
+    return `<button onclick="setDebtProd(${k===null?'null':`'${String(k).replace(/'/g,"\\'")}'`})" style="padding:5px 12px;border-radius:20px;font-size:11.5px;cursor:pointer;border:0.5px solid ${on?'var(--dark)':'var(--border)'};background:${on?'var(--dark)':'var(--card)'};color:${on?'#F7F3EB':'var(--med)'}">${l}</button>`;
+  }).join('');
+
+  if(allDebt.length===0){
     listEl.innerHTML = `<div class="card" style="text-align:center;padding:40px"><div style="font-size:32px;margin-bottom:8px">✅</div><div style="color:var(--med);font-size:13px">Không có đơn nào đang nợ hàng</div></div>`;
+    return;
+  }
+  if(debtOrders.length===0){
+    listEl.innerHTML = `<div class="card" style="text-align:center;padding:30px;color:var(--med);font-size:13px">Không có đơn nợ nào khớp bộ lọc</div>`;
     return;
   }
 
@@ -2483,6 +2568,7 @@ function renderDebtList(){
           <div style="font-size:12px;color:var(--med);margin-top:2px">${o.phone||''} ${o.address?'· '+o.address:''}</div>
           <div style="font-size:13px;color:var(--dark);margin-top:6px">📦 ${o.product_name||'—'} × <b>${o.quantity||1}</b></div>
           <div style="font-size:11px;color:${hasEnough?'#27500A':'#791F1F'};margin-top:3px">Tồn hiện tại: <b>${currentStock}</b> cái</div>
+          ${o.note?`<div style="font-size:12px;color:var(--dark);margin-top:6px;background:var(--bg);padding:6px 10px;border-radius:8px">📝 ${o.note}</div>`:''}
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;min-width:140px">
           <button class="btn ${hasEnough?'btn-primary':''}" ${!hasEnough?'disabled style="opacity:.4;cursor:not-allowed"':''} onclick="confirmHasStock(${o.id})">✓ Đã có hàng — Xuất</button>
@@ -3261,6 +3347,7 @@ function renderThailandPage(channel){
             <div style="font-size:13px;font-weight:600;color:var(--dark)">${o.customer_name||'—'} <span class="pill p-wait" style="font-size:10px">Chờ gửi</span></div>
             <div style="font-size:12px;color:var(--med);margin-top:2px">${productLines}</div>
             ${o.phone?`<div style="font-size:11px;color:var(--blue-t)">${o.phone}</div>`:''}
+            ${!isThai?`<div style="margin-top:4px">${kolStars(o.kol_social||o.customer_name,'thai')}</div>`:''}
           </div>
           <div style="font-size:11px;color:var(--med)">${fmtDateShort(o.date)}</div>
         </div>
@@ -3274,6 +3361,7 @@ function renderThailandPage(channel){
           <div>
             <div style="font-size:13px;font-weight:600;color:var(--dark)">${o.customer_name||'—'}</div>
             <div style="font-size:12px;color:var(--med);margin-top:2px">${productLines}</div>
+            ${!isThai?`<div style="margin-top:4px">${kolStars(o.kol_social||o.customer_name,'thai')}</div>`:''}
             <span class="pill p-done" style="background:#EAF3DE;color:#27500A;font-size:10px;margin-top:5px;display:inline-block">✓ ${sentDate}</span>
           </div>
           <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">
@@ -3793,6 +3881,25 @@ async function loadKolVN(){
 let kolVNFilterProd = null;
 let kolVNFilterPlatform = null;
 
+// ── Đánh giá KOL (1-5 sao, lưu localStorage theo tên/username) ──
+function getKolRatings(){ try{ return JSON.parse(localStorage.getItem('lasilk_kol_ratings')||'{}'); }catch(e){ return {}; } }
+function getKolRating(name){ return getKolRatings()[String(name||'').trim()]||0; }
+function setKolRating(name,n,page){
+  const key=String(name||'').trim();
+  if(!key){ toast('KOL này chưa có tên/username để đánh giá',true); return; }
+  const r=getKolRatings(); r[key]=(r[key]===n?0:n);
+  localStorage.setItem('lasilk_kol_ratings',JSON.stringify(r));
+  toast(r[key]?`Đã đánh giá ${key}: ${r[key]}★`:`Đã bỏ đánh giá ${key}`);
+  if(page==='thai') renderThailandPage('KOLThai_ALL'); else renderKolVN();
+}
+function kolStars(name,page){
+  const key=String(name||'').trim(); const rating=getKolRating(key); const safe=key.replace(/'/g,"\\'");
+  return '<span style="display:inline-flex;align-items:center;gap:2px;background:var(--bg);border:0.5px solid var(--border);border-radius:20px;padding:2px 9px" title="Đánh giá KOL — lần sau có nên book tiếp?">'+
+    '<span style="font-size:9px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:var(--med);margin-right:3px">Đánh giá</span>'+
+    [1,2,3,4,5].map(n=>`<span onclick="setKolRating('${safe}',${n},'${page}')" style="cursor:pointer;font-size:16px;line-height:1;color:${n<=rating?'#F5A623':'#C9C5BC'}">${n<=rating?'★':'☆'}</span>`).join('')+
+    '</span>';
+}
+
 function renderKolVN(){
   const allKolVN = groupOrdersByCode(allOrders.filter(o=>KOL_VN_CHANNELS.includes(o.channel)));
   const igOrders = allKolVN.filter(o=>o.channel==='KOL_IG');
@@ -3927,7 +4034,7 @@ function renderKolVN(){
               ${i<remind?'background:#2A211C;color:#fff':'border:1.5px dashed var(--border)'}">
               ${i<remind?'✓':''}</div>`).join('');
           return `<tr style="border-bottom:0.5px solid var(--bg);${isPosted?'opacity:.55':''}">
-            <td style="padding:10px 12px;font-size:13px;font-weight:600;color:var(--dark);white-space:nowrap">${o.customer_name||'—'}</td>
+            <td style="padding:10px 12px;white-space:nowrap"><div style="font-size:13px;font-weight:600;color:var(--dark)">${o.customer_name||'—'}</div><div style="margin-top:3px">${kolStars(o.kol_social||o.customer_name,'vn')}</div></td>
             <td style="padding:10px 12px">${platformBadge(o.channel)}</td>
             <td style="padding:10px 12px">
               <input value="${social}" placeholder="@username..." oninput="saveKolSocialInline('${o.order_code}',this.value)"
@@ -4858,8 +4965,9 @@ async function createOrder(){
       const stockItem = stockNow.find(p=>p.code===item.code);
       const currentStock = stockItem ? stockItem.current : 0;
       const isOutOfStock = currentStock < item.qty;
-      if(isOutOfStock) anyOutOfStock = true;
-      const status = isOutOfStock ? 'Nợ hàng' : 'Đi đơn';
+      const isGrab = channel==='Grab';
+      if(isOutOfStock && !isGrab) anyOutOfStock = true;
+      const status = isGrab ? 'Chờ đi hàng' : (isOutOfStock ? 'Nợ hàng' : 'Đi đơn');
 
       const data = {
         order_code: orderCode,
@@ -4880,7 +4988,7 @@ async function createOrder(){
       if(!isOutOfStock){
         // ThaiLan/KOLThai: KHÔNG xuất kho ngay — chỉ xuất khi tick "Đã gửi"
         const isThaiChannel = channel==='ThaiLan'||KOL_THAI_CHANNELS.includes(channel);
-        if(!isThaiChannel){
+        if(!isThaiChannel && !isGrab){
           await db.insertTx({date:todayStr(),type:'Xuất',product_code:item.code,product_name:data.product_name,color:prod?.color,size:prod?.size,quantity:item.qty,channel,note:'Tạo từ đơn hàng',staff});
           const si = stockNow.find(p=>p.code===item.code);
           if(si) si.current -= item.qty;
@@ -4893,7 +5001,9 @@ async function createOrder(){
     ['o-name','o-phone','o-addr','o-mvd','o-staff','o-note'].forEach(id=>document.getElementById(id).value='');
     resetProductRows();
 
-    if(anyOutOfStock){
+    if(channel==='Grab'){
+      toast(`Đã tạo đơn Grab ${orderCode} — vào trang 🛵 Đơn Grab để in tem & quét xuất kho`);
+    } else if(anyOutOfStock){
       toast(`⚠️ Đơn ${orderCode} — có sản phẩm hết hàng, đã chuyển vào "Đơn nợ hàng"`);
     } else {
       toast(`Đã tạo đơn ${orderCode} (${items.length} sản phẩm)`);
@@ -4904,6 +5014,143 @@ async function createOrder(){
     renderOrders();
     updateDebtBadge();
   } catch(e){ toast('Lỗi: '+e.message,true); }
+}
+
+// ── TEM GRAB 70×100mm + TRANG GRAB ──
+function qrDataURL(text,size){
+  try{
+    const div=document.createElement('div');
+    new QRCode(div,{text:String(text),width:size||120,height:size||120,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+    const cv=div.querySelector('canvas'); if(cv) return cv.toDataURL('image/png');
+    const img=div.querySelector('img'); if(img&&img.src) return img.src;
+  }catch(e){}
+  return '';
+}
+function grabLabelHtml(orderCode){
+  const rows=allOrders.filter(o=>o.order_code===orderCode);
+  if(!rows.length) return '';
+  const o=rows[0];
+  const prods=rows.map(r=>`<div class="pr-item">• ${(r.product_name||r.product_code)} × <b>${r.quantity||1}</b></div>`).join('');
+  const cod=rows.reduce((s,r)=>s+(Number(r.amount_due)||0),0);
+  const pay=o.payment_method||'';
+  const qr=qrDataURL(orderCode,140);
+  return `<div class="lbl">
+    <div class="hd"><b>LÀ SILK</b><span class="ch">GRAB</span></div>
+    <div class="nm">${o.customer_name||''}</div>
+    <div class="ph">${o.phone||''}</div>
+    <div class="ad">${o.address||''}</div>
+    <div class="pr">${prods}</div>
+    <div class="pay">${cod>0?('THU HỘ: '+cod.toLocaleString('vi-VN')+'đ'):'ĐÃ THANH TOÁN'}</div>
+    ${pay?`<div class="paym">${pay}</div>`:''}
+    ${o.note?`<div class="note">${o.note}</div>`:''}
+    <div class="ft">${qr?`<img class="qr" src="${qr}">`:''}<div class="ftcode">${orderCode}<br>${fmtDateShort(o.date)}</div></div>
+  </div>`;
+}
+function printGrabLabel(orderCode){
+  const inner=grabLabelHtml(orderCode); if(!inner){ toast('Không thấy đơn',true); return; }
+  const css=`@page{size:70mm 100mm;margin:0}*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif}
+    .lbl{width:70mm;height:100mm;padding:5mm;display:flex;flex-direction:column;color:#111}
+    .hd{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #111;padding-bottom:4px;margin-bottom:6px}
+    .hd b{font-size:15pt;letter-spacing:.5px}.ch{font-size:11pt;font-weight:bold;border:1.5px solid #111;border-radius:4px;padding:1px 8px}
+    .nm{font-size:14pt;font-weight:bold;line-height:1.1}.ph{font-size:12pt;font-weight:bold;margin-top:2px}
+    .ad{font-size:10.5pt;margin-top:5px;line-height:1.3}
+    .pr{margin-top:7px;border-top:1px dashed #888;padding-top:6px;flex:1}.pr-item{font-size:11pt;margin-bottom:2px}
+    .pay{font-size:12pt;font-weight:bold;border-top:1px dashed #888;padding-top:5px}.paym{font-size:9.5pt;color:#333;margin-top:1px}
+    .note{font-size:9.5pt;margin-top:3px;font-style:italic;color:#333}
+    .ft{display:flex;align-items:center;gap:8px;border-top:1px dashed #888;padding-top:5px;margin-top:5px}
+    .qr{width:20mm;height:20mm}.ftcode{font-size:9pt;color:#444;font-family:monospace;line-height:1.3}`;
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>Tem Grab ${orderCode}</title><style>${css}</style></head><body>${inner}</body></html>`;
+  let w=null; try{ w=window.open('','_blank','width=420,height=620'); }catch(e){ w=null; }
+  if(w){ w.document.write(html); w.document.close(); setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){} }, 350); return; }
+  let f=document.getElementById('grab-print-frame'); if(f) f.remove();
+  f=document.createElement('iframe'); f.id='grab-print-frame'; f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0';
+  document.body.appendChild(f);
+  const d=f.contentWindow.document; d.open(); d.write(html); d.close();
+  setTimeout(()=>{ try{ f.contentWindow.focus(); f.contentWindow.print(); }catch(e){ toast('Cho phép popup để in tem nhé',true); } }, 400);
+}
+
+let grabCtx=null;
+function grabScanOrder(orderCode){
+  const rows=allOrders.filter(o=>o.order_code===orderCode && o.channel==='Grab' && o.status==='Chờ đi hàng');
+  if(!rows.length){ toast('Đơn này đã xuất hoặc không còn',true); return; }
+  grabCtx={orderCode, rows:rows.map(o=>({o,scanned:false}))};
+  ffScan('grab');
+  setTimeout(()=>{ const os=document.getElementById('ff-scan-ostatus'); if(os) os.innerHTML='Quét '+rows.length+' món của đơn '+orderCode; }, 300);
+}
+function grabMark(raw){
+  if(!grabCtx) return 'no';
+  const code=String(raw||'').trim().split('|')[0].split(/\s/)[0];
+  const os=document.getElementById('ff-scan-ostatus');
+  // Bỏ qua QR tem (mã đơn / SPXVN / dãy số dài)
+  if(code===grabCtx.orderCode || /^SPXVN/i.test(code) || /^\d{10,}$/.test(code)){ if(os) os.innerHTML='Đưa QR <b>SẢN PHẨM</b> vào khung (không phải QR tem)'; return 'skip'; }
+  const g=grabCtx.rows.find(x=>!x.scanned && x.o.product_code===code);
+  if(g){
+    g.scanned=true; ffBeep(true);
+    const left=grabCtx.rows.filter(x=>!x.scanned).length;
+    if(os) os.innerHTML = left===0 ? '✓ Đủ món — đang xuất kho…' : '✓ Đúng '+code+' · còn '+left+' món';
+    if(left===0){ ffStopScan(); grabFinish(); }
+    return 'ok';
+  }
+  ffBeep(false);
+  const dup=grabCtx.rows.some(x=>x.o.product_code===code);
+  if(os) os.innerHTML = dup ? '<span style="color:#FFD24A">Món này đã quét rồi</span>' : '<span style="color:#FCA5A5">✗ '+code+' không thuộc đơn này</span>';
+  return 'no';
+}
+async function grabFinish(){
+  if(!grabCtx) return;
+  const ctx=grabCtx; grabCtx=null;
+  try{
+    for(const g of ctx.rows){
+      const o=g.o; const p=allProducts.find(pp=>pp.code===o.product_code);
+      const r=await db.insertTx({date:todayStr(),type:'Xuất',product_code:o.product_code,product_name:o.product_name,color:p?.color,size:p?.size,quantity:o.quantity,channel:'Grab',note:'Đi hàng Grab (quét) '+o.order_code,staff:'Đi hàng'});
+      if(r&&r[0]) allTx.unshift(r[0]);
+      await db.updateOrder(o.id,{status:'Đi đơn'}); o.status='Đi đơn';
+    }
+    toast('✅ Đã xuất kho & đi đơn Grab '+ctx.orderCode);
+    renderGrabOrders();
+    updateDebtBadge();
+  }catch(e){ toast('Lỗi xuất kho: '+e.message,true); }
+}
+
+async function loadGrabOrders(){
+  try{
+    if(!allOrders.length){ const [prods, txs, orders]=await Promise.all([db.products(),db.transactions(),db.orders()]); allProducts=prods; allTx=txs; allOrders=orders; }
+    renderGrabOrders();
+  }catch(e){ toast('Lỗi: '+e.message,true); }
+}
+function renderGrabOrders(){
+  const el=document.getElementById('grab-list'); if(!el) return;
+  const rows=allOrders.filter(o=>o.channel==='Grab' && o.status==='Chờ đi hàng');
+  const groups={}; rows.forEach(o=>{ (groups[o.order_code]=groups[o.order_code]||[]).push(o); });
+  const keys=Object.keys(groups).sort((a,b)=> new Date(groups[b][0].date||0)-new Date(groups[a][0].date||0));
+  const cntEl=document.getElementById('grab-count'); if(cntEl) cntEl.textContent=keys.length;
+  if(!keys.length){ el.innerHTML='<div class="card" style="text-align:center;padding:36px;color:var(--med);font-size:13px">Không có đơn Grab nào chờ đi</div>'; return; }
+  el.innerHTML=keys.map(code=>{
+    const rs=groups[code]; const o=rs[0];
+    const cod=rs.reduce((s,r)=>s+(Number(r.amount_due)||0),0);
+    const prods=rs.map(r=>`📦 ${r.product_name||r.product_code} × <b>${r.quantity||1}</b>`).join('<br>');
+    return `<div class="card" style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap">
+        <div style="flex:1;min-width:220px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+            <span style="font-family:monospace;font-size:11px;color:var(--med)">${code}</span>
+            <span class="pill" style="background:#FBEED2;color:#7A5B12">Chờ đi</span>
+            <span style="font-size:11px;color:var(--med)">${fmtDateShort(o.date)}</span>
+          </div>
+          <div style="font-size:15px;font-weight:600;color:var(--dark)">${o.customer_name||'—'}</div>
+          <div style="font-size:12px;color:var(--med);margin-top:2px">${o.phone||''} ${o.address?'· '+o.address:''}</div>
+          <div style="font-size:13px;color:var(--dark);margin-top:6px">${prods}</div>
+          <div style="font-size:12px;margin-top:6px">${cod>0?`<span style="color:#791F1F;font-weight:600">Thu hộ: ${cod.toLocaleString('vi-VN')}đ</span>`:'<span style="color:#27500A">Đã thanh toán</span>'}${o.payment_method?` · <span style="color:var(--med)">${o.payment_method}</span>`:''}</div>
+          ${o.note?`<div style="font-size:12px;color:var(--dark);margin-top:6px;background:var(--bg);padding:5px 10px;border-radius:8px">📝 ${o.note}</div>`:''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;min-width:150px">
+          <button class="btn btn-primary" onclick="printGrabLabel('${code}')">🖨 In tem 70×100 (QR)</button>
+          <button class="btn btn-blue" onclick="grabScanOrder('${code}')">📷 Quét sản phẩm — Xuất kho</button>
+          <button class="btn" style="font-size:12px" onclick="openEditOrder('${code}')">✏️ Sửa đơn</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ── NXK ──
@@ -5909,7 +6156,7 @@ function renderForecast(){
   };
 
   const tbody = document.getElementById('forecast-tbody');
-  if(tbody) tbody.innerHTML = rows.map(r=>`<tr>
+  const fcRowHtml = r=>`<tr>
     <td style="font-weight:500">${r.name} · <span style="font-size:11px;background:var(--bg);border-radius:5px;padding:1px 6px;color:var(--med)">${r.color||'—'}</span> · <span style="color:var(--med)">${r.size||''}</span></td>
     <td style="text-align:center">${r.sold}</td>
     <td><div style="display:flex;align-items:center;gap:5px">
@@ -5922,12 +6169,34 @@ function renderForecast(){
     <td style="text-align:center">${r.incoming>0?`<span style="color:var(--blue-t);font-weight:500">+${r.incoming}</span>`:`<span style="color:var(--med);font-size:11px">—</span>`}</td>
     <td style="text-align:center">${dayBadge(r.daysLeft,r.spd)}</td>
     <td style="text-align:center">${statusBadgeRow(r)}</td>
-  </tr>`).join('');
+  </tr>`;
+  if(tbody){
+    let html='', i=0;
+    while(i<rows.length){
+      const nm=rows[i].name; const grp=[];
+      while(i<rows.length && rows[i].name===nm){ grp.push(rows[i]); i++; }
+      grp.forEach(r=>{ html+=fcRowHtml(r); });
+      if(grp.length>1){
+        const sSold=grp.reduce((s,r)=>s+r.sold,0), sStock=grp.reduce((s,r)=>s+r.stock,0), sInc=grp.reduce((s,r)=>s+r.incoming,0), sSpd=grp.reduce((s,r)=>s+r.spd,0);
+        html+=`<tr style="background:var(--bg)">
+          <td style="font-weight:600">Σ Tổng ${nm}</td>
+          <td style="text-align:center;font-weight:600">${sSold}</td>
+          <td></td>
+          <td style="text-align:center;color:var(--med);font-weight:600">${sSpd>0?sSpd.toFixed(1):'—'}</td>
+          <td style="text-align:center;font-weight:600">${sStock}</td>
+          <td style="text-align:center;font-weight:600">${sInc>0?'+'+sInc:'—'}</td>
+          <td></td><td></td>
+        </tr>`;
+      }
+    }
+    tbody.innerHTML=html;
+  }
 
   // Bảng đặt hàng
   const orderRows = rows.filter(r=>r.spd>0);
   const orderTbody = document.getElementById('order-tbody');
-  if(orderTbody) orderTbody.innerHTML = orderRows.map(r=>{
+  const gid = s=>String(s||'').replace(/[^a-z0-9]/gi,'_');
+  const fcOrderRowHtml = r=>{
     const sc = r.code.replace(/[^a-z0-9]/gi,'_');
     const afterOrder = r.stock+r.suggest;
     const extraDays = r.spd>0?Math.round(r.suggest/r.spd):0;
@@ -5940,16 +6209,39 @@ function renderForecast(){
       <td style="text-align:center">${r.suggest>0?`<span style="color:#0C447C;font-weight:500">+${r.suggest}</span>`:`<span style="color:var(--med);font-size:11px">Chưa cần</span>`}</td>
       <td style="text-align:center">
         <input type="number" min="0" value="${r.suggest}"
-          id="fc-ord-${sc}"
+          id="fc-ord-${sc}" data-grp="${gid(r.name)}" data-stock="${r.stock}"
           oninput="updateForecastRow('${sc}',${r.stock},${r.spd.toFixed(2)},this.value)"
           style="width:64px;padding:4px 6px;border:1.5px solid #378ADD;border-radius:6px;font-size:12px;text-align:center;background:#E6F1FB;color:#0C447C;font-weight:500">
       </td>
-      <td style="text-align:center;font-weight:500" id="fc-tot-${sc}" style="color:#27500A">${afterOrder} cái</td>
+      <td style="text-align:center;font-weight:500;color:#27500A" id="fc-tot-${sc}">${afterOrder} cái</td>
       <td style="text-align:center;font-size:11px;color:var(--med)" id="fc-days-${sc}">${extraDays>0?'+'+extraDays+' ngày':'—'}</td>
     </tr>`;
-  }).join('');
+  };
+  if(orderTbody){
+    let html='', i=0;
+    while(i<orderRows.length){
+      const nm=orderRows[i].name; const grp=[];
+      while(i<orderRows.length && orderRows[i].name===nm){ grp.push(orderRows[i]); i++; }
+      grp.forEach(r=>{ html+=fcOrderRowHtml(r); });
+      if(grp.length>1){
+        const g=gid(nm);
+        const sStock=grp.reduce((s,r)=>s+r.stock,0), sInc=grp.reduce((s,r)=>s+r.incoming,0), sSug=grp.reduce((s,r)=>s+r.suggest,0);
+        html+=`<tr style="background:var(--bg)">
+          <td style="font-weight:600">Σ Tổng ${nm}</td>
+          <td style="text-align:center;font-weight:600">${sStock}</td>
+          <td style="text-align:center">${sInc>0?'+'+sInc:'—'}</td>
+          <td></td><td></td>
+          <td style="text-align:center;font-weight:600;color:#0C447C">${sSug>0?'+'+sSug:'—'}</td>
+          <td style="text-align:center;font-weight:700;color:#0C447C" id="fc-grpord-${g}">${sSug} cái</td>
+          <td style="text-align:center;font-weight:700;color:#27500A" id="fc-grptot-${g}">${sStock+sSug} cái</td>
+          <td></td>
+        </tr>`;
+      }
+    }
+    orderTbody.innerHTML=html;
+  }
 
-  updateForecastGrand(orderRows);
+  recomputeForecastTotals();
 
   // Cards theo sản phẩm
   const cardsEl = document.getElementById('forecast-prod-cards');
@@ -5983,6 +6275,23 @@ function renderForecast(){
   }
 }
 
+function recomputeForecastTotals(){
+  let totalOrd=0, totalTot=0; const go={}, gt={};
+  document.querySelectorAll('#order-tbody input[type=number]').forEach(inp=>{
+    const s=parseInt(inp.dataset.stock)||0;
+    const v=parseInt(inp.value)||0;
+    const g=inp.dataset.grp||'';
+    totalOrd+=v; totalTot+=s+v;
+    go[g]=(go[g]||0)+v; gt[g]=(gt[g]||0)+s+v;
+  });
+  Object.keys(go).forEach(g=>{
+    const eo=document.getElementById('fc-grpord-'+g), et=document.getElementById('fc-grptot-'+g);
+    if(eo) eo.textContent=go[g]+' cái'; if(et) et.textContent=gt[g]+' cái';
+  });
+  const gE=document.getElementById('grand-order-qty'), tE=document.getElementById('grand-total-qty');
+  if(gE) gE.textContent=totalOrd+' cái';
+  if(tE) tE.textContent=totalTot+' cái';
+}
 function updateForecastRow(sc, stock, spd, orderVal){
   const o = parseInt(orderVal)||0;
   const tot = stock+o;
@@ -5990,25 +6299,11 @@ function updateForecastRow(sc, stock, spd, orderVal){
   const daysEl = document.getElementById('fc-days-'+sc);
   if(totEl){ totEl.textContent=tot+' cái'; totEl.style.color=tot<stock?'var(--red-t)':tot>stock?'#27500A':'var(--dark)'; }
   if(daysEl) daysEl.textContent = spd>0&&o>0?'+'+Math.round(o/spd)+' ngày':'—';
-  let totalOrd=0, totalTot=0;
-  document.querySelectorAll('#order-tbody input[type=number]').forEach(inp=>{
-    const s=parseInt(inp.closest('tr').cells[1].textContent)||0;
-    const v=parseInt(inp.value)||0;
-    totalOrd+=v; totalTot+=s+v;
-  });
-  const go=document.getElementById('grand-order-qty');
-  const gt=document.getElementById('grand-total-qty');
-  if(go) go.textContent=totalOrd+' cái';
-  if(gt) gt.textContent=totalTot+' cái';
+  recomputeForecastTotals();
 }
 
 function updateForecastGrand(rows){
-  let totalOrd=0, totalTot=0;
-  rows.forEach(r=>{ totalOrd+=r.suggest; totalTot+=r.stock+r.suggest; });
-  const go=document.getElementById('grand-order-qty');
-  const gt=document.getElementById('grand-total-qty');
-  if(go) go.textContent=totalOrd+' cái';
-  if(gt) gt.textContent=totalTot+' cái';
+  recomputeForecastTotals();
 }
 
 async function loadStock(){
