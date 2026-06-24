@@ -654,16 +654,15 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
 
     <div class="field" id="ret-free-old-wrap" style="display:none">
       <label>Hàng khách trả lại *</label>
-      <div class="field2">
-        <select id="ret-free-old-prod"><option value="">-- Chọn sản phẩm khách trả --</option></select>
-        <input id="ret-free-old-qty" type="number" min="1" value="1" placeholder="SL" style="max-width:80px">
-      </div>
-      <div style="font-size:11px;color:var(--med);margin-top:4px">Món này sẽ được cộng lại kho sau khi bạn nhận về và kiểm đạt chuẩn (qua các bước trong danh sách Đổi trả).</div>
+      <div id="ret-old-rows"></div>
+      <button type="button" class="btn" style="font-size:11.5px;margin-top:6px" onclick="addRetOldRow()">+ Thêm sản phẩm trả</button>
+      <div style="font-size:11px;color:var(--med);margin-top:4px">Mỗi món sẽ được cộng lại kho sau khi nhận về & kiểm đạt (xử lý từng món trong danh sách Đổi trả).</div>
     </div>
 
     <div class="field" id="ret-swap-wrap">
       <label>Đổi sang sản phẩm *</label>
-      <select id="ret-swap-prod"><option value="">-- Chọn sản phẩm đổi sang --</option></select>
+      <div id="ret-swap-rows"></div>
+      <button type="button" class="btn" style="font-size:11.5px;margin-top:6px" onclick="addRetSwapRow()">+ Thêm sản phẩm đổi sang</button>
       <div id="ret-swap-stock-info" style="font-size:11px;color:var(--med);margin-top:4px"></div>
     </div>
 
@@ -2666,6 +2665,7 @@ function setReturnType(type){
     traBtn.style.background = ''; traBtn.style.color = ''; traBtn.style.borderColor = ''; traBtn.style.fontWeight = '';
     document.getElementById('ret-swap-wrap').style.display = 'block';
     document.getElementById('ret-exchange-wrap').style.display = 'block';
+    if(!document.querySelector('.ret-swap-row')) addRetSwapRow();
   } else {
     traBtn.style.background = 'var(--red-bg)'; traBtn.style.color = '#791F1F'; traBtn.style.borderColor = '#791F1F'; traBtn.style.fontWeight = '600';
     doiBtn.style.background = ''; doiBtn.style.color = ''; doiBtn.style.borderColor = ''; doiBtn.style.fontWeight = '';
@@ -2686,14 +2686,32 @@ function setReturnMode(mode){
   if(bF) bF.style.cssText = mode==='free'?on:off;
   document.getElementById('ret-order-wrap').style.display = mode==='order'?'block':'none';
   document.getElementById('ret-free-old-wrap').style.display = mode==='free'?'block':'none';
-  if(mode==='free'){ populateFreeOldSelect(); }
+  if(mode==='free' && !document.querySelector('.ret-old-row')) addRetOldRow();
   updateReturnInfoBox();
 }
 
-function populateFreeOldSelect(){
-  const sel=document.getElementById('ret-free-old-prod'); if(!sel) return;
-  sel.innerHTML='<option value="">-- Chọn sản phẩm khách trả --</option>'+
-    allProducts.map(p=>`<option value="${p.code}">${p.code} · ${p.name} ${p.size||''} · ${p.color||''}</option>`).join('');
+function retProdOptions(selCode){
+  return '<option value="">-- Chọn sản phẩm --</option>'+
+    allProducts.map(p=>`<option value="${p.code}"${selCode===p.code?' selected':''}>${p.code} · ${p.name} ${p.size||''} · ${p.color||''}</option>`).join('');
+}
+function retRowHtml(cls, code, qty){
+  return `<div class="${cls}" style="display:flex;gap:6px;margin-bottom:6px">
+    <select class="${cls}-prod" style="flex:1">${retProdOptions(code)}</select>
+    <input class="${cls}-qty" type="number" min="1" value="${qty||1}" placeholder="SL" style="max-width:70px">
+    <button type="button" class="btn" style="padding:4px 10px;color:var(--red-t);border-color:var(--red-t)" onclick="this.closest('.${cls}').remove()">✕</button>
+  </div>`;
+}
+function addRetOldRow(code,qty){ const c=document.getElementById('ret-old-rows'); if(c) c.insertAdjacentHTML('beforeend', retRowHtml('ret-old-row',code,qty)); }
+function addRetSwapRow(code,qty){ const c=document.getElementById('ret-swap-rows'); if(c) c.insertAdjacentHTML('beforeend', retRowHtml('ret-swap-row',code,qty)); }
+function getRetRows(cls){
+  return [...document.querySelectorAll('.'+cls)].map(row=>({
+    code: (row.querySelector('.'+cls+'-prod')||{}).value || '',
+    qty: parseInt((row.querySelector('.'+cls+'-qty')||{}).value)||1
+  })).filter(r=>r.code);
+}
+function resetRetRows(){
+  const a=document.getElementById('ret-old-rows'); if(a){ a.innerHTML=''; addRetOldRow(); }
+  const b=document.getElementById('ret-swap-rows'); if(b){ b.innerHTML=''; addRetSwapRow(); }
 }
 
 async function loadReturns(){
@@ -2840,9 +2858,8 @@ async function openReturnModal(){
   const searchEl = document.getElementById('ret-order-search');
   if(searchEl) searchEl.value='';
   ['ret-contact-handle','ret-ship-name','ret-ship-phone','ret-ship-address','ret-extra-amount','ret-cust-name','ret-cust-phone'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
-  const qEl=document.getElementById('ret-free-old-qty'); if(qEl) qEl.value='1';
+  resetRetRows();
   setReturnType('doi');
-  populateFreeOldSelect();
   setReturnMode('order');
   openModal('modal-return');
 }
@@ -2868,15 +2885,15 @@ async function createReturn(){
   const orderItems = allOrders.filter(x=>x.order_code===orderCode);
 
   if(type === 'doi'){
-    const swapCode = document.getElementById('ret-swap-prod').value;
-    if(!swapCode){ toast('Vui lòng chọn sản phẩm đổi sang', true); return; }
+    const swapRows = getRetRows('ret-swap-row');
+    if(!swapRows.length){ toast('Vui lòng chọn ít nhất 1 sản phẩm đổi sang', true); return; }
 
     const stockNow = computeStock(allProducts, allTx);
-    const swapProd = stockNow.find(p=>p.code===swapCode);
-    const totalQty = orderItems.reduce((s,i)=>s+(i.quantity||0),0);
-    if(!swapProd || swapProd.current < totalQty){
-      toast(`Không đủ hàng để đổi! Tồn hiện tại chỉ có ${swapProd?swapProd.current:0} cái`, true);
-      return;
+    const swapItems = [];
+    for(const sr of swapRows){
+      const sp = stockNow.find(p=>p.code===sr.code);
+      if(!sp || sp.current < sr.qty){ toast(`Không đủ hàng để đổi: ${sr.code} (tồn ${sp?sp.current:0}, cần ${sr.qty})`, true); return; }
+      swapItems.push({prod:sp, qty:sr.qty, name:`${sp.name} ${sp.size} · ${sp.color}`});
     }
 
     const contactCh = document.getElementById('ret-contact-channel')?.value || '';
@@ -2886,31 +2903,35 @@ async function createReturn(){
     const shipAddress = document.getElementById('ret-ship-address')?.value.trim() || o.address || '';
     const extraAmount = parseInt((document.getElementById('ret-extra-amount')?.value||'').replace(/[^\d]/g,'')) || 0;
 
-    const extraFull = `${extra}${extra?' · ':''}Gốc ${o.channel||''} ${orderCode}${contactCh?` · liên hệ ${contactCh}${contactHandle?' '+contactHandle:''}`:''}`.trim();
-    const newNote = buildReturnNote('doi', 'sent', reason, extraFull, swapCode);
+    const swapSummary = swapItems.map(s=>`${s.name} ×${s.qty}`).join(', ');
+    const swapTagCode = swapItems.length===1 ? swapItems[0].prod.code : null;
+    const extraFull = `${extra}${extra?' · ':''}Đổi sang: ${swapSummary} · Gốc ${o.channel||''} ${orderCode}${contactCh?` · liên hệ ${contactCh}${contactHandle?' '+contactHandle:''}`:''}`.trim();
+    const newNote = buildReturnNote('doi', 'sent', reason, extraFull, swapTagCode);
     try {
-      await db.insertTx({
-        date:todayStr(), type:'Xuất', product_code:swapCode, product_name:`${swapProd.name} ${swapProd.size} · ${swapProd.color}`,
-        color:swapProd.color, size:swapProd.size, quantity:totalQty, channel:o.channel,
-        note:'[ĐỔI HÀNG - không tính doanh số] Gửi thay cho '+orderCode, staff:o.staff
-      });
-      // Tạo ĐƠN ĐỔI GIAO ĐI (đơn mới, giao trực tiếp, để in tem & theo dõi) — không trừ kho thêm
-      await db.insertOrder({
-        order_code:`${orderCode}-DOI`, date:todayStr(),
-        customer_name:shipName, phone:shipPhone, address:shipAddress,
-        product_code:swapCode, product_name:`${swapProd.name} ${swapProd.size} · ${swapProd.color}`,
-        quantity:totalQty,
-        channel:'Online', status:'Đi đơn',
-        amount_due:extraAmount, is_paid:extraAmount<=0,
-        ...(retTracking?{tracking_code:retTracking}:{}),
-        staff:o.staff, kol_social:contactHandle||null,
-        note:`[ĐỔI HÀNG] Đổi cho đơn ${orderCode}${o.channel?` (${o.channel})`:''}${contactCh?` · liên hệ ${contactCh}${contactHandle?' '+contactHandle:''}`:''}`
-      });
+      for(let k=0;k<swapItems.length;k++){
+        const s=swapItems[k];
+        await db.insertTx({
+          date:todayStr(), type:'Xuất', product_code:s.prod.code, product_name:s.name,
+          color:s.prod.color, size:s.prod.size, quantity:s.qty, channel:o.channel,
+          note:'[ĐỔI HÀNG - không tính doanh số] Gửi thay cho '+orderCode, staff:o.staff
+        });
+        // Mỗi món đổi giao đi là 1 dòng của đơn ${orderCode}-DOI (in chung 1 tem)
+        await db.insertOrder({
+          order_code:`${orderCode}-DOI`, date:todayStr(),
+          customer_name:shipName, phone:shipPhone, address:shipAddress,
+          product_code:s.prod.code, product_name:s.name, quantity:s.qty,
+          channel:'Online', status:'Đi đơn',
+          amount_due:k===0?extraAmount:0, is_paid:k===0?extraAmount<=0:true,
+          ...(retTracking?{tracking_code:retTracking}:{}),
+          staff:o.staff, kol_social:contactHandle||null,
+          note:`[ĐỔI HÀNG] Đổi cho đơn ${orderCode}${o.channel?` (${o.channel})`:''}${contactCh?` · liên hệ ${contactCh}${contactHandle?' '+contactHandle:''}`:''}`
+        });
+      }
       // Cập nhật note + tracking cho tất cả items của đơn
       await Promise.all(orderItems.map(i=>db.updateOrder(i.id, {note:newNote, status:'Hoàn hàng', ...(retTracking?{tracking_code:retTracking}:{}), ...(custName?{customer_name:custName}:{}), ...(custPhone?{phone:custPhone}:{})})));
       orderItems.forEach(i=>{ i.note=newNote; i.status='Hoàn hàng'; if(retTracking) i.tracking_code=retTracking; if(custName) i.customer_name=custName; if(custPhone) i.phone=custPhone; });
       closeModal('modal-return');
-      toast(`Đã ghi nhận đổi — trừ kho ${swapCode} & tạo đơn đổi giao đi (in tem ở Quản lý đơn)`);
+      toast(`Đã ghi nhận đổi — trừ kho ${swapItems.length} món & tạo đơn đổi giao đi (in tem ở Quản lý đơn)`);
 
       const [prods, txs, orders] = await Promise.all([db.products(), db.transactions(), db.orders()]);
       allProducts = prods; allTx = txs; allOrders = orders;
@@ -2930,20 +2951,20 @@ async function createReturn(){
 }
 
 async function createFreeExchange(){
-  const swapCode = document.getElementById('ret-swap-prod').value;
-  const oldCode = document.getElementById('ret-free-old-prod').value;
-  const oldQty = parseInt(document.getElementById('ret-free-old-qty').value)||1;
+  const oldRows = getRetRows('ret-old-row');
+  const swapRows = getRetRows('ret-swap-row');
   const reason = document.getElementById('ret-reason').value;
   const extra = document.getElementById('ret-note').value.trim();
   const retTracking = document.getElementById('ret-tracking')?.value.trim() || '';
-  if(!oldCode){ toast('Chọn sản phẩm khách trả lại', true); return; }
-  if(!swapCode){ toast('Chọn sản phẩm đổi sang', true); return; }
+  if(!oldRows.length){ toast('Chọn ít nhất 1 sản phẩm khách trả lại', true); return; }
+  if(!swapRows.length){ toast('Chọn ít nhất 1 sản phẩm đổi sang', true); return; }
 
   const stockNow = computeStock(allProducts, allTx);
-  const swapProd = stockNow.find(p=>p.code===swapCode);
-  const oldProd = allProducts.find(p=>p.code===oldCode);
-  if(!swapProd || swapProd.current < oldQty){
-    toast(`Không đủ hàng để đổi! Tồn hiện tại chỉ có ${swapProd?swapProd.current:0} cái`, true); return;
+  const swapItems=[];
+  for(const sr of swapRows){
+    const sp=stockNow.find(p=>p.code===sr.code);
+    if(!sp || sp.current < sr.qty){ toast(`Không đủ hàng để đổi: ${sr.code} (tồn ${sp?sp.current:0}, cần ${sr.qty})`, true); return; }
+    swapItems.push({prod:sp, qty:sr.qty, name:`${sp.name} ${sp.size} · ${sp.color}`});
   }
 
   const contactCh = document.getElementById('ret-contact-channel')?.value || '';
@@ -2956,38 +2977,43 @@ async function createFreeExchange(){
   const extraAmount = parseInt((document.getElementById('ret-extra-amount')?.value||'').replace(/[^\d]/g,'')) || 0;
 
   const ref = 'DOI'+Date.now().toString().slice(-6);
-  const oldName = oldProd ? `${oldProd.name} ${oldProd.size} · ${oldProd.color}` : oldCode;
-  const swapName = `${swapProd.name} ${swapProd.size} · ${swapProd.color}`;
   const contactTag = contactCh ? ` · liên hệ ${contactCh}${contactHandle?' '+contactHandle:''}` : '';
-  const extraFull = `${extra}${extra?' · ':''}Đổi tự do${contactTag}`.trim();
-  const retNote = buildReturnNote('doi', 'sent', reason, extraFull, swapCode);
+  const swapSummary = swapItems.map(s=>`${s.name} ×${s.qty}`).join(', ');
+  const swapTagCode = swapItems.length===1 ? swapItems[0].prod.code : null;
+  const extraFull = `${extra}${extra?' · ':''}Đổi sang: ${swapSummary} · Đổi tự do${contactTag}`.trim();
+  const retNote = buildReturnNote('doi', 'sent', reason, extraFull, swapTagCode);
 
   try {
-    // Trừ kho món mới
-    await db.insertTx({
-      date:todayStr(), type:'Xuất', product_code:swapCode, product_name:swapName,
-      color:swapProd.color, size:swapProd.size, quantity:oldQty, channel:'Đổi tự do',
-      note:'[ĐỔI HÀNG - không tính doanh số] Gửi đổi tự do', staff:'Đổi trả'
-    });
-    // Đơn đổi giao đi (để in tem & theo dõi)
-    await db.insertOrder({
-      order_code:`${ref}-DOI`, date:todayStr(),
-      customer_name:shipName, phone:shipPhone, address:shipAddress,
-      product_code:swapCode, product_name:swapName, quantity:oldQty,
-      channel:'Online', status:'Đi đơn', amount_due:extraAmount, is_paid:extraAmount<=0,
-      ...(retTracking?{tracking_code:retTracking}:{}), staff:'Đổi trả', kol_social:contactHandle||null,
-      note:`[ĐỔI HÀNG] Đổi tự do${contactTag}`
-    });
-    // Bản ghi nhận hàng cũ trả về (theo dõi + cộng kho khi nhận)
-    await db.insertOrder({
-      order_code:ref, date:todayStr(),
-      customer_name:custName||shipName, phone:custPhone||shipPhone, address:shipAddress,
-      product_code:oldCode, product_name:oldName, quantity:oldQty,
-      channel:'Đổi trả', status:'Hoàn hàng', amount_due:0, is_paid:false,
-      ...(retTracking?{tracking_code:retTracking}:{}), staff:'Đổi trả', note:retNote
-    });
+    for(let k=0;k<swapItems.length;k++){
+      const s=swapItems[k];
+      await db.insertTx({
+        date:todayStr(), type:'Xuất', product_code:s.prod.code, product_name:s.name,
+        color:s.prod.color, size:s.prod.size, quantity:s.qty, channel:'Đổi tự do',
+        note:'[ĐỔI HÀNG - không tính doanh số] Gửi đổi tự do', staff:'Đổi trả'
+      });
+      await db.insertOrder({
+        order_code:`${ref}-DOI`, date:todayStr(),
+        customer_name:shipName, phone:shipPhone, address:shipAddress,
+        product_code:s.prod.code, product_name:s.name, quantity:s.qty,
+        channel:'Online', status:'Đi đơn', amount_due:k===0?extraAmount:0, is_paid:k===0?extraAmount<=0:true,
+        ...(retTracking?{tracking_code:retTracking}:{}), staff:'Đổi trả', kol_social:contactHandle||null,
+        note:`[ĐỔI HÀNG] Đổi tự do${contactTag}`
+      });
+    }
+    // Mỗi món khách trả lại = 1 bản ghi nhận riêng (xử lý nhập kho từng món)
+    for(let idx=0; idx<oldRows.length; idx++){
+      const it=oldRows[idx]; const op=allProducts.find(p=>p.code===it.code);
+      const oname=op?`${op.name} ${op.size} · ${op.color}`:it.code;
+      await db.insertOrder({
+        order_code:oldRows.length>1?`${ref}-${idx+1}`:ref, date:todayStr(),
+        customer_name:custName||shipName, phone:custPhone||shipPhone, address:shipAddress,
+        product_code:it.code, product_name:oname, quantity:it.qty,
+        channel:'Đổi trả', status:'Hoàn hàng', amount_due:0, is_paid:false,
+        ...(retTracking?{tracking_code:retTracking}:{}), staff:'Đổi trả', note:retNote
+      });
+    }
     closeModal('modal-return');
-    toast('Đã ghi nhận đổi tự do — trừ kho món mới & tạo đơn đổi giao đi');
+    toast(`Đã ghi nhận đổi tự do — trừ kho ${swapItems.length} món mới, ${oldRows.length} món trả về`);
 
     const [prods, txs, orders] = await Promise.all([db.products(), db.transactions(), db.orders()]);
     allProducts = prods; allTx = txs; allOrders = orders;
@@ -2996,29 +3022,30 @@ async function createFreeExchange(){
 }
 
 async function createFreeReturn(){
-  const oldCode = document.getElementById('ret-free-old-prod').value;
-  const oldQty = parseInt(document.getElementById('ret-free-old-qty').value)||1;
+  const oldRows = getRetRows('ret-old-row');
   const reason = document.getElementById('ret-reason').value;
   const extra = document.getElementById('ret-note').value.trim();
   const retTracking = document.getElementById('ret-tracking')?.value.trim() || '';
-  if(!oldCode){ toast('Chọn sản phẩm khách trả lại', true); return; }
+  if(!oldRows.length){ toast('Chọn ít nhất 1 sản phẩm khách trả lại', true); return; }
   const custName = document.getElementById('ret-cust-name')?.value.trim() || '';
   const custPhone = document.getElementById('ret-cust-phone')?.value.trim() || '';
-  const oldProd = allProducts.find(p=>p.code===oldCode);
-  const oldName = oldProd ? `${oldProd.name} ${oldProd.size} · ${oldProd.color}` : oldCode;
   const ref = 'TRA'+Date.now().toString().slice(-6);
   const extraFull = `${extra}${extra?' · ':''}Trả tự do`.trim();
   const retNote = buildReturnNote('tra', 'new', reason, extraFull, null);
   try {
-    await db.insertOrder({
-      order_code:ref, date:todayStr(),
-      customer_name:custName||'Khách trả', phone:custPhone||'', address:'',
-      product_code:oldCode, product_name:oldName, quantity:oldQty,
-      channel:'Đổi trả', status:'Hoàn hàng', amount_due:0, is_paid:false,
-      ...(retTracking?{tracking_code:retTracking}:{}), staff:'Đổi trả', note:retNote
-    });
+    for(let idx=0; idx<oldRows.length; idx++){
+      const it=oldRows[idx]; const op=allProducts.find(p=>p.code===it.code);
+      const oname=op?`${op.name} ${op.size} · ${op.color}`:it.code;
+      await db.insertOrder({
+        order_code:oldRows.length>1?`${ref}-${idx+1}`:ref, date:todayStr(),
+        customer_name:custName||'Khách trả', phone:custPhone||'', address:'',
+        product_code:it.code, product_name:oname, quantity:it.qty,
+        channel:'Đổi trả', status:'Hoàn hàng', amount_due:0, is_paid:false,
+        ...(retTracking?{tracking_code:retTracking}:{}), staff:'Đổi trả', note:retNote
+      });
+    }
     closeModal('modal-return');
-    toast('Đã ghi nhận trả hàng tự do — theo dõi ở danh sách Đổi trả');
+    toast(`Đã ghi nhận trả hàng tự do — ${oldRows.length} món, theo dõi ở danh sách Đổi trả`);
     const [prods, txs, orders] = await Promise.all([db.products(), db.transactions(), db.orders()]);
     allProducts = prods; allTx = txs; allOrders = orders;
     renderReturns(); renderOrders();
