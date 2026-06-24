@@ -5097,12 +5097,17 @@ function printGrabLabel(orderCode){
 }
 
 let grabCtx=null;
+function grabRemainText(){
+  if(!grabCtx) return '';
+  const left=grabCtx.rows.filter(x=>!x.scanned);
+  return left.length? ('Còn cần quét: '+left.map(x=>x.o.product_code).join(', ')) : '';
+}
 function grabScanOrder(orderCode){
   const rows=allOrders.filter(o=>o.order_code===orderCode && o.channel==='Grab' && o.status==='Chờ đi hàng');
   if(!rows.length){ toast('Đơn này đã xuất hoặc không còn',true); return; }
   grabCtx={orderCode, rows:rows.map(o=>({o,scanned:false}))};
   ffScan('grab');
-  setTimeout(()=>{ const os=document.getElementById('ff-scan-ostatus'); if(os) os.innerHTML='Quét '+rows.length+' món của đơn '+orderCode; }, 300);
+  setTimeout(()=>{ const os=document.getElementById('ff-scan-ostatus'); if(os) os.innerHTML='Quét đủ '+rows.length+' món · '+grabRemainText(); }, 300);
 }
 function grabMark(raw){
   if(!grabCtx) return 'no';
@@ -5114,13 +5119,13 @@ function grabMark(raw){
   if(g){
     g.scanned=true; ffBeep(true);
     const left=grabCtx.rows.filter(x=>!x.scanned).length;
-    if(os) os.innerHTML = left===0 ? '✓ Đủ món — đang xuất kho…' : '✓ Đúng '+code+' · còn '+left+' món';
+    if(os) os.innerHTML = left===0 ? '✓ Đủ món — đang xuất kho…' : '<span style="color:#7CFC9B">✓ '+code+'</span> · còn '+left+' món<br><span style="font-size:12px">'+grabRemainText()+'</span>';
     if(left===0){ ffStopScan(); grabFinish(); }
     return 'ok';
   }
   ffBeep(false);
   const dup=grabCtx.rows.some(x=>x.o.product_code===code);
-  if(os) os.innerHTML = dup ? '<span style="color:#FFD24A">Món này đã quét rồi</span>' : '<span style="color:#FCA5A5">✗ '+code+' không thuộc đơn này</span>';
+  if(os) os.innerHTML = (dup ? '<span style="color:#FFD24A">Món '+code+' đã quét rồi</span>' : '<span style="color:#FCA5A5">✗ '+code+' không thuộc đơn này</span>')+'<br><span style="font-size:12px">'+grabRemainText()+'</span>';
   return 'no';
 }
 async function grabFinish(){
@@ -5129,7 +5134,7 @@ async function grabFinish(){
   try{
     for(const g of ctx.rows){
       const o=g.o; const p=allProducts.find(pp=>pp.code===o.product_code);
-      const r=await db.insertTx({date:todayStr(),type:'Xuất',product_code:o.product_code,product_name:o.product_name,color:p?.color,size:p?.size,quantity:o.quantity,channel:'Grab',note:'Đi hàng Grab (quét) '+o.order_code,staff:'Đi hàng'});
+      const r=await db.insertTx({date:todayStr(),type:'Xuất',product_code:o.product_code,product_name:o.product_name,color:p?.color,size:p?.size,quantity:o.quantity,channel:'Grab',note:'Đi hàng Grab '+o.order_code,staff:'Đi hàng'});
       if(r&&r[0]) allTx.unshift(r[0]);
       await db.updateOrder(o.id,{status:'Đi đơn'}); o.status='Đi đơn';
     }
@@ -5137,6 +5142,15 @@ async function grabFinish(){
     renderGrabOrders();
     updateDebtBadge();
   }catch(e){ toast('Lỗi xuất kho: '+e.message,true); }
+}
+async function grabOverride(orderCode){
+  const rows=allOrders.filter(o=>o.order_code===orderCode && o.channel==='Grab' && o.status==='Chờ đi hàng');
+  if(!rows.length){ toast('Đơn đã xuất hoặc không còn',true); return; }
+  const pw=prompt('Nhập mật mã quản lý để xuất kho đơn Grab '+orderCode+' KHÔNG cần quét:');
+  if(pw===null) return;
+  if(pw!==getFfPw()){ toast('Sai mật mã',true); return; }
+  grabCtx={orderCode, rows:rows.map(o=>({o,scanned:true}))};
+  grabFinish();
 }
 
 async function loadGrabOrders(){
@@ -5173,6 +5187,7 @@ function renderGrabOrders(){
         <div style="display:flex;flex-direction:column;gap:6px;min-width:150px">
           <button class="btn btn-primary" onclick="printGrabLabel('${code}')">🖨 In tem 70×100 (QR)</button>
           <button class="btn btn-blue" onclick="grabScanOrder('${code}')">📷 Quét sản phẩm — Xuất kho</button>
+          <button class="btn" style="border-color:#C9A227;color:#7A5B12;font-size:12px" onclick="grabOverride('${code}')">🔑 Xuất kho không quét (mật mã)</button>
           <button class="btn" style="font-size:12px" onclick="openEditOrder('${code}')">✏️ Sửa đơn</button>
         </div>
       </div>
