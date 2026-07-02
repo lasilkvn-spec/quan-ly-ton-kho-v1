@@ -1037,6 +1037,8 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
         <input type="checkbox" id="shp-dry" checked onchange="shpToggleDry()"> Chế độ thử (không ghi vào kho)</label>
       <label style="font-size:13px;color:var(--med);display:flex;align-items:center;gap:6px;font-weight:600">
         <input type="checkbox" id="shp-queue" checked> 🚚 Chờ đi hàng (chưa trừ kho — quét khi gói mới trừ)</label>
+      <label style="font-size:13px;color:#B45309;display:flex;align-items:center;gap:6px">
+        <input type="checkbox" id="shp-allow-dup" onchange="shpRender()"> ♻️ Nhập lại cả đơn đã có (bỏ chặn trùng)</label>
     </div>
     <div id="shp-result" style="display:none;margin-top:14px;padding:14px;border-radius:10px;font-size:13px;white-space:pre-wrap"></div>
 
@@ -1799,6 +1801,7 @@ async function shpHandle(file){
     document.getElementById('shp-raw').textContent=pages.map((t,i)=>'=== TEM '+(i+1)+' ===\n'+t).join('\n\n')
       +'\n\n=== SẢN PHẨM TRONG KHO ('+allProducts.length+') ===\n'+allProducts.slice(0,80).map(p=>[p.code,p.name,p.color,p.size].join(' | ')).join('\n');
     shpParsed=pages.map(p=>shpParse(p)||tkParse(p)).filter(Boolean);
+    try{ allOrders = await db.orders(); }catch(e){}   // nạp đơn mới nhất để so trùng cho chính xác
     shpParsed.forEach(shpMatch);
     shpRender();
     document.getElementById('shp-panel').style.display='block';
@@ -1898,6 +1901,7 @@ function shpBestMatch(it){
   return {p:best, confident:bestExact};
 }
 
+function shpAllowDup(){ return !!(document.getElementById('shp-allow-dup') && document.getElementById('shp-allow-dup').checked); }
 function shpMatch(lb){
   lb.dup = allOrders.some(o=>(lb.tracking&&o.tracking_code&&String(o.tracking_code).trim()===lb.tracking)||(lb.order_code&&o.order_code&&String(o.order_code).trim()===lb.order_code));
   lb.items.forEach(it=>{
@@ -1923,14 +1927,14 @@ function shpRender(){
   const tb=document.getElementById('shp-rows'); tb.innerHTML='';
   shpParsed.forEach((lb,li)=>{
     lb.items.forEach((it,ii)=>{
-      const tr=document.createElement('tr'); if(lb.dup) tr.style.opacity='.5';
+      const tr=document.createElement('tr'); if(lb.dup) tr.style.opacity=shpAllowDup()?'.85':'.5';
       const cust= ii===0 ? (lb.tracking?'<div style="font-size:11px;color:var(--muted)">'+lb.tracking+'</div>':'')+'<div style="font-weight:600">'+(lb.order_code||'—')+'</div>' : '';
       let sku,status;
-      if(lb.dup){ sku='<span style="font-size:12px;color:var(--muted)">'+(it.matchedName||it.name)+' · '+it.color+' · '+it.size+'</span>'; status='<span class="badge" style="background:#F1F1EE;color:#9CA3AF">⃠ Đã nhập</span>'; }
+      if(lb.dup){ const al=shpAllowDup(); sku='<span style="font-size:12px;color:var(--muted)">'+(it.matchedName||it.name)+' · '+it.color+' · '+it.size+'</span>'; status=al?'<span class="badge" style="background:#FDF2E1;color:#B45309">♻️ Đã có — sẽ nhập LẠI</span>':'<span class="badge" style="background:#F1F1EE;color:#9CA3AF">⃠ Đã nhập</span>'; }
       else if(it.state==='ok'&&!it.auto){ sku='<div style="font-weight:600;color:var(--green-t,#0F6E56)">'+it.matchedName+'</div><div style="font-size:11px;color:var(--muted)">'+it.color+' · '+it.size+' · '+it.code+'</div>'; status='<span class="badge" style="background:#E7F6EF;color:#0F6E56">✓ Khớp</span>'; }
       else if(it.state==='ok'&&it.auto){ sku='<div style="font-size:11px;color:var(--muted);margin-bottom:4px">'+it.color+' · '+it.size+' · tự khớp, kiểm tra lại</div><select onchange="shpOnMap('+li+','+ii+',this)" style="padding:6px 8px;border:1px solid #E6E6E1;border-radius:6px;font-size:12px;max-width:260px">'+shpOpts(it.code)+'</select>'; status='<span class="badge" style="background:#E7F6EF;color:#0F6E56">✓ Tự khớp</span>'; }
       else{ const help=it.code?'gợi ý sẵn, kiểm tra rồi chọn':'chọn sản phẩm'; sku='<div style="font-size:11px;color:var(--muted);margin-bottom:4px">'+it.color+' · '+it.size+' · '+help+'</div><select onchange="shpOnMap('+li+','+ii+',this)" style="padding:6px 8px;border:1px solid #E6E6E1;border-radius:6px;font-size:12px;max-width:260px">'+shpOpts(it.code)+'</select>'; status='<span class="badge" style="background:#FDF2E1;color:#B45309">⚠ Cần đối chiếu</span>'; }
-      const chk=(!lb.dup&&it.state==='ok')?'checked':''; const dis=(lb.dup||!it.code)?'disabled':'';
+      const _al=shpAllowDup(); const _blk=lb.dup&&!_al; const chk=(!_blk&&it.state==='ok')?'checked':''; const dis=(_blk||!it.code)?'disabled':'';
       const sn='<div style="font-size:10px;color:#B4B2A9;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+it.shopee_name+'</div>';
       tr.innerHTML='<td style="text-align:center"><input type="checkbox" class="shp-chk" data-li="'+li+'" data-ii="'+ii+'" '+chk+' '+dis+' onchange="shpRecompute()"></td>'+
         '<td>'+cust+'</td><td>'+sn+sku+'</td><td style="text-align:center;font-weight:600">'+it.qty+'</td><td>'+status+'</td>';
@@ -1950,7 +1954,7 @@ function shpOnMap(li,ii,el){
 function shpRecompute(){
   let orders=new Set(),stock=0,skip=0;
   shpParsed.forEach((lb,li)=>{
-    if(lb.dup){ skip++; return; }
+    if(lb.dup && !shpAllowDup()){ skip++; return; }
     lb.items.forEach((it,ii)=>{
       const c=document.querySelector('.shp-chk[data-li="'+li+'"][data-ii="'+ii+'"]');
       if(c&&c.checked&&it.code){ orders.add(li); stock+=it.qty; }
@@ -1967,8 +1971,9 @@ async function shpConfirm(){
   const res=document.getElementById('shp-result'); res.style.display='none';
   const stockNow=computeStock(allProducts,allTx);
   const orderRows=[],txRows=[],newMaps={}; let outCount=0;
+  const allowDup=shpAllowDup();
   shpParsed.forEach((lb,li)=>{
-    if(lb.dup) return;
+    if(lb.dup && !allowDup) return;
     const picked=lb.items.filter((it,ii)=>{ const c=document.querySelector('.shp-chk[data-li="'+li+'"][data-ii="'+ii+'"]'); return c&&c.checked&&it.code; });
     picked.forEach((it,idx)=>{
       const prod=allProducts.find(p=>p.code===it.code);
@@ -3717,12 +3722,12 @@ function renderThailandPage(channel){
       const productLines = o.items.map(i=>`${i.product_name||'—'} × ${i.quantity||1}`).join(', ');
       const ok = hasStock(o);
       const checkId=`thai-check-${o.order_code.replace(/[^a-z0-9]/gi,'_')}`;
-      return `<div class="card" style="margin-bottom:8px;border-color:${ok?'#97C459':'var(--border)'}">
+      return `<div class="card" style="margin-bottom:8px;border-color:${ok?'#97C459':'#EF9F27'}">
         <div style="display:grid;grid-template-columns:32px 1fr auto;align-items:start;gap:12px">
-          <input type="checkbox" id="${checkId}" data-order-code="${o.order_code}" data-channel="${o.channel}" ${ok?'':'disabled'}
-            style="width:18px;height:18px;margin-top:4px;cursor:${ok?'pointer':'not-allowed'};accent-color:#2A211C;${ok?'':'opacity:.35'}" onchange="onThaiCheckChange('thai')">
+          <input type="checkbox" id="${checkId}" data-order-code="${o.order_code}" data-channel="${o.channel}" data-instock="${ok?1:0}"
+            style="width:18px;height:18px;margin-top:4px;cursor:pointer;accent-color:#2A211C" onchange="onThaiCheckChange('thai')">
           <div>
-            <div style="font-size:13px;font-weight:600;color:var(--dark)">${o.customer_name||'—'} ${ok?'<span class="pill" style="background:#EAF3DE;color:#27500A;font-size:10px">✓ Đủ hàng</span>':'<span class="pill" style="background:#FAEEDA;color:#633806;font-size:10px">Nợ — chờ hàng</span>'}</div>
+            <div style="font-size:13px;font-weight:600;color:var(--dark)">${o.customer_name||'—'} ${ok?'<span class="pill" style="background:#EAF3DE;color:#27500A;font-size:10px">✓ Đủ hàng</span>':'<span class="pill" style="background:#FAEEDA;color:#633806;font-size:10px">⚠ Thiếu hàng — vẫn gửi được</span>'}</div>
             <div style="font-size:12px;color:var(--med);margin-top:2px">${productLines}</div>
             ${o.phone?`<div style="font-size:11px;color:var(--blue-t)">${o.phone}</div>`:''}
           </div>
