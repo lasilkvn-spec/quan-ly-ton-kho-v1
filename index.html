@@ -563,7 +563,8 @@ tr:hover td{background:#FDFBF8;cursor:pointer}
   </div>
   <div id="debt-origin-tabs" style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap"></div>
   <div id="debt-prod-chips" style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap"></div>
-  <div id="debt-color-chips" style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap"></div>
+  <div id="debt-color-chips" style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap"></div>
+  <div id="debt-size-chips" style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap"></div>
   <div id="debt-list"></div>
 </div>
 
@@ -2774,9 +2775,11 @@ async function loadDebtOrders(){
 let debtFilterOrigin = 'all';
 let debtFilterProd = null;
 let debtFilterColor = null;
-function setDebtOrigin(o){ debtFilterOrigin=o; debtFilterProd=null; debtFilterColor=null; renderDebtList(); }
-function setDebtProd(p){ debtFilterProd=p; debtFilterColor=null; renderDebtList(); }
-function setDebtColor(c){ debtFilterColor=c; renderDebtList(); }
+let debtFilterSize = null;
+function setDebtOrigin(o){ debtFilterOrigin=o; debtFilterProd=null; debtFilterColor=null; debtFilterSize=null; renderDebtList(); }
+function setDebtProd(p){ debtFilterProd=p; debtFilterColor=null; debtFilterSize=null; renderDebtList(); }
+function setDebtColor(c){ debtFilterColor=c; debtFilterSize=null; renderDebtList(); }
+function setDebtSize(s){ debtFilterSize=s; renderDebtList(); }
 function isThaiOrder(o){
   return o.channel==='ThaiLan' || (typeof KOL_THAI_CHANNELS!=='undefined' && KOL_THAI_CHANNELS.includes(o.channel)) || (o.channel==='KOLThai') || (o.note||'').startsWith('Gửi Thái');
 }
@@ -2790,10 +2793,14 @@ function renderDebtList(){
   // Bộ lọc theo sản phẩm (tên SP) → rồi theo màu
   const prodNameOf = o => { const p=allProducts.find(pp=>pp.code===o.product_code); return p?p.name:(o.product_name||'—'); };
   const colorOf = o => { const p=allProducts.find(pp=>pp.code===o.product_code); return p?(p.color||'—'):(o.color||'—'); };
+  const sizeOf = o => { const p=allProducts.find(pp=>pp.code===o.product_code); return p?(p.size||'—'):(o.size||'—'); };
   const byProduct = debtFilterProd ? byOrigin.filter(o=>prodNameOf(o)===debtFilterProd) : byOrigin;
   const colors=[...new Set(byProduct.map(colorOf))];
   if(debtFilterColor && !colors.includes(debtFilterColor)) debtFilterColor=null;
-  const debtOrders = debtFilterColor ? byProduct.filter(o=>colorOf(o)===debtFilterColor) : byProduct;
+  const byColor = debtFilterColor ? byProduct.filter(o=>colorOf(o)===debtFilterColor) : byProduct;
+  const sizes=[...new Set(byColor.map(sizeOf))].sort((a,b)=>sizeRank(a)-sizeRank(b));
+  if(debtFilterSize && !sizes.includes(debtFilterSize)) debtFilterSize=null;
+  const debtOrders = debtFilterSize ? byColor.filter(o=>sizeOf(o)===debtFilterSize) : byColor;
 
   document.getElementById('debt-count').textContent = debtOrders.length;
   const listEl = document.getElementById('debt-list');
@@ -2821,6 +2828,13 @@ function renderDebtList(){
     return `<button onclick="setDebtColor(${k===null?'null':`'${String(k).replace(/'/g,"\\'")}'`})" style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:0.5px solid ${on?'#633806':'var(--border)'};background:${on?'#FAEEDA':'var(--card)'};color:${on?'#633806':'var(--med)'}">${l}<span style="padding:0 6px;border-radius:20px;font-size:10px;font-weight:700;background:${on?'rgba(99,56,6,.15)':'var(--bg)'};color:${on?'#633806':'var(--med)'}">${c}</span></button>`;
   }).join('');
 
+  // Chips theo size (kèm số đơn nợ, trong phạm vi màu đang chọn)
+  const scEl=document.getElementById('debt-size-chips');
+  if(scEl) scEl.innerHTML = (sizes.length>1?[{k:null,l:'Tất cả size',c:byColor.length},...sizes.map(sz=>({k:sz,l:'Size '+sz,c:byColor.filter(o=>sizeOf(o)===sz).length}))]:[]).map(({k,l,c})=>{
+    const on=debtFilterSize===k;
+    return `<button onclick="setDebtSize(${k===null?'null':`'${String(k).replace(/'/g,"\\'")}'`})" style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:0.5px solid ${on?'#0C447C':'var(--border)'};background:${on?'#E6F1FB':'var(--card)'};color:${on?'#0C447C':'var(--med)'}">${l}<span style="padding:0 6px;border-radius:20px;font-size:10px;font-weight:700;background:${on?'rgba(12,68,124,.15)':'var(--bg)'};color:${on?'#0C447C':'var(--med)'}">${c}</span></button>`;
+  }).join('');
+
   if(allDebt.length===0){
     listEl.innerHTML = `<div class="card" style="text-align:center;padding:40px"><div style="font-size:32px;margin-bottom:8px">✅</div><div style="color:var(--med);font-size:13px">Không có đơn nào đang nợ hàng</div></div>`;
     return;
@@ -2832,12 +2846,12 @@ function renderDebtList(){
 
   const stockNow = computeStock(allProducts, allTx);
 
-  listEl.innerHTML = debtOrders.map(o=>{
+  const debtCardHtml = o => {
     const stockItem = stockNow.find(p=>p.code===o.product_code);
     const currentStock = stockItem ? stockItem.current : 0;
     const hasEnough = currentStock >= (o.quantity||1);
     return `
-    <div class="card" style="margin-bottom:10px;${hasEnough?'border-color:#A8D08D;background:#F4FAEE':''}">
+    <div class="card" style="margin-bottom:8px;${hasEnough?'border-color:#A8D08D;background:#F4FAEE':''}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap">
         <div style="flex:1;min-width:220px">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
@@ -2857,8 +2871,21 @@ function renderDebtList(){
         </div>
       </div>
     </div>`;
-  }).join('');
+  };
+
+  const sorted = debtOrders.slice().sort((a,b)=> prodNameOf(a).localeCompare(prodNameOf(b)) || (colorOf(a)||'').localeCompare(colorOf(b)||'') || (sizeRank(sizeOf(a))-sizeRank(sizeOf(b))) );
+  const showProdHeader = !debtFilterProd; // đã lọc 1 SP thì khỏi lặp tên
+  let html='', curP=null, curC=null, curS=null;
+  sorted.forEach(o=>{
+    const pn=prodNameOf(o), cl=colorOf(o), sz=sizeOf(o);
+    if(showProdHeader && pn!==curP){ curP=pn; curC=null; curS=null; html+=`<div style="font-size:14px;font-weight:700;color:var(--dark);margin:16px 0 6px">${pn}</div>`; }
+    if(cl!==curC){ curC=cl; curS=null; html+=`<div style="font-size:12px;font-weight:600;color:#633806;margin:10px 0 4px">🎨 ${cl} · <span style="color:var(--med)">${byColorCount(sorted,colorOf,cl)} đơn</span></div>`; }
+    if(sz!==curS){ curS=sz; html+=`<div style="font-size:11px;font-weight:600;color:var(--med);margin:6px 0 4px 6px">Size ${sz} · ${sorted.filter(x=>colorOf(x)===cl&&sizeOf(x)===sz).length} đơn</div>`; }
+    html+=debtCardHtml(o);
+  });
+  listEl.innerHTML = html;
 }
+function byColorCount(list, colorOf, cl){ return list.filter(x=>colorOf(x)===cl).length; }
 
 async function confirmHasStock(orderId){
   const o = allOrders.find(x=>x.id===orderId);
