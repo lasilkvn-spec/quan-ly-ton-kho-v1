@@ -9,7 +9,7 @@
 <style>
 
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Helvetica Neue',Helvetica,'Poppins',sans-serif;background:#FBF8F0;color:#3E2723;line-height:1.6;-webkit-font-smoothing:antialiased}
+body{font-family:'Poppins',sans-serif;background:#FBF8F0;color:#3E2723;line-height:1.6;-webkit-font-smoothing:antialiased}
 .wrap{max-width:960px;margin:0 auto;padding:0 0 70px}
 .pbanner{background:#3E2723;color:#FFEDAC;font-family:'Montserrat';font-size:10px;letter-spacing:1.4px;text-align:center;padding:7px;font-weight:700}
 .head{background:#3E2723;padding:22px 24px 0;position:relative;overflow:hidden}
@@ -33,7 +33,7 @@ body{font-family:'Helvetica Neue',Helvetica,'Poppins',sans-serif;background:#FBF
 #lockGate input{width:100%;padding:14px 16px;border-radius:12px;border:1px solid rgba(255,237,172,.25);background:#3E2723;color:#FFFDF5;font-size:18px;text-align:center;letter-spacing:6px;font-family:'Montserrat';outline:none;margin-bottom:12px}
 #lockGate input:focus{border-color:#F7C1CD}
 #lockGate button{width:100%;padding:13px;border-radius:12px;border:none;background:#F7C1CD;color:#fff;font-family:'Montserrat';font-size:12px;font-weight:800;letter-spacing:1px;cursor:pointer;text-transform:uppercase}
-#lockGate button:hover{background:#e8a8b8}
+#lockGate button:hover{background:#b09a86}
 #lockGate .lg-err{color:#e7b98a;font-size:12px;margin-top:12px;min-height:16px}
 #lockGate.shake{animation:lgShake .4s}
 @keyframes lgShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
@@ -43,7 +43,7 @@ body{font-family:'Helvetica Neue',Helvetica,'Poppins',sans-serif;background:#FBF
 
 /* month filter */
 .mfilter{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:18px}
-.mbtn{font-family:'Montserrat';font-size:10px;font-weight:700;letter-spacing:.04em;padding:7px 14px;border-radius:18px;cursor:pointer;border:1px solid #EFE8D0;background:#fff;color:#8a7060;transition:all .15s}
+.mbtn{font-family:'Montserrat';font-size:10px;font-weight:700;letter-spacing:.04em;padding:7px 14px;border-radius:18px;cursor:pointer;border:1px solid #EFE8D0;background:#fff;color:#7a6050;transition:all .15s}
 .mbtn.on{background:#F7C1CD;border-color:#F7C1CD;color:#fff}
 .mbtn:hover:not(.on){border-color:#F7C1CD;color:#F7C1CD}
 
@@ -53,7 +53,7 @@ body{font-family:'Helvetica Neue',Helvetica,'Poppins',sans-serif;background:#FBF
 .card .lab{font-size:10.5px;margin-bottom:3px}.card .val{font-family:'Montserrat';font-weight:900;font-size:20px;line-height:1.1}
 .card.dark{background:#3E2723}.card.dark .lab{color:rgba(255,237,172,.65)}.card.dark .val{color:#FFEDAC}
 .card.light{background:#fff;border:1px solid #EFE8D0}.card.light .lab{color:#9A8070}.card.light .val{color:#3E2723}
-.card.terra{background:linear-gradient(100deg,#F7C1CD,#e8a8b8)}.card.terra .lab{color:rgba(255,255,255,.8)}.card.terra .val{color:#fff}
+.card.terra{background:linear-gradient(100deg,#F7C1CD,#b09a86)}.card.terra .lab{color:rgba(255,255,255,.8)}.card.terra .val{color:#fff}
 
 /* section title */
 .sect{font-family:'Montserrat';font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#6D4C41;margin:20px 2px 9px}
@@ -93,7 +93,7 @@ body{font-family:'Helvetica Neue',Helvetica,'Poppins',sans-serif;background:#FBF
 
 /* month dropdown filter */
 .mrow{display:flex;align-items:center;gap:9px;margin-top:16px}
-.mrow-lab{font-family:'Montserrat';font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#8a7060}
+.mrow-lab{font-family:'Montserrat';font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#7a6050}
 .mselect{font-family:'Poppins';font-size:13px;font-weight:600;border:1px solid #dcc6aa;border-radius:10px;padding:9px 34px 9px 13px;background:#fff url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"><path d="M3 4.5L6 7.5L9 4.5" stroke="%23BE735E" fill="none" stroke-width="1.6"/></svg>') no-repeat right 11px center;-webkit-appearance:none;appearance:none;color:#3E2723;cursor:pointer;min-width:180px}
 .mselect:focus{outline:none;border-color:#F7C1CD}
 
@@ -108,18 +108,18 @@ body{font-family:'Helvetica Neue',Helvetica,'Poppins',sans-serif;background:#FBF
 .tier-head{background:#3E2723}
 .tier-head>div{color:#FFEDAC;font-family:'Montserrat';font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
 .tier-head .r{color:#FFEDAC}
-.tier-row.on{background:rgba(247,193,205,.15)}
+.tier-row.on{background:rgba(247,193,205,.13)}
 .tier-row.on>div{font-weight:700}
-.tier-row.on .r{color:#e8a8b8}
+.tier-row.on .r{color:#b09a86}
 .tier-row.on>div:first-child::after{content:'\2190 th\00e1ng n\00e0y';font-family:'Montserrat';font-size:9px;font-weight:700;color:#F7C1CD;margin-left:8px;letter-spacing:.3px}
-.tier-note{font-size:11.5px;color:#8a7060;margin:9px 2px 0;line-height:1.6}
+.tier-note{font-size:11.5px;color:#7a6050;margin:9px 2px 0;line-height:1.6}
 .phead,.prow{display:grid;grid-template-columns:1.5fr .55fr .7fr 1fr 1fr;gap:8px;align-items:center;padding:11px 14px}
 .phead>*,.prow>*,.ptot>*{min-width:0}
 .ptot{display:grid;grid-template-columns:1.5fr .55fr .7fr 1fr 1fr;gap:8px;align-items:center;padding:11px 14px;background:#3E2723;font-family:'Montserrat';font-weight:800;font-size:12px;color:#FFEDAC}
 .ptot .r{text-align:right;color:#FFFDF5}
-.phead{background:#FBF4E6;font-family:'Montserrat';font-size:9.5px;font-weight:700;letter-spacing:.03em;color:#8a7060;text-transform:uppercase}
+.phead{background:#FBF4E6;font-family:'Montserrat';font-size:9.5px;font-weight:700;letter-spacing:.03em;color:#7a6050;text-transform:uppercase}
 .phead .r,.prow .r{text-align:right;font-variant-numeric:tabular-nums}
-.prow{border-top:1px solid #F4EDE3;font-size:13px}
+.prow{border-top:1px solid #F0EBE0;font-size:13px}
 .pname{display:flex;align-items:center;gap:9px;font-weight:600}
 .pdot{width:11px;height:11px;border-radius:4px;flex-shrink:0}
 .pbar-wrap{margin-top:5px;height:5px;background:#FBF4E6;border-radius:3px;overflow:hidden}
@@ -148,9 +148,9 @@ body{font-family:'Helvetica Neue',Helvetica,'Poppins',sans-serif;background:#FBF
 /* tables */
 .tblwrap{background:#fff;border:1px solid #EFE8D0;border-radius:14px;overflow:hidden;margin-top:10px}
 table{width:100%;border-collapse:collapse}
-thead th{background:#FBF4E6;font-family:'Montserrat';font-size:9.5px;font-weight:700;letter-spacing:.03em;color:#8a7060;text-transform:uppercase;padding:10px 12px;text-align:left;white-space:nowrap}
+thead th{background:#FBF4E6;font-family:'Montserrat';font-size:9.5px;font-weight:700;letter-spacing:.03em;color:#7a6050;text-transform:uppercase;padding:10px 12px;text-align:left;white-space:nowrap}
 thead th.r{text-align:right}
-tbody td{padding:9px 12px;font-size:12.5px;border-top:1px solid #F4EDE3;vertical-align:middle}
+tbody td{padding:9px 12px;font-size:12.5px;border-top:1px solid #F0EBE0;vertical-align:middle}
 tbody tr:hover{background:#FDFBF0}
 td.stt{font-family:'Montserrat';font-weight:800;color:#C4A588;width:34px;text-align:center;font-size:11px}
 td.nm{font-weight:600}td.nm .at{color:#F7C1CD}
@@ -182,7 +182,7 @@ tfoot td.r{text-align:right;color:#FFFDF5}
 .addrow input{border:none;padding:11px 10px 11px 2px;font-family:'Poppins';font-size:13px;flex:1;color:#3E2723;outline:none}
 .addrow .aselect{font-family:'Poppins';font-size:12px;font-weight:600;border:none;border-radius:10px;padding:11px 12px;background:#fff;color:#3E2723;cursor:pointer;min-width:130px}
 .btn{font-family:'Montserrat';font-size:11px;font-weight:700;letter-spacing:.04em;border:none;border-radius:10px;padding:11px 18px;cursor:pointer;background:#F7C1CD;color:#fff}
-.btn:hover{background:#e8a8b8}
+.btn:hover{background:#b09a86}
 .bulklink{margin-top:10px;font-size:11px;color:rgba(255,237,172,.6);cursor:pointer;text-decoration:underline;display:inline-block}
 .bulkwrap{display:none;margin-top:10px}.bulkwrap.show{display:block}
 .bulkwrap textarea{width:100%;border-radius:10px;border:none;padding:10px 12px;font-family:'Poppins';font-size:12px;min-height:72px;resize:vertical;color:#3E2723}
@@ -279,46 +279,20 @@ td.act{text-align:right;width:36px}.del{border:none;background:none;color:#c9b8a
 @media(max-width:640px){.head h1{font-size:20px}.page{padding:0 14px}td.hide,th.hide{display:none}.phead,.prow,.ptot{grid-template-columns:1.3fr .8fr 1fr 1fr}.pcol-kol,.phead .pcol-kol,.ptot .pcol-kol{display:none}.mbreak-row{grid-template-columns:repeat(3,1fr)}}
 
 
-/* ═══ LàSilk Brand Overrides ═══ */
-:root {
-  --accent: #F7C1CD;
-  --accent-dark: #3E2723;
-  --accent-hover: #e8a8b8;
-  --pink: #F7C1CD;
-  --pink-soft: #FDF0F3;
-  --honey: #FFEDAC;
-  --dark: #3E2723;
-  --med: #6D4C41;
-}
-.tab.on { border-bottom-color: var(--pink) !important; color: var(--honey) !important; }
-.tab:hover:not(.on) { color: rgba(255,237,172,.8); }
-.koltbl thead th { color: var(--accent); }
-.kc-src.new, .btn:not(.cancel):not(.danger) { background: var(--dark); }
-.btn:not(.cancel):not(.danger):hover { background: var(--accent-dark); }
-.card.terra { background: linear-gradient(100deg, var(--accent), var(--accent-hover)); }
-.mbtn.on { background: var(--accent); border-color: var(--accent); }
-.tier-row.on { background: rgba(247,193,205,.15); }
-.tier-row.on .r { color: var(--accent-hover); }
-.koltbl tbody tr.new td { background: #FDF0F3; }
-.koltbl tbody tr:hover td { background: #FDFBF0; }
-.edcell:hover { background: #FBF8EC; }
-.edcell.editing { background: #FFF8EC; }
-.edinput { border-color: var(--accent); }
-.edinput:focus { box-shadow: 0 0 0 2px rgba(247,193,205,.25); }
-.kolcard.new { border-color: var(--pink); box-shadow: 0 0 0 2px rgba(247,193,205,.15); }
-.kc-src.manual { background: #FFF8DC; color: #6B4A00; }
-.sbbadge.ok { background: rgba(47,125,77,.2); color: #8fe0aa; }
-.sbbadge.warn { background: rgba(107,74,0,.2); color: #FFEDAC; }
-.pbanner { background:#3E2723; color: #FFEDAC; }
-#lockGate { background:#3E2723; }
-#lockGate input:focus { border-color: var(--pink) !important; }
-#lockGate button { background: var(--accent); }
-#lockGate button:hover { background: var(--accent-hover); }
+body{font-family:'Helvetica Neue',Helvetica,'Poppins',sans-serif}
+.tab.on{border-bottom-color:#F7C1CD!important;color:#FFEDAC!important}
+.tier-row.on{background:rgba(247,193,205,.12)}
+.tier-row.on .r{color:#c0808e}
+.koltbl tbody tr.new td{background:#FDF0F3}
+.edinput{border-color:#F7C1CD}.edinput:focus{box-shadow:0 0 0 2px rgba(247,193,205,.2)}
+.kolcard.new{border-color:#F7C1CD}
+#lockGate{background:#3E2723}
+#lockGate input:focus{border-color:#F7C1CD!important}
+#lockGate button{background:#F7C1CD!important}
 
 </style>
 </head>
 <body>
-
 <div id="lockGate">
   <div class="lg-box">
     <div class="lg-logo">LÀSILK</div>
@@ -329,9 +303,7 @@ td.act{text-align:right;width:36px}.del{border:none;background:none;color:#c9b8a
     <div class="lg-err" id="lgErr"></div>
   </div>
 </div>
-
 <script>
-
 (function(){
   var PASS='0105', KEY='lasilk_kol_Linh';
   var gate=document.getElementById('lockGate');
@@ -353,23 +325,155 @@ td.act{text-align:right;width:36px}.del{border:none;background:none;color:#c9b8a
   btn.addEventListener('click',tryPass);
   inp.addEventListener('keydown',function(e){ if(e.key==='Enter') tryPass(); });
 })();
-
 </script>
-<div class="foot">LÀSILK · KOL CỦA LINH</div>
+
+<div class="wrap">
+  <div class="head">
+    <div class="topline"><div class="eyebrow">LÀSILK · Hoa hồng nhân viên</div><span class="sbbadge" id="sbBadge">● Đang kết nối…</span></div>
+    <h1>KOL của Linh</h1>
+    <div class="who">Danh sách KOL · gán sản phẩm · nhập file cuối tháng → tự tính hoa hồng</div>
+    <div class="tabs">
+      <button class="tab on" data-p="dash">📊 Dashboard</button>
+      <button class="tab" data-p="sum">Danh sách tổng hợp</button>
+      <button class="tab" data-p="add">➕ Nhập KOL mới</button>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="page on" id="page-dash">
+    <div class="uploadbar">
+      <div class="ut">⬆ Nhập file tháng mới (khỏi tô vàng)</div>
+      <div class="us">Chọn file Excel xuất từ TikTok Shop. App tự dò tên creator trùng với danh sách của Linh → tính doanh số/đơn cho tháng đó. Tên không thuộc Linh sẽ được bỏ qua.</div>
+      <div class="uprow">
+        <span class="ulabel">File của tháng:</span>
+        <input type="number" id="upMonth" value="6" min="1" max="12">
+        <label class="filebtn">📄 Chọn file Excel<input type="file" id="upFile" accept=".xlsx,.xls" style="display:none"></label>
+      </div>
+      <div class="upmsg" id="upMsg"></div>
+      <div class="unknownbox" id="unknownBox"></div>
+      <div class="confirmbox" id="confirmBox">
+        <div class="cfx-text" id="cfxText"></div>
+        <div class="cfx-btns">
+          <button class="btn" id="cfxYes">✓ Xác nhận nhập</button>
+          <button class="btn cancel" id="cfxNo">Huỷ</button>
+        </div>
+      </div>
+      <div class="managed" id="managedMonths"></div>
+    </div>
+    <div class="mrow">
+      <span class="mrow-lab">Xem:</span>
+      <select class="mselect" id="mfilterD"></select>
+    </div>
+    <div class="cards">
+      <div class="card dark"><div class="lab">Số đơn đi cho KOL</div><div class="val" id="dOrders">0</div></div>
+      <div class="card light"><div class="lab">Doanh số KOL</div><div class="val" id="dGmv">0</div></div>
+      <div class="card light"><div class="lab">Số KOL có đơn</div><div class="val" id="dKol">0</div></div>
+      <div class="card terra"><div class="lab" id="dComLab">Hoa hồng Linh</div><div class="val" id="dLinh">0</div></div>
+    </div>
+    <div class="sect">Bậc hoa hồng nhân viên</div>
+    <div class="tiertbl">
+      <div class="tier-row tier-head"><div>Tổng hoa hồng KOL trong tháng</div><div class="r">% bạn nhận</div></div>
+      <div class="tier-row" data-rate="0"><div>Dưới 20 triệu</div><div class="r">0%</div></div>
+      <div class="tier-row" data-rate="0.01"><div>Từ 20 – 50 triệu</div><div class="r">1%</div></div>
+      <div class="tier-row" data-rate="0.015"><div>Từ 50 – 100 triệu</div><div class="r">1,5%</div></div>
+      <div class="tier-row" data-rate="0.02"><div>Trên 100 triệu</div><div class="r">2%</div></div>
+    </div>
+    <div class="tier-note">Hoa hồng của bạn = <b>% bậc</b> × <b>tổng hoa hồng KOL</b> trong tháng. Bậc xét theo tổng hoa hồng KOL của tháng đang xem.</div>
+    <div class="sect">Doanh số &amp; số đơn theo sản phẩm</div>
+    <div class="prodwrap">
+      <div class="phead"><div>Sản phẩm</div><div class="r pcol-kol">KOL</div><div class="r">Số đơn</div><div class="r">Doanh số</div><div class="r">Hoa hồng KOL</div></div>
+      <div id="prodRows"></div>
+    </div>
+    <div class="dashnote" id="dashNote"></div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="page" id="page-sum">
+    <div class="dedupe" id="ruleBanner"></div>
+    <div class="mrow">
+      <span class="mrow-lab">Xem:</span>
+      <select class="mselect" id="mfilterS"></select>
+    </div>
+    <div class="cards">
+      <div class="card light"><div class="lab">Số KOL</div><div class="val" id="cK">0</div></div>
+      <div class="card light"><div class="lab">Tổng doanh số</div><div class="val" id="cG">0</div></div>
+      <div class="card dark"><div class="lab">Tổng hoa hồng KOL</div><div class="val" id="cC">0</div></div>
+      <div class="card terra"><div class="lab" id="cLlab">Hoa hồng Linh</div><div class="val" id="cL">0</div></div>
+    </div>
+    <div class="mbreak">
+      <div class="mbreak-t">Hoa hồng Linh — tính riêng từng tháng, cộng lại ra tổng <span class="mbreak-note">(bậc% theo tổng hoa hồng KOL × tổng hoa hồng KOL)</span></div>
+      <div class="mbreak-row" id="mbreakRow"></div>
+    </div>
+    <div class="emptynote">※ Cột "Ngày đi đơn" vẫn để trống — file gộp cả tháng, chưa có ngày từng KOL.</div>
+    <div class="tblwrap">
+      <table>
+        <thead><tr><th class="stt">STT</th><th class="hide">Ngày đi đơn</th><th>Tên TikTok</th><th>SP</th><th class="r">Doanh số</th><th class="r">Hoa hồng KOL</th></tr></thead>
+        <tbody id="sumBody"></tbody>
+        <tfoot><tr><td colspan="3" class="hide">TỔNG</td><td id="fN">TỔNG</td><td class="r" id="fG"></td><td class="r" id="fC"></td></tr></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- ADD -->
+  <div class="page" id="page-add">
+    <div class="how">
+      <div class="how-t">Cách hoạt động</div>
+      <div class="steps">
+        <div class="step"><div class="snum">1</div><div><div class="st">Linh thêm KOL + chọn sản phẩm</div><div class="sd">Mời được ai thì gõ tên + chọn mặt hàng bạn đó bán.</div></div></div>
+        <div class="step"><div class="snum">2</div><div><div class="st">App nhớ danh sách của Linh</div><div class="sd">KOL thêm tay sẽ lưu ở đây.</div></div></div>
+        <div class="step"><div class="snum">3</div><div><div class="st">Cuối tháng up file (khỏi tô vàng)</div><div class="sd">App dò tên trùng danh sách → tự tính tháng mới cho Linh.</div></div></div>
+      </div>
+    </div>
+    <div class="addbox">
+      <div class="addlab">Thêm KOL mới Linh vừa mời</div>
+      <div class="addgrid">
+        <div class="pfx"><span>@</span><input id="one" placeholder="username_tiktok" autocomplete="off"></div>
+        <input class="ainput" id="oZalo" placeholder="Tên Zalo" autocomplete="off">
+        <input class="ainput" id="oPhone" placeholder="SĐT" inputmode="tel" autocomplete="off">
+        <input class="ainput full" id="oLink" placeholder="Link TikTok (dán link trang KOL)" autocomplete="off">
+        <select class="aselect full" id="oneProd"></select>
+      </div>
+      <button class="btn addbtn" id="addOne">＋ Thêm KOL</button>
+      <div class="addhint">Ngày thêm tự động lấy hôm nay (07/07/2026). Chỉ <b>@tiktok</b> bắt buộc — Zalo/SĐT/Link có thể bổ sung sau.</div>
+      <div class="bulklink" id="bulkToggle">＋ Thêm nhanh nhiều tên (chỉ tên, dán danh sách)</div>
+      <div class="bulkwrap" id="bulkWrap">
+        <textarea id="bulk" placeholder="Mỗi tên 1 dòng…"></textarea>
+        <div class="brow">
+          <span style="font-size:11px;color:rgba(255,237,172,.6)">Gán vào SP đã chọn ở trên · tên trùng tự bỏ qua · Zalo/SĐT/Link để trống.</span>
+          <button class="btn" id="addBulk">Thêm tất cả</button>
+        </div>
+      </div>
+      <div class="addmsg" id="addMsg"></div>
+    </div>
+
+    <div class="report" id="report"></div>
+
+    <div class="toolbar"><div class="count">Danh sách KOL của Linh: <b id="cnt">0</b></div><input class="search" id="search" placeholder="🔍 Tìm tên…"></div>
+    <div class="koltbl-wrap">
+      <table class="koltbl">
+        <thead><tr>
+          <th>@TikTok</th><th>Tên Zalo</th><th>SĐT</th><th>Link TikTok</th><th>Sản phẩm</th><th>Tháng</th><th>Ngày thêm</th><th>Nguồn</th><th></th>
+        </tr></thead>
+        <tbody id="regBody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="foot">LÀSILK · KOL CỦA LINH</div>
 </div>
+
 <script>
 
-const REG_SEED=[{n:'_machhannghi',m:[2, 3, 4, 5]},{n:'annienguyen.xoxo',m:[2, 3, 4, 5]},{n:'dunhathien',m:[2, 3, 4, 5]},{n:'hangphanne13',m:[2, 3, 4, 5]},{n:'hino_1505',m:[2, 3, 4, 5]},{n:'hnirt__p',m:[2, 3, 4, 5]},{n:'lemen1999',m:[2, 3, 4, 5]},{n:'linhnguyenbigsize',m:[2, 3, 4, 5]},{n:'maihayandaily',m:[2, 3, 4, 5]},{n:'mc_quangtamm',m:[2, 3, 4, 5]},{n:'midytrinhh',m:[2, 3, 4, 5]},{n:'phunnie_dp',m:[2, 3, 4, 5]},{n:'pungoc173',m:[2, 3, 4, 5]},{n:'quinquinbigsize',m:[2, 3, 4, 5]},{n:'shopbongbigsz',m:[2, 3, 4, 5]},{n:'thohinl99',m:[2, 3, 4, 5]},{n:'thuhabigsize04',m:[2, 3, 4, 5]},{n:'thuybubigsize',m:[2, 3, 4, 5]},{n:'thuykieu773shop',m:[2, 3, 4, 5]},{n:'__pahn.dwng24',m:[2, 3, 4]},{n:'_dphucc',m:[3, 4, 5]},{n:'bimbra97',m:[2, 3, 4]},{n:'hangstylist93',m:[2, 4, 5]},{n:'hanivani_hv',m:[2, 3, 4]},{n:'hynifamily',m:[2, 3, 4]},{n:'lothuthao211105',m:[3, 4, 5]},{n:'maiv.chu12345',m:[2, 3, 5]},{n:'memangbicsai',m:[3, 4, 5]},{n:'metrinh.review',m:[3, 4, 5]},{n:'phm.ngc9661',m:[2, 3, 4]},{n:'phuongoc1605',m:[3, 4, 5]},{n:'quynhquynhbigsize1',m:[2, 3, 4]},{n:'tynoo.gg',m:[3, 4, 5]},{n:'uyennhibui2000',m:[2, 3, 4]},{n:'accphucuahienhoinacs',m:[2, 3]},{n:'bichthuybui93',m:[4, 5]},{n:'bigsizehuynhgiao',m:[4, 5]},{n:'bubblecati',m:[2, 3]},{n:'camgiadung',m:[3, 4]},{n:'caynamnho1989',m:[4, 5]},{n:'congchuamap68',m:[2, 3]},{n:'di3duong',m:[4, 5]},{n:'emdadene',m:[3, 4]},{n:'emgaimuazzz',m:[3, 4]},{n:'gaubigsize',m:[4, 5]},{n:'giadinhmangdaily',m:[2, 3]},{n:'giaikycloste',m:[4, 5]},{n:'ha_me_gym222',m:[4, 5]},{n:'hanebigsize',m:[2, 3]},{n:'hatrucanhreview',m:[4, 5]},{n:'hininhxinh1907',m:[2, 3]},{n:'lucybigsize86',m:[3, 4]},{n:'m.x.dch0',m:[4, 5]},{n:'meanhcuabap',m:[3, 4]},{n:'medesignoutlet',m:[4, 5]},{n:'mochi.khoai.mn.206',m:[4, 5]},{n:'modiet.store',m:[3, 4]},{n:'nhinhidayne97',m:[3, 5]},{n:'nhunnhun.0208',m:[4, 5]},{n:'phamthaonhi1110',m:[4, 5]},{n:'quynhchau668',m:[4, 5]},{n:'tapgymmacgi',m:[4, 5]},{n:'thaohuyenbigsize',m:[2, 3]},{n:'thuybifit68',m:[4, 5]},{n:'thuyduong982z',m:[4, 5]},{n:'tiemnhaha86',m:[4, 5]},{n:'tranngan1369',m:[2, 3]},{n:'tuoithoitrang20',m:[3, 5]},{n:'vietngaphamreview',m:[4, 5]},{n:'votrilamtoptop212',m:[2, 3]},{n:'yennhi020919',m:[3, 4]},{n:'yenquat113',m:[4, 5]},{n:'1133ngarucro',m:[2]},{n:'1997bigsize',m:[5]},{n:'_thuylinh1997',m:[4]},{n:'_ttuy3tnhun9',m:[5]},{n:'aodaingocanhvinhphuc',m:[3]},{n:'baonhi3005',m:[2]},{n:'bobietyeu.05',m:[5]},{n:'boiu1605',m:[5]},{n:'chutm68',m:[4]},{n:'cokemday',m:[5]},{n:'dinhdinh.bigsize',m:[4]},{n:'dmin422',m:[4]},{n:'dogiantiktokmac',m:[4]},{n:'doquynhtrinh_',m:[5]},{n:'dothuydobo',m:[3]},{n:'duongnguyenthuhanh',m:[5]},{n:'giang_khenh_',m:[4]},{n:'hienthuynguyendaily',m:[4]},{n:'idolchaybo',m:[5]},{n:'khaly290805',m:[2]},{n:'lathicamngoc8',m:[5]},{n:'lethiloan2001',m:[2]},{n:'lucy_offical201',m:[3]},{n:'lucybigsize68',m:[5]},{n:'mekhoaitaycuden',m:[3]},{n:'melaclacreview',m:[3]},{n:'metbaytapgym',m:[4]},{n:'midoan.56',m:[5]},{n:'minhlahanhieumo',m:[3]},{n:'nanpeotapphoido',m:[5]},{n:'nemmbabii',m:[5]},{n:'ngkhanhlinh38',m:[2]},{n:'ngoccbigsize4',m:[2]},{n:'ngocnhan444',m:[4]},{n:'nguoiluoitapgym0803',m:[4]},{n:'nguyenthinieu9',m:[4]},{n:'phamthihoangoanh2',m:[5]},{n:'phuonganmet53',m:[3]},{n:'phuongthuy.comestics',m:[3]},{n:'pn.bn_130302',m:[5]},{n:'qin03h',m:[5]},{n:'quynhfit',m:[5]},{n:'sendobo',m:[5]},{n:'shopthuy8386',m:[4]},{n:'since1997.bigsize5',m:[4]},{n:'sunny.m58',m:[3]},{n:'tai.ha.ne',m:[4]},{n:'thanhthaom62',m:[4]},{n:'thaodigym1402',m:[4]},{n:'thaoquyen_store',m:[5]},{n:'thirieview',m:[3]},{n:'thuhun808',m:[3]},{n:'thutruyen2k',m:[5]},{n:'thuyhienaff',m:[5]},{n:'tralibeauty01',m:[4]},{n:'tranvan_m53',m:[4]},{n:'tranxuanthuy789',m:[5]},{n:'tuimacchodangxau',m:[3]},{n:'vananh261019988',m:[2]},{n:'vananh7105',m:[3]},{n:'yogibenho92',m:[5]}];
-let MONTHS={2:[{n:'hangstylist93',g:96423330,rf:2637242,c:6411413,o:973,v:0},{n:'lemen1999',g:93935811,rf:3906317,c:7787090,o:942,v:0},{n:'thuhabigsize04',g:26181221,rf:259748,c:1999846,o:262,v:5},{n:'mc_quangtamm',g:17112090,rf:665765,c:1372962,o:175,v:0},{n:'ngoccbigsize4',g:16726429,rf:290612,c:1211053,o:158,v:0},{n:'hnirt__p',g:14226483,rf:210000,c:1145309,o:138,v:0},{n:'thuybubigsize',g:14016474,rf:525269,c:1354010,o:145,v:0},{n:'hangphanne13',g:7712069,rf:338898,c:757271,o:74,v:2},{n:'phunnie_dp',g:7265648,rf:280717,c:628871,o:72,v:0},{n:'pungoc173',g:6721950,rf:282157,c:801332,o:69,v:0},{n:'quynhquynhbigsize1',g:5583280,rf:484167,c:404015,o:55,v:0},{n:'hanivani_hv',g:3179970,rf:0,c:183535,o:34,v:0},{n:'quinquinbigsize',g:3043999,rf:93100,c:326709,o:32,v:0},{n:'accphucuahienhoinacs',g:2762793,rf:0,c:296684,o:25,v:0},{n:'thuykieu773shop',g:2543196,rf:0,c:304441,o:27,v:0},{n:'hino_1505',g:2426065,rf:0,c:191810,o:25,v:0},{n:'phm.ngc9661',g:2149695,rf:0,c:245964,o:21,v:1},{n:'hininhxinh1907',g:1936771,rf:0,c:113858,o:19,v:0},{n:'linhnguyenbigsize',g:1879785,rf:0,c:179334,o:18,v:0},{n:'maihayandaily',g:1849567,rf:99000,c:121723,o:18,v:0},{n:'dunhathien',g:1708430,rf:0,c:166083,o:6,v:0},{n:'bimbra97',g:1667395,rf:80750,c:136456,o:16,v:0},{n:'giadinhmangdaily',g:1478426,rf:0,c:146311,o:15,v:0},{n:'__pahn.dwng24',g:1216992,rf:0,c:60844,o:13,v:0},{n:'hynifamily',g:1039737,rf:0,c:72081,o:11,v:0},{n:'_machhannghi',g:930442,rf:0,c:75228,o:9,v:0},{n:'ngkhanhlinh38',g:890239,rf:95000,c:98685,o:8,v:0},{n:'1133ngarucro',g:771048,rf:95000,c:92526,o:7,v:0},{n:'votrilamtoptop212',g:763927,rf:0,c:89271,o:8,v:0},{n:'tranngan1369',g:744343,rf:0,c:80387,o:8,v:0},{n:'hanebigsize',g:668793,rf:0,c:76632,o:7,v:0},{n:'congchuamap68',g:585009,rf:0,c:70201,o:6,v:0},{n:'maiv.chu12345',g:581471,rf:0,c:44917,o:6,v:1},{n:'shopbongbigsz',g:579098,rf:0,c:59290,o:5,v:0},{n:'annienguyen.xoxo',g:551334,rf:0,c:66161,o:5,v:0},{n:'midytrinhh',g:493249,rf:0,c:57366,o:5,v:0},{n:'vananh261019988',g:490010,rf:0,c:58801,o:5,v:0},{n:'thohinl99',g:478000,rf:0,c:47800,o:2,v:0},{n:'khaly290805',g:425549,rf:0,c:51066,o:3,v:0},{n:'bubblecati',g:392100,rf:0,c:38789,o:4,v:0},{n:'baonhi3005',g:381110,rf:94050,c:39083,o:4,v:2},{n:'thaohuyenbigsize',g:282149,rf:0,c:33858,o:3,v:0},{n:'lethiloan2001',g:184336,rf:0,c:22120,o:2,v:1},{n:'uyennhibui2000',g:99000,rf:0,c:11880,o:1,v:0}],3:[{n:'lemen1999',g:53227153,rf:1749785,c:4291170,o:535,v:0},{n:'metrinh.review',g:40825561,rf:410355,c:2748265,o:404,v:1},{n:'thuhabigsize04',g:35703430,rf:676474,c:2509706,o:355,v:8},{n:'lucybigsize86',g:12538176,rf:289246,c:1388398,o:107,v:0},{n:'mc_quangtamm',g:9251873,rf:0,c:909957,o:93,v:0},{n:'thuybubigsize',g:9227313,rf:99000,c:957621,o:95,v:0},{n:'pungoc173',g:7616270,rf:96649,c:899890,o:77,v:0},{n:'hnirt__p',g:6172392,rf:95000,c:456175,o:64,v:0},{n:'dunhathien',g:5328850,rf:214464,c:523734,o:23,v:0},{n:'_dphucc',g:4488092,rf:281216,c:341040,o:48,v:0},{n:'quynhquynhbigsize1',g:4102865,rf:216200,c:282153,o:38,v:0},{n:'phunnie_dp',g:4067899,rf:94049,c:292028,o:43,v:0},{n:'linhnguyenbigsize',g:3796046,rf:0,c:344751,o:41,v:0},{n:'maihayandaily',g:3736692,rf:0,c:255119,o:36,v:0},{n:'hino_1505',g:2249022,rf:0,c:177373,o:24,v:0},{n:'memangbicsai',g:1976774,rf:0,c:235423,o:21,v:1},{n:'hangphanne13',g:1868109,rf:0,c:215292,o:16,v:1},{n:'emgaimuazzz',g:1828470,rf:87514,c:154668,o:19,v:0},{n:'lothuthao211105',g:1518983,rf:0,c:131081,o:15,v:4},{n:'phm.ngc9661',g:1497456,rf:92168,c:125079,o:15,v:0},{n:'hanivani_hv',g:1348980,rf:0,c:75061,o:14,v:0},{n:'tranngan1369',g:1302921,rf:79002,c:138554,o:13,v:8},{n:'shopbongbigsz',g:1287862,rf:0,c:135716,o:12,v:0},{n:'_machhannghi',g:1211732,rf:0,c:77985,o:13,v:0},{n:'phuongoc1605',g:1203349,rf:0,c:115884,o:5,v:0},{n:'tynoo.gg',g:1076560,rf:0,c:101036,o:9,v:8},{n:'camgiadung',g:1068229,rf:0,c:91446,o:9,v:27},{n:'giadinhmangdaily',g:939798,rf:184336,c:112776,o:10,v:0},{n:'quinquinbigsize',g:939484,rf:0,c:105440,o:10,v:0},{n:'thuykieu773shop',g:793426,rf:0,c:87376,o:8,v:0},{n:'congchuamap68',g:790241,rf:0,c:76449,o:8,v:0},{n:'accphucuahienhoinacs',g:781954,rf:0,c:81798,o:8,v:0},{n:'__pahn.dwng24',g:742284,rf:0,c:37111,o:8,v:0},{n:'lucy_offical201',g:575099,rf:0,c:63252,o:5,v:3},{n:'aodaingocanhvinhphuc',g:552474,rf:0,c:66297,o:5,v:0},{n:'maiv.chu12345',g:551364,rf:0,c:66164,o:6,v:5},{n:'thohinl99',g:475590,rf:0,c:47559,o:2,v:0},{n:'hininhxinh1907',g:475206,rf:0,c:43857,o:5,v:0},{n:'midytrinhh',g:467780,rf:0,c:56134,o:5,v:0},{n:'annienguyen.xoxo',g:458408,rf:0,c:55009,o:5,v:0},{n:'minhlahanhieumo',g:420000,rf:0,c:45600,o:3,v:0},{n:'sunny.m58',g:408360,rf:0,c:40836,o:1,v:0},{n:'meanhcuabap',g:378470,rf:0,c:43017,o:3,v:6},{n:'tuoithoitrang20',g:376206,rf:0,c:24123,o:4,v:9},{n:'modiet.store',g:328199,rf:0,c:29800,o:2,v:0},{n:'thirieview',g:298000,rf:0,c:29800,o:2,v:2},{n:'bimbra97',g:283100,rf:95000,c:33972,o:3,v:1},{n:'bubblecati',g:283099,rf:0,c:33972,o:3,v:0},{n:'votrilamtoptop212',g:281207,rf:0,c:33745,o:3,v:0},{n:'mekhoaitaycuden',g:278325,rf:0,c:33399,o:3,v:1},{n:'yennhi020919',g:249000,rf:0,c:24900,o:1,v:1},{n:'emdadene',g:216630,rf:0,c:21663,o:1,v:1},{n:'hanebigsize',g:213991,rf:0,c:20879,o:2,v:0},{n:'dothuydobo',g:213800,rf:0,c:23760,o:1,v:0},{n:'uyennhibui2000',g:205276,rf:0,c:22233,o:2,v:0},{n:'vananh7105',g:198000,rf:0,c:19800,o:2,v:0},{n:'melaclacreview',g:197999,rf:0,c:23760,o:1,v:1},{n:'thuhun808',g:193475,rf:0,c:19348,o:2,v:2},{n:'thaohuyenbigsize',g:189050,rf:0,c:22686,o:2,v:0},{n:'tuimacchodangxau',g:188098,rf:0,c:22572,o:2,v:0},{n:'hynifamily',g:186216,rf:0,c:22346,o:2,v:0},{n:'phuonganmet53',g:178695,rf:0,c:21443,o:2,v:0},{n:'phuongthuy.comestics',g:144050,rf:0,c:6842,o:2,v:3},{n:'nhinhidayne97',g:99000,rf:0,c:9900,o:1,v:1}],4:[{n:'metrinh.review',g:133485191,rf:4061868,c:10969902,o:1293,v:0},{n:'thuhabigsize04',g:33433363,rf:591364,c:2653122,o:336,v:7},{n:'lemen1999',g:22037889,rf:500669,c:1949866,o:219,v:0},{n:'hangstylist93',g:20036184,rf:1268562,c:1484558,o:196,v:0},{n:'quynhchau668',g:15220710,rf:0,c:1473991,o:60,v:23},{n:'dunhathien',g:11878975,rf:1122990,c:1179358,o:49,v:0},{n:'gaubigsize',g:8895221,rf:551770,c:1105554,o:92,v:10},{n:'mc_quangtamm',g:7176764,rf:183049,c:765983,o:67,v:0},{n:'lucybigsize86',g:6264957,rf:292447,c:684245,o:65,v:1},{n:'hnirt__p',g:5400579,rf:94049,c:467101,o:54,v:0},{n:'bigsizehuynhgiao',g:5255925,rf:0,c:464612,o:52,v:5},{n:'thuybubigsize',g:5171294,rf:213350,c:578224,o:54,v:0},{n:'pungoc173',g:4648109,rf:187157,c:531389,o:47,v:0},{n:'thuybifit68',g:4355991,rf:219120,c:435599,o:19,v:0},{n:'linhnguyenbigsize',g:3476203,rf:0,c:327735,o:35,v:0},{n:'caynamnho1989',g:3358750,rf:224100,c:334905,o:14,v:1},{n:'quynhquynhbigsize1',g:2930361,rf:0,c:251179,o:27,v:0},{n:'phunnie_dp',g:2489233,rf:95000,c:230288,o:26,v:0},{n:'thuyduong982z',g:2429690,rf:0,c:242969,o:10,v:5},{n:'_dphucc',g:2349344,rf:0,c:212741,o:25,v:0},{n:'tynoo.gg',g:1581650,rf:0,c:156515,o:16,v:0},{n:'maihayandaily',g:1550570,rf:74049,c:135216,o:17,v:0},{n:'_machhannghi',g:1440539,rf:94049,c:142276,o:15,v:2},{n:'nhunnhun.0208',g:1349100,rf:0,c:131130,o:14,v:3},{n:'thohinl99',g:1245000,rf:249000,c:124500,o:5,v:0},{n:'lothuthao211105',g:1173890,rf:0,c:109774,o:12,v:0},{n:'thuykieu773shop',g:1169637,rf:0,c:146718,o:12,v:2},{n:'hino_1505',g:1131441,rf:0,c:96204,o:12,v:0},{n:'phuongoc1605',g:1118010,rf:0,c:110683,o:5,v:0},{n:'quinquinbigsize',g:1021148,rf:0,c:83186,o:11,v:0},{n:'ha_me_gym222',g:912780,rf:249000,c:90138,o:4,v:6},{n:'tranvan_m53',g:843080,rf:0,c:86178,o:9,v:0},{n:'phm.ngc9661',g:772892,rf:0,c:83704,o:8,v:0},{n:'medesignoutlet',g:712140,rf:249000,c:67653,o:3,v:0},{n:'shopbongbigsz',g:710142,rf:0,c:66951,o:6,v:0},{n:'meanhcuabap',g:704396,rf:95000,c:73720,o:6,v:2},{n:'dmin422',g:694680,rf:0,c:53071,o:7,v:0},{n:'annienguyen.xoxo',g:692196,rf:0,c:65264,o:6,v:0},{n:'memangbicsai',g:585196,rf:0,c:68424,o:6,v:0},{n:'__pahn.dwng24',g:548257,rf:0,c:27411,o:6,v:0},{n:'di3duong',g:498000,rf:0,c:49800,o:2,v:3},{n:'phamthaonhi1110',g:475080,rf:0,c:57010,o:5,v:3},{n:'midytrinhh',g:472147,rf:95000,c:56658,o:5,v:0},{n:'tiemnhaha86',g:445000,rf:0,c:44500,o:2,v:4},{n:'emdadene',g:415587,rf:0,c:41559,o:2,v:0},{n:'since1997.bigsize5',g:403648,rf:0,c:45966,o:4,v:0},{n:'mochi.khoai.mn.206',g:380160,rf:0,c:38016,o:3,v:1},{n:'hanivani_hv',g:376196,rf:0,c:31976,o:4,v:0},{n:'hangphanne13',g:372240,rf:0,c:29779,o:3,v:1},{n:'nguyenthinieu9',g:304649,rf:0,c:27502,o:3,v:1},{n:'dinhdinh.bigsize',g:297000,rf:0,c:29700,o:3,v:1},{n:'tapgymmacgi',g:266600,rf:0,c:24900,o:1,v:5},{n:'thaodigym1402',g:249000,rf:0,c:24900,o:1,v:0},{n:'yennhi020919',g:249000,rf:0,c:24900,o:1,v:0},{n:'tralibeauty01',g:249000,rf:0,c:24900,o:1,v:0},{n:'yenquat113',g:249000,rf:0,c:24900,o:1,v:1},{n:'vietngaphamreview',g:249000,rf:0,c:24900,o:1,v:3},{n:'bichthuybui93',g:237990,rf:0,c:22659,o:1,v:3},{n:'hatrucanhreview',g:224100,rf:0,c:22410,o:1,v:4},{n:'m.x.dch0',g:224100,rf:0,c:22410,o:1,v:14},{n:'shopthuy8386',g:222600,rf:0,c:14900,o:1,v:0},{n:'hienthuynguyendaily',g:217800,rf:99000,c:21780,o:3,v:3},{n:'metbaytapgym',g:211650,rf:0,c:21165,o:1,v:2},{n:'giang_khenh_',g:207049,rf:0,c:15424,o:2,v:12},{n:'ngocnhan444',g:198000,rf:0,c:23760,o:2,v:2},{n:'giaikycloste',g:198000,rf:0,c:19800,o:2,v:0},{n:'dogiantiktokmac',g:198000,rf:0,c:19800,o:2,v:0},{n:'tai.ha.ne',g:193049,rf:0,c:23166,o:2,v:0},{n:'thanhthaom62',g:190080,rf:99000,c:19008,o:2,v:1},{n:'nguoiluoitapgym0803',g:187680,rf:0,c:18768,o:1,v:2},{n:'modiet.store',g:148999,rf:0,c:14900,o:1,v:0},{n:'chutm68',g:99000,rf:0,c:9900,o:1,v:7},{n:'emgaimuazzz',g:98999,rf:0,c:11880,o:1,v:0},{n:'bimbra97',g:95300,rf:0,c:11400,o:1,v:0},{n:'camgiadung',g:95000,rf:0,c:4750,o:1,v:0},{n:'hynifamily',g:94049,rf:0,c:11286,o:1,v:0},{n:'_thuylinh1997',g:94049,rf:0,c:11286,o:1,v:0},{n:'uyennhibui2000',g:94049,rf:0,c:11286,o:1,v:0}],5:[{n:'metrinh.review',g:62966704,rf:2366008,c:5674422,o:599,v:1},{n:'quynhchau668',g:37629203,rf:3617010,c:3658137,o:153,v:34},{n:'thuhabigsize04',g:31809830,rf:1301343,c:2715994,o:316,v:8},{n:'lemen1999',g:25350106,rf:956987,c:2082486,o:251,v:0},{n:'caynamnho1989',g:15286174,rf:1643640,c:1513655,o:61,v:0},{n:'hangstylist93',g:10358393,rf:393808,c:764538,o:104,v:0},{n:'dunhathien',g:7140789,rf:957020,c:700359,o:30,v:0},{n:'gaubigsize',g:6933998,rf:258517,c:767232,o:70,v:1},{n:'nhunnhun.0208',g:6836178,rf:655200,c:674348,o:62,v:1},{n:'mc_quangtamm',g:6396357,rf:389187,c:660277,o:64,v:0},{n:'lucybigsize68',g:4796563,rf:189049,c:380579,o:49,v:1},{n:'thuybubigsize',g:4467597,rf:99000,c:450443,o:46,v:0},{n:'pn.bn_130302',g:3843989,rf:190000,c:454542,o:40,v:1},{n:'thaoquyen_store',g:3634310,rf:0,c:337391,o:15,v:6},{n:'bigsizehuynhgiao',g:3589744,rf:0,c:237718,o:36,v:1},{n:'duongnguyenthuhanh',g:3350112,rf:0,c:364064,o:32,v:1},{n:'maihayandaily',g:3053207,rf:269144,c:240341,o:29,v:0},{n:'tapgymmacgi',g:2728594,rf:0,c:269069,o:12,v:16},{n:'hnirt__p',g:2311786,rf:116349,c:240290,o:23,v:0},{n:'pungoc173',g:2246726,rf:0,c:269609,o:24,v:0},{n:'thuybifit68',g:2021820,rf:0,c:202182,o:9,v:0},{n:'linhnguyenbigsize',g:1928884,rf:0,c:191419,o:20,v:0},{n:'doquynhtrinh_',g:1922691,rf:0,c:188100,o:18,v:0},{n:'_dphucc',g:1880055,rf:0,c:192664,o:19,v:0},{n:'thuyduong982z',g:1778200,rf:249000,c:174300,o:7,v:0},{n:'medesignoutlet',g:1681220,rf:242000,c:79857,o:7,v:0},{n:'phunnie_dp',g:1675725,rf:0,c:157522,o:17,v:0},{n:'ha_me_gym222',g:1474680,rf:0,c:147408,o:6,v:2},{n:'1997bigsize',g:1370814,rf:94049,c:285706,o:13,v:12},{n:'phamthaonhi1110',g:1348440,rf:0,c:161812,o:11,v:0},{n:'tynoo.gg',g:1308950,rf:89100,c:115335,o:13,v:0},{n:'phuongoc1605',g:1204110,rf:1158510,c:118078,o:5,v:0},{n:'quinquinbigsize',g:1199039,rf:0,c:123512,o:12,v:0},{n:'_machhannghi',g:1150548,rf:94049,c:93981,o:12,v:0},{n:'hangphanne13',g:1047024,rf:72864,c:83761,o:9,v:0},{n:'thohinl99',g:993800,rf:0,c:94620,o:4,v:0},{n:'nhinhidayne97',g:976140,rf:0,c:97614,o:9,v:0},{n:'phamthihoangoanh2',g:972440,rf:0,c:94624,o:10,v:0},{n:'thuykieu773shop',g:966844,rf:0,c:112242,o:10,v:0},{n:'lothuthao211105',g:816740,rf:0,c:89038,o:8,v:1},{n:'bobietyeu.05',g:775900,rf:0,c:77470,o:8,v:3},{n:'tiemnhaha86',g:747000,rf:0,c:74700,o:3,v:3},{n:'hino_1505',g:609245,rf:0,c:41974,o:6,v:0},{n:'maiv.chu12345',g:561527,rf:0,c:44075,o:6,v:4},{n:'shopbongbigsz',g:547491,rf:0,c:49100,o:5,v:0},{n:'_ttuy3tnhun9',g:533084,rf:0,c:63659,o:6,v:0},{n:'midytrinhh',g:516750,rf:0,c:55080,o:5,v:0},{n:'tranxuanthuy789',g:490245,rf:0,c:43262,o:5,v:12},{n:'hatrucanhreview',g:485550,rf:0,c:48555,o:2,v:1},{n:'midoan.56',g:452881,rf:0,c:45288,o:2,v:1},{n:'yenquat113',g:420810,rf:0,c:42081,o:2,v:0},{n:'idolchaybo',g:413200,rf:193300,c:41320,o:2,v:3},{n:'memangbicsai',g:401102,rf:0,c:44496,o:4,v:0},{n:'boiu1605',g:393347,rf:0,c:45738,o:4,v:1},{n:'nanpeotapphoido',g:393300,rf:0,c:38300,o:3,v:0},{n:'annienguyen.xoxo',g:378098,rf:94049,c:45372,o:4,v:0},{n:'qin03h',g:376200,rf:0,c:37620,o:4,v:0},{n:'cokemday',g:317400,rf:0,c:29700,o:3,v:0},{n:'nemmbabii',g:313440,rf:0,c:28314,o:3,v:2},{n:'giaikycloste',g:297000,rf:0,c:29700,o:3,v:0},{n:'lathicamngoc8',g:277834,rf:84636,c:18583,o:2,v:4},{n:'quynhfit',g:266600,rf:0,c:24900,o:1,v:1},{n:'sendobo',g:263210,rf:0,c:25005,o:2,v:1},{n:'thuyhienaff',g:249000,rf:0,c:24900,o:1,v:0},{n:'di3duong',g:249000,rf:0,c:24900,o:1,v:2},{n:'vietngaphamreview',g:249000,rf:0,c:24900,o:1,v:1},{n:'yogibenho92',g:249000,rf:0,c:24900,o:1,v:1},{n:'bichthuybui93',g:249000,rf:0,c:24900,o:1,v:1},{n:'thutruyen2k',g:211650,rf:0,c:21165,o:1,v:0},{n:'m.x.dch0',g:211650,rf:0,c:21165,o:1,v:6},{n:'tuoithoitrang20',g:198098,rf:0,c:8934,o:2,v:0},{n:'mochi.khoai.mn.206',g:188100,rf:0,c:18810,o:2,v:0}],6:[{n:'thuhabigsize04',g:22166435,rf:398507,c:1729677,o:213,v:5},{n:'quynhchau668',g:21704980,rf:5188380,c:2153818,o:88,v:15},{n:'caynamnho1989',g:14314863,rf:2779080,c:1420336,o:60,v:0},{n:'metrinh.review',g:13482474,rf:1059739,c:1148683,o:135,v:0},{n:'lemen1999',g:11979621,rf:377147,c:1043342,o:118,v:0},{n:'hangstylist93',g:6510902,rf:94049,c:451446,o:65,v:0},{n:'dunhathien',g:5395467,rf:1397828,c:534937,o:22,v:0},{n:'gaubigsize',g:5392171,rf:94049,c:606797,o:57,v:1},{n:'bigsizehuynhgiao',g:5121300,rf:271813,c:323363,o:48,v:0},{n:'thaoquyen_store',g:4658827,rf:923338,c:458518,o:20,v:2},{n:'lucybigsize68',g:2690652,rf:0,c:212689,o:27,v:0},{n:'mc_quangtamm',g:2675563,rf:287298,c:294696,o:28,v:0},{n:'_dphucc',g:2478798,rf:94991,c:202048,o:25,v:0},{n:'nanpeotapphoido',g:2215460,rf:0,c:212276,o:17,v:0},{n:'hnirt__p',g:1828642,rf:0,c:209950,o:19,v:0},{n:'thuybubigsize',g:1580861,rf:87000,c:189704,o:16,v:0},{n:'nhunnhun.0208',g:1512300,rf:198000,c:151230,o:13,v:0},{n:'emynoiyvietnam',g:1367260,rf:95000,c:94429,o:13,v:20},{n:'pungoc173',g:1290932,rf:272098,c:154913,o:13,v:0},{n:'maihayandaily',g:1265996,rf:189049,c:74792,o:13,v:0},{n:'tugend.fashion',g:1217610,rf:249000,c:121761,o:5,v:0},{n:'duongnguyenthuhanh',g:1095671,rf:94049,c:107451,o:12,v:1},{n:'medesignoutlet',g:1018920,rf:0,c:91781,o:4,v:0},{n:'thohinl99',g:908850,rf:0,c:90885,o:4,v:0},{n:'phamthaonhi1110',g:905100,rf:0,c:104130,o:8,v:4},{n:'linhnguyenbigsize',g:842721,rf:75727,c:94477,o:9,v:0},{n:'1997bigsize',g:842721,rf:0,c:176970,o:9,v:8},{n:'maiv.chu12345',g:722734,rf:0,c:79138,o:8,v:0},{n:'tynoo.gg',g:713000,rf:317000,c:69300,o:7,v:0},{n:'review_bypecuongcao',g:646343,rf:0,c:77562,o:7,v:0},{n:'thuybifit68',g:642420,rf:216630,c:64242,o:3,v:0},{n:'riviewdobigsize',g:578290,rf:0,c:66443,o:6,v:1},{n:'thuykieu773shop',g:559603,rf:0,c:67830,o:6,v:0},{n:'tiemnhaha86',g:475590,rf:0,c:47559,o:2,v:2},{n:'shopbongbigsz',g:474000,rf:0,c:47400,o:4,v:0},{n:'nguoiluoitapgym0803',g:473100,rf:249000,c:47310,o:2,v:1},{n:'m.thc.go405',g:473100,rf:0,c:47310,o:2,v:7},{n:'phunnie_dp',g:472147,rf:0,c:56658,o:4,v:0},{n:'idolchaybo',g:470610,rf:0,c:47061,o:2,v:0},{n:'_machhannghi',g:453147,rf:0,c:35890,o:5,v:0},{n:'changditap1802',g:385950,rf:0,c:30503,o:2,v:4},{n:'phm.ngc9661',g:382672,rf:0,c:44241,o:4,v:0},{n:'bubblecati',g:382139,rf:93516,c:31009,o:4,v:0},{n:'duongquynh1211',g:378000,rf:0,c:18900,o:2,v:1},{n:'ngocbigsizeuytin7',g:376196,rf:0,c:45144,o:4,v:0},{n:'pn.bn_130302',g:372388,rf:0,c:38104,o:4,v:0},{n:'lothuthao211105',g:368774,rf:0,c:38196,o:3,v:1},{n:'nhinhidayne97',g:297000,rf:0,c:29700,o:2,v:0},{n:'meanhcuabap',g:284049,rf:95000,c:34086,o:3,v:0},{n:'phamhongdesign',g:283098,rf:0,c:33972,o:3,v:0},{n:'tuoithoitrang20',g:282147,rf:0,c:13401,o:3,v:0},{n:'thuyduong982z',g:249000,rf:0,c:24900,o:1,v:0},{n:'kt_10518',g:249000,rf:0,c:24900,o:1,v:0},{n:'loan1902_review',g:249000,rf:0,c:24900,o:1,v:0},{n:'ngocanh5920',g:249000,rf:0,c:24900,o:1,v:0},{n:'di3duong',g:249000,rf:0,c:24900,o:1,v:0},{n:'trangrich',g:249000,rf:0,c:24900,o:1,v:3},{n:'quynhfit',g:249000,rf:0,c:24900,o:1,v:0},{n:'tapgymmacgi',g:249000,rf:249000,c:23655,o:1,v:0},{n:'midoan.56',g:219120,rf:0,c:21912,o:1,v:1},{n:'yogibenho92',g:219120,rf:0,c:21912,o:1,v:0}]};
+const REG_SEED=[];
+let MONTHS={};
 const PRODUCTS=[
-  {k:'VAY',name:'Váy Lụa',c:'#3E2723'},
-  {k:'DAM',name:'Đầm Lụa',c:'#F7C1CD'},
-  {k:'SET',name:'Set Đồ Lụa',c:'#FFEDAC'},
-  {k:'AO',name:'Áo Lụa',c:'#6D4C41'}
+  {k:'MCD_D', name:'Macaroon Dress Dài',  c:'#3E2723'},
+  {k:'MCD_N', name:'Macaroon Dress Ngắn', c:'#F7C1CD'},
+  {k:'VEL',   name:'Velocity Dress',      c:'#FFEDAC'},
+  {k:'SIL',   name:'Silhouette Dress',    c:'#6D4C41'}
 ];
 const PMAP={};PRODUCTS.forEach(p=>PMAP[p.k]=p);
 const SEED_MONTHS=MONTHS, SEED_ALLM=Object.keys(SEED_MONTHS).map(Number);
-let ALLM=[2,3,4,5,6];
+let ALLM=[];
 const TODAY='07/07/2026';
 // Bậc thang theo TỔNG HOA HỒNG KOL trong tháng
 function tierRate(kolCom){
@@ -759,8 +863,8 @@ $('cfxNo').onclick=()=>{
 $('oneProd').innerHTML=prodOptions('QNB');
 
 // ═══ SUPABASE (lưu KOL + dữ liệu tháng) ══════════════════════
-const SB_URL='https://kudxuyrdyesysvgxlwrw.supabase.co';
-const SB_KEY='sb_publishable_cOgbisuHhe5g0M7alejUrQ_tWWzZ_54';
+const SB_URL='';
+const SB_KEY='';
 let SB_OK=false;
 function sbHead(extra){return Object.assign({'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`,'Content-Type':'application/json'},extra||{});}
 async function sbSel(t,q=''){const r=await fetch(`${SB_URL}/rest/v1/${t}?${q}`,{headers:sbHead({'Accept':'application/json'})});if(!r.ok)throw new Error('sel '+r.status);return r.json();}
