@@ -349,6 +349,11 @@ tr:hover td{background:#FEF7F8;cursor:pointer}
       🇹🇭 Đơn Thái Lan
       <span id="thailand-badge" style="display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);background:#1A5C14;color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;min-width:18px;text-align:center"></span>
     </div>
+    <div class="nav-item" data-page="international" onclick="goPage('international',this)" style="position:relative">
+      <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418"/></svg>
+      🌐 Đơn Quốc Tế
+      <span id="international-badge" style="display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);background:#0C447C;color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;min-width:18px;text-align:center"></span>
+    </div>
     <div class="nav-item" data-page="kolthai" onclick="goPage('kolthai',this)" style="position:relative">
       <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"/></svg>
       ⭐🇹🇭 KOL Thái Lan
@@ -518,6 +523,7 @@ tr:hover td{background:#FEF7F8;cursor:pointer}
     <span class="chip" data-ch="KOL VN" onclick="filterOrderChannel('KOL VN')">KOL VN</span>
     <span class="chip" data-ch="KOL Thái" onclick="filterOrderChannel('KOL Thái')">KOL Thái</span>
     <span class="chip" data-ch="Thái Lan" onclick="filterOrderChannel('Thái Lan')">Thái Lan</span>
+      <span class="chip" data-ch="Quốc Tế" onclick="filterOrderChannel('Quốc Tế')">Quốc Tế</span>
     <span class="chip" data-ch="Tặng" onclick="filterOrderChannel('Tặng')">Tặng</span>
   </div>
   <div class="layout2">
@@ -583,6 +589,7 @@ tr:hover td{background:#FEF7F8;cursor:pointer}
             <option value="KOL_IG_THAI">⭐🇹🇭📸 KOL IG (Thái)</option>
             <option value="KOL_TT_THAI">🎵🇹🇭 KOL TikTok (Thái)</option>
             <option value="ThaiLan">🇹🇭 Đơn Thái Lan</option>
+            <option value="QuocTe">🌐 Đơn Quốc Tế</option>
             <option value="KOLThai">⭐🇹🇭 KOL Thái Lan</option>
             <option value="Tặng">🎁 Tặng</option>
           </select>
@@ -654,6 +661,29 @@ tr:hover td{background:#FEF7F8;cursor:pointer}
   </div>
   <div id="thailand-list"></div>
 </div>
+
+<!-- ══ ĐƠN QUỐC TẾ ══ -->
+<div id="page-international" class="page">
+  <div class="page-header">
+    <div><div class="page-title">🌐 Đơn Quốc Tế</div><div class="page-sub">Dồn đơn — tick khi đã gửi cả lô</div></div>
+  </div>
+  <div class="metrics" style="margin-bottom:16px">
+    <div class="metric" style="border-color:#FAC775;background:var(--amber-bg)"><div class="metric-label" style="color:var(--amber-t)">⏳ Chờ gửi</div><div class="metric-val" id="intl-pending">0</div></div>
+    <div class="metric" style="border-color:#C0DD97;background:var(--green-bg)"><div class="metric-label" style="color:var(--green-t)">✅ Đã gửi</div><div class="metric-val" id="intl-sent">0</div></div>
+    <div class="metric"><div class="metric-label">Tổng đơn</div><div class="metric-val" id="intl-total">0</div></div>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+    <div style="font-size:13px;font-weight:600;color:var(--dark)" id="intl-batch-label">Lô tiếp theo đang chờ gửi</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span id="intl-selected-count" style="font-size:12px;color:var(--med);display:none">Đã chọn <b id="intl-selected-num">0</b> đơn</span>
+      <button class="btn" style="font-size:12px" onclick="toggleSelectAllThai('QuocTe')">☐ Chọn tất cả</button>
+      <button class="btn btn-blue" style="font-size:12px" onclick="printSelectedThaiLabels('QuocTe')">🖨 In tem đã chọn</button>
+      <button class="btn btn-primary" style="font-size:12px" onclick="markSelectedThaiSent('QuocTe')">✓ Gửi đơn đã chọn</button>
+    </div>
+  </div>
+  <div id="international-list"></div>
+</div>
+
 
 <!-- ══ KOL THÁI LAN ══ -->
 <div id="page-kolthai" class="page">
@@ -1445,6 +1475,7 @@ tr:hover td{background:#FEF7F8;cursor:pointer}
             <option value="KOL_IG_THAI">⭐🇹🇭📸 KOL IG (Thái)</option>
             <option value="KOL_TT_THAI">🎵🇹🇭 KOL TikTok (Thái)</option>
         <option value="ThaiLan">🇹🇭 Đơn Thái Lan</option>
+            <option value="QuocTe">🌐 Đơn Quốc Tế</option>
         <option value="KOLThai">⭐🇹🇭 KOL Thái Lan</option>
         <option value="Tặng">🎁 Tặng</option>
       </select></div>
@@ -1651,6 +1682,7 @@ tr:hover td{background:#FEF7F8;cursor:pointer}
             <option value="KOL_IG_THAI">⭐🇹🇭📸 KOL IG (Thái)</option>
             <option value="KOL_TT_THAI">🎵🇹🇭 KOL TikTok (Thái)</option>
           <option value="ThaiLan">🇹🇭 Đơn Thái Lan</option>
+            <option value="QuocTe">🌐 Đơn Quốc Tế</option>
           <option value="KOLThai">⭐🇹🇭 KOL Thái Lan</option>
           <option value="Tặng">🎁 Tặng</option>
         </select>
@@ -1723,6 +1755,7 @@ tr:hover td{background:#FEF7F8;cursor:pointer}
             <option value="KOL_IG_THAI">⭐🇹🇭📸 KOL IG (Thái)</option>
             <option value="KOL_TT_THAI">🎵🇹🇭 KOL TikTok (Thái)</option>
   <option value="ThaiLan">🇹🇭 Đơn Thái Lan</option>
+            <option value="QuocTe">🌐 Đơn Quốc Tế</option>
   <option value="KOLThai">⭐🇹🇭 KOL Thái Lan</option>
   <option value="Tặng">🎁 Tặng</option>
 </select></div>
@@ -1801,6 +1834,7 @@ function channelMatch(ch, key){
   if(key==='KOL VN') return KOL_VN_CHANNELS.includes(ch);
   if(key==='KOL Thái') return KOL_THAI_CHANNELS.includes(ch) || ch==='KOLThai';
   if(key==='Thái Lan') return ch==='ThaiLan';
+  if(key==='Quốc Tế') return ch==='QuocTe';
   return ch===key;
 }
 function pillSt(s){ const n=normStatus(s); const m={'Nợ hàng':'p-no-hang','Đi đơn':'p-ship','Chờ đi hàng':'p-cho'}; return`<span class="pill ${m[n]||''}">${n}</span>`; }
@@ -1850,6 +1884,7 @@ function goPage(name, el){
   else if(name==='kolvn') loadKolVN();
   else if(name==='finance') loadFinance();
   else if(name==='staff') initStaffPage();
+  else if(name==='international') loadInternationalOrders();
 }
 
 // ══ NHẬP SHOPEE TỪ PDF ══
@@ -1879,7 +1914,7 @@ function shpJoinItems(items){
 }
 
 async function loadShopeeImport(){
-  if(!allProducts.length){ allProducts=await db.products(); }
+  if(!allProducts.length){ allProducts=await db.products(); try{localStorage.setItem('lasilk_products',JSON.stringify(allProducts.map(p=>({code:p.code,name:p.name,color:p.color}))));}catch(_){} }
   if(!allTx.length){ allTx=await db.transactions(); }
   if(!allOrders.length){ allOrders=await db.orders(); }
   try{
@@ -3981,7 +4016,7 @@ function renderThailandPage(channel){
           const isPosted = !!o.kol_posted_date;
           const remind = o.kol_remind||0;
           const social = o.kol_social||'';
-          const prodLines = o.items.map(i=>i.product_name||'—').join(', ');
+          const prodLines = o.items.map(i=>`${i.product_name||'—'} × ${i.quantity||1}`);
           const sentDate = o.sent_date ? fmtDateShort(o.sent_date) : '';
           const checkId = `kolthai-chk-${o.order_code.replace(/[^a-z0-9]/gi,'_')}`;
 
@@ -4118,6 +4153,13 @@ function onThaiCheckChange(prefix){
 }
 
 function toggleSelectAllThai(channel){
+  if(channel==='QuocTe'){
+    const checks=[...document.querySelectorAll('input[data-channel="QuocTe"][type=checkbox]')].filter(c=>!c.disabled);
+    const allChecked=checks.every(c=>c.checked);
+    checks.forEach(c=>c.checked=!allChecked);
+    onIntlCheckChange();
+    return;
+  }
   const prefix = channel==='ThaiLan'?'thai':'kolthai';
   // KOLThai_ALL: chọn tất cả checkbox của cả 2 kênh Thai
   const checks = (channel==='KOLThai_ALL'
@@ -4133,6 +4175,17 @@ function toggleSelectAllThai(channel){
 let thaiTab='auto';
 function setThaiTab(t){ thaiTab=t; renderThailandPage('ThaiLan'); }
 function printSelectedThaiLabels(channel){
+  if(channel==='QuocTe'){
+    const checks=[...document.querySelectorAll('input[data-channel="QuocTe"][type=checkbox]')].filter(c=>c.checked && !c.disabled);
+    if(!checks.length){ toast('Chưa chọn đơn nào để in tem',true); return; }
+    const codes=checks.map(c=>c.dataset.orderCode);
+    if(confirm(`In tem ${codes.length} đơn quốc tế đã chọn.\n\nOK = Tải file PDF tem\nHuỷ = Mở cửa sổ In giấy`)){
+      downloadIntlLabelsPDF(codes);
+    } else {
+      printIntlLabels(codes);
+    }
+    return;
+  }
   const checks=[...document.querySelectorAll('input[type=checkbox][data-channel]')].filter(c=>c.checked && !c.disabled && (channel==='KOLThai_ALL'?KOL_THAI_CHANNELS.includes(c.dataset.channel):c.dataset.channel===channel));
   if(!checks.length){ toast('Chưa chọn đơn nào để in tem',true); return; }
   const codes=checks.map(c=>c.dataset.orderCode);
@@ -4143,6 +4196,19 @@ function printSelectedThaiLabels(channel){
   }
 }
 async function markSelectedThaiSent(channel){
+  if(channel==='QuocTe'){
+    const checks=[...document.querySelectorAll('input[data-channel="QuocTe"][type=checkbox]')].filter(c=>c.checked && !c.disabled);
+    if(!checks.length){ toast('Chưa chọn đơn nào', true); return; }
+    const codes=checks.map(c=>c.dataset.orderCode);
+    if(!confirm(`Gửi ${codes.length} đơn quốc tế đã chọn?\nTồn kho sẽ được trừ ngay.`)) return;
+    for(const code of codes){ await markIntlOrderSent(code); }
+    if(confirm('Đã gửi ✓\n\nOK = Tải file PDF tem\nHuỷ = Mở cửa sổ In giấy')){
+      await downloadIntlLabelsPDF(codes);
+    } else {
+      printIntlLabels(codes);
+    }
+    return;
+  }
   const prefix = channel==='ThaiLan'?'thai':'kolthai';
   const checks = [...document.querySelectorAll('input[type=checkbox][data-channel]')].filter(c=>c.checked && !c.disabled && (channel==='KOLThai_ALL' ? (KOL_THAI_CHANNELS.includes(c.dataset.channel)||c.dataset.channel==='KOLThai') : c.dataset.channel===channel));
   if(!checks.length){ toast('Chưa chọn đơn nào', true); return; }
@@ -4164,7 +4230,7 @@ async function downloadThaiLabelsPDF(orderCodes){
     const items = allOrders.filter(o=>o.order_code===code);
     if(!items.length) return null;
     const o = items[0];
-    const prodLines = items.map(i=>i.product_name||'—').join(', ');
+    const prodLines = items.map(i => `${i.product_name||'—'} × ${i.quantity||1}`);
     const totalQty = items.reduce((s,i)=>s+(i.quantity||0),0);
     return {order_code:code, customer_name:o.customer_name||'—', phone:o.phone||'', address:o.address||'', social:o.kol_social||'', product:prodLines, qty:totalQty, date:fmtDate(o.date||todayStr()), channel:o.channel};
   }).filter(Boolean);
@@ -4194,7 +4260,7 @@ async function downloadThaiLabelsPDF(orderCodes){
     <div style="margin-bottom:1.5mm"><div class="lbl-title">Người nhận</div><div class="lbl-name">${o.customer_name}</div><div class="lbl-phone">${o.phone||'—'}</div>${o.social?`<div class="lbl-social">📱 ${o.social}</div>`:''}</div>
     <div style="margin-bottom:1mm"><div class="lbl-title">Địa chỉ</div><div class="lbl-addr">${o.address||'<em style="color:#bbb">Chưa nhập</em>'}</div></div>
     <div class="lbl-divider"></div>
-    <div style="margin-bottom:auto"><div class="lbl-title">Sản phẩm</div><div class="lbl-prod-box"><div class="lbl-prod-name">${o.product}</div></div></div>
+    <div style="margin-bottom:auto"><div class="lbl-title">Sản phẩm</div><div class="lbl-prod-box"><div class="lbl-prod-name">${Array.isArray(o.product)?o.product.map((p,i)=>`<div class="lbl-prod-line" style="font-size:7.5pt;font-weight:700;color:#111;line-height:1.5;${i>0?'border-top:0.5px solid #ddd;padding-top:1mm;margin-top:1mm':''}">${p}</div>`).join(''):o.product}</div></div></div>
     <div class="lbl-footer"><div class="lbl-order">${o.order_code} · ${o.date}</div><div class="lbl-channel">${o.channel||''}</div></div>
   </div>`).join('');
 
@@ -4223,7 +4289,7 @@ function printThaiLabels(orderCodes){
     const items = allOrders.filter(o=>o.order_code===code);
     if(!items.length) return null;
     const o = items[0];
-    const prodLines = items.map(i=>i.product_name||'—').join(', ');
+    const prodLines = items.map(i => `${i.product_name||'—'} × ${i.quantity||1}`);
     const totalQty = items.reduce((s,i)=>s+(i.quantity||0),0);
     return {order_code:code, customer_name:o.customer_name||'—', phone:o.phone||'', address:o.address||'', social:o.kol_social||'', product:prodLines, qty:totalQty, date:fmtDate(o.date||todayStr()), channel:o.channel};
   }).filter(Boolean);
@@ -4253,7 +4319,7 @@ function printThaiLabels(orderCodes){
     <div class="lbl-divider"></div>
     <div style="margin-bottom:auto">
       <div class="lbl-title">Sản phẩm</div>
-      <div class="lbl-prod-box"><div class="lbl-prod-name">${o.product}</div></div>
+      <div class="lbl-prod-box"><div class="lbl-prod-name">${Array.isArray(o.product)?o.product.map((p,i)=>`<div class="lbl-prod-line" style="font-size:7.5pt;font-weight:700;color:#111;line-height:1.5;${i>0?'border-top:0.5px solid #ddd;padding-top:1mm;margin-top:1mm':''}">${p}</div>`).join(''):o.product}</div></div>
     </div>
     <div class="lbl-footer">
       <div class="lbl-order">${o.order_code} · ${o.date}</div>
@@ -4543,7 +4609,7 @@ function renderKolVN(){
           const remind = o.kol_remind||0;
           const social = o.kol_social||'';
           const isPosted = !!o.kol_posted_date;
-          const prodLines = o.items.map(i=>i.product_name||'—').join(', ');
+          const prodLines = o.items.map(i=>`${i.product_name||'—'} × ${i.quantity||1}`);
           const remindMini = [0,1,2].map(i=>`
             <div onclick="${!isPosted?`toggleKolRemind('${o.order_code}',${i+1})`:'void 0'}"
               style="width:20px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;cursor:${isPosted?'default':'pointer'};
@@ -4687,6 +4753,7 @@ async function markKolPostedThai(orderCode){
 }
 
 function updateThailandBadges(){
+  updateInternationalBadge();
   const thaiPending = new Set(allOrders.filter(o=>o.channel==='ThaiLan' && o.status!=='Đã giao').map(o=>o.order_code));
   const kolThaiPending = new Set(allOrders.filter(o=>(KOL_THAI_CHANNELS.includes(o.channel)||o.channel==='KOLThai') && o.status!=='Đã giao').map(o=>o.order_code));
 
@@ -5843,7 +5910,8 @@ function openNXKModal(type){
     sel.innerHTML=`<option value="GHN">📦 Đơn GHN</option><option value="Grab">🛵 Đơn Grab</option><option value="Shopee">🟠 Đơn Shopee</option><option value="TikTok">🎵 Đơn TikTok</option><option value="KOL_IG">⭐📸 KOL Instagram (VN)</option>
             <option value="KOL_TT">🎵 KOL TikTok (VN)</option>
             <option value="KOL_IG_THAI">⭐🇹🇭📸 KOL IG (Thái)</option>
-            <option value="KOL_TT_THAI">🎵🇹🇭 KOL TikTok (Thái)</option><option value="ThaiLan">🇹🇭 Đơn Thái Lan</option><option value="KOLThai">⭐🇹🇭 KOL Thái Lan</option><option value="Tặng">🎁 Tặng</option>`;
+            <option value="KOL_TT_THAI">🎵🇹🇭 KOL TikTok (Thái)</option><option value="ThaiLan">🇹🇭 Đơn Thái Lan</option>
+            <option value="QuocTe">🌐 Đơn Quốc Tế</option><option value="KOLThai">⭐🇹🇭 KOL Thái Lan</option><option value="Tặng">🎁 Tặng</option>`;
     document.getElementById('nxk-import-section').style.display='none';
     document.getElementById('nxk-export-section').style.display='block';
     populateProdSelect('nxk-prod', allProducts);
@@ -7177,6 +7245,8 @@ function editProduct(code){
 async function loadProducts(){
   try {
     const prods=await db.products(); allProducts=prods;
+    // Lưu vào localStorage để trang KOL đọc được (tránh CORS)
+    try{localStorage.setItem('lasilk_products',JSON.stringify(prods.map(p=>({code:p.code,name:p.name,color:p.color}))));}catch(_){}
     document.getElementById('products-body').innerHTML=prods.map(p=>`
       <tr>
         <td style="width:56px;padding:6px 10px">
@@ -8207,6 +8277,223 @@ function initStaffPage(){
   sEnsureYearOpts();
   renderStaffLeave();
 }
+
+// ══ ĐƠN QUỐC TẾ ══════════════════════════════════════════════
+let intlTab = 'auto';
+function setIntlTab(t){ intlTab = t; renderThailandPage('QuocTe'); }
+
+async function loadInternationalOrders(){
+  try {
+    intlTab = 'auto';
+    const [prods, orders, txs] = await Promise.all([db.products(), db.orders(), db.transactions()]);
+    allProducts = prods; allOrders = orders; allTx = txs;
+    renderInternationalPage();
+    updateInternationalBadge();
+  } catch(e){ toast('Lỗi: '+e.message, true); }
+}
+
+function renderInternationalPage(){
+  const grouped = groupOrdersByCode(allOrders.filter(o => o.channel === 'QuocTe'));
+  const pending = grouped.filter(o => o.status !== 'Đã giao');
+  const sent    = grouped.filter(o => o.status === 'Đã giao');
+
+  document.getElementById('intl-pending').textContent = pending.length;
+  document.getElementById('intl-sent').textContent    = sent.length;
+  document.getElementById('intl-total').textContent   = grouped.length;
+
+  const batchLabel = document.getElementById('intl-batch-label');
+  if(batchLabel) batchLabel.textContent = pending.length > 0
+    ? `Lô tiếp theo — ${pending.length} đơn đang chờ gửi`
+    : 'Không có đơn nào đang chờ gửi ✅';
+
+  const listEl = document.getElementById('international-list');
+  if(!listEl) return;
+  if(!grouped.length){
+    listEl.innerHTML = `<div class="card" style="text-align:center;padding:40px"><div style="font-size:32px;margin-bottom:8px">📭</div><div style="color:var(--med);font-size:13px">Chưa có đơn quốc tế nào</div></div>`;
+    return;
+  }
+
+  const stockNow = computeStock(allProducts, allTx);
+  const hasStock = o => o.items.every(i => {
+    const s = stockNow.find(p => p.code === i.product_code);
+    return s && s.current >= (i.quantity || 1);
+  });
+
+  const tab = (intlTab !== 'auto') ? intlTab : ((!pending.length && sent.length) ? 'sent' : 'pending');
+
+  const renderPendingRow = o => {
+    const productLines = o.items.map(i => `${i.product_name||'—'} × ${i.quantity||1}`).join(', ');
+    const ok = hasStock(o);
+    const checkId = `intl-check-${o.order_code.replace(/[^a-z0-9]/gi,'_')}`;
+    return `<div class="card" style="margin-bottom:8px;border-color:${ok?'#97C459':'#EF9F27'}">
+      <div style="display:grid;grid-template-columns:32px 1fr auto;align-items:start;gap:12px">
+        <input type="checkbox" id="${checkId}" data-order-code="${o.order_code}" data-channel="${o.channel}" data-instock="${ok?1:0}"
+          style="width:18px;height:18px;margin-top:4px;cursor:pointer;accent-color:#3E2723" onchange="onIntlCheckChange()">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--dark)">${o.customer_name||'—'} ${ok?'<span class="pill" style="background:#EAF3DE;color:#27500A;font-size:10px">✓ Đủ hàng</span>':'<span class="pill" style="background:#FAEEDA;color:#633806;font-size:10px">⚠ Thiếu hàng</span>'}</div>
+          <div style="font-size:12px;color:var(--med);margin-top:2px">${productLines}</div>
+          ${o.address ? `<div style="font-size:11px;color:var(--blue-t);margin-top:2px">📍 ${o.address}</div>` : ''}
+          ${o.phone ? `<div style="font-size:11px;color:var(--blue-t)">${o.phone}</div>` : ''}
+        </div>
+        <div style="font-size:11px;color:var(--med);text-align:right">${fmtDateShort(o.date||'')}<br>${o.created_at&&fmtTime(o.created_at)?'🕒 '+fmtTime(o.created_at):''}<div style="font-size:13px;cursor:pointer;margin-top:4px" onclick="openEditOrder('${o.order_code}')">✏️</div></div>
+      </div>
+    </div>`;
+  };
+
+  const renderSentRow = o => {
+    const productLines = o.items.map(i => `${i.product_name||'—'} × ${i.quantity||1}`).join(', ');
+    const sentDate = o.sent_date ? `Đã gửi ${fmtDateShort(o.sent_date)}` : 'Đã gửi';
+    return `<div class="card" style="margin-bottom:8px;opacity:.65">
+      <div style="display:flex;justify-content:space-between;align-items:start;gap:10px">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--dark)">${o.customer_name||'—'}</div>
+          <div style="font-size:12px;color:var(--med);margin-top:2px">${productLines}</div>
+          <span class="pill p-done" style="background:#EAF3DE;color:#27500A;font-size:10px;margin-top:5px;display:inline-block">✓ ${sentDate}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">
+          <span style="font-size:13px;cursor:pointer" onclick="openEditOrder('${o.order_code}')">✏️</span>
+          <button class="btn" style="font-size:10px;padding:4px 8px;color:var(--red-t);border-color:var(--red-t)" onclick="unmarkIntlOrderSent('${o.order_code}')">↩ Hoàn tác</button>
+        </div>
+      </div>
+    </div>`;
+  };
+
+  const tabBar = `<div style="display:flex;gap:8px;margin-bottom:14px">
+    <div onclick="setIntlTab('pending')" style="flex:1;text-align:center;padding:9px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:1.5px solid ${tab==='pending'?'#A32D2D':'var(--border)'};background:${tab==='pending'?'#FCEBEB':'var(--card)'};color:${tab==='pending'?'#791F1F':'var(--med)'}">⏳ Chờ đi / Nợ <span style="background:${tab==='pending'?'#fff':'var(--bg)'};border-radius:20px;padding:0 7px;font-size:11px">${pending.length}</span></div>
+    <div onclick="setIntlTab('sent')" style="flex:1;text-align:center;padding:9px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:1.5px solid ${tab==='sent'?'#639922':'var(--border)'};background:${tab==='sent'?'#EAF3DE':'var(--card)'};color:${tab==='sent'?'#27500A':'var(--med)'}">✅ Đã đi <span style="background:${tab==='sent'?'#fff':'var(--bg)'};border-radius:20px;padding:0 7px;font-size:11px">${sent.length}</span></div>
+  </div>`;
+
+  const body = tab === 'sent'
+    ? (sent.length ? sent.map(renderSentRow).join('') : '<div class="card" style="text-align:center;padding:30px;color:var(--med);font-size:13px">Chưa có đơn nào đã đi</div>')
+    : (pending.length ? pending.map(renderPendingRow).join('') : '<div class="card" style="text-align:center;padding:30px;color:var(--med);font-size:13px">Không có đơn nào chờ đi</div>');
+
+  listEl.innerHTML = tabBar + body;
+}
+
+function onIntlCheckChange(){
+  const checks = [...document.querySelectorAll('input[data-channel="QuocTe"][type=checkbox]')].filter(c => c.checked);
+  const countEl = document.getElementById('intl-selected-count');
+  const numEl   = document.getElementById('intl-selected-num');
+  if(countEl) countEl.style.display = checks.length > 0 ? 'inline' : 'none';
+  if(numEl)   numEl.textContent = checks.length;
+}
+
+async function markIntlOrderSent(orderCode){
+  const items = allOrders.filter(o => o.order_code === orderCode);
+  if(!items.length) return;
+  const sentDate = todayStr();
+  try {
+    await Promise.all(items.map(i => db.updateOrder(i.id, {status:'Đã giao', sent_date:sentDate})));
+    for(const item of items){
+      if(item.status === 'Nợ hàng') continue;
+      const prod = allProducts.find(p => p.code === item.product_code);
+      await db.insertTx({
+        date:sentDate, type:'Xuất', product_code:item.product_code,
+        product_name:item.product_name, color:prod?.color, size:prod?.size,
+        quantity:item.quantity, channel:item.channel,
+        note:`Gửi Quốc Tế ${sentDate}`, staff:item.staff
+      });
+    }
+    toast(`✓ Đã gửi đơn quốc tế ${orderCode}`);
+    const [prods, orders, txs] = await Promise.all([db.products(), db.orders(), db.transactions()]);
+    allProducts = prods; allOrders = orders; allTx = txs;
+    renderInternationalPage();
+    updateInternationalBadge();
+  } catch(e){ toast('Lỗi: '+e.message, true); }
+}
+
+async function unmarkIntlOrderSent(orderCode){
+  if(!confirm(`Hoàn tác "Đã gửi" cho đơn ${orderCode}?\nTồn kho sẽ được cộng lại.`)) return;
+  const items = allOrders.filter(o => o.order_code === orderCode);
+  if(!items.length) return;
+  try {
+    await Promise.all(items.map(i => db.updateOrder(i.id, {status:'Chờ lấy', sent_date:null})));
+    const relatedTxs = allTx.filter(t =>
+      (t.note||'').startsWith('Gửi Quốc Tế') &&
+      items.some(i => i.product_code === t.product_code && t.type === 'Xuất')
+    );
+    await Promise.all(relatedTxs.map(t =>
+      fetch(`${SUPABASE_URL}/rest/v1/transactions?id=eq.${t.id}`,{
+        method:'DELETE',
+        headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
+      })
+    ));
+    toast(`↩ Đã hoàn tác đơn ${orderCode}`);
+    const [prods, orders, txs] = await Promise.all([db.products(), db.orders(), db.transactions()]);
+    allProducts = prods; allOrders = orders; allTx = txs;
+    renderInternationalPage();
+    updateInternationalBadge();
+  } catch(e){ toast('Lỗi: '+e.message, true); }
+}
+
+function updateInternationalBadge(){
+  const pending = allOrders.filter(o => o.channel === 'QuocTe' && o.status !== 'Đã giao');
+  const badge = document.getElementById('international-badge');
+  if(badge){
+    badge.style.display = pending.length > 0 ? 'block' : 'none';
+    badge.textContent = pending.length;
+  }
+}
+
+async function printIntlLabels(orderCodes){
+  const orders = orderCodes.map(code => {
+    const items = allOrders.filter(o => o.order_code === code);
+    if(!items.length) return null;
+    const o = items[0];
+    const prodLines = items.map(i => `${i.product_name||'—'} × ${i.quantity||1}`);
+    const totalQty = items.reduce((s,i) => s+(i.quantity||0), 0);
+    return {order_code:code, customer_name:o.customer_name||'—', phone:o.phone||'', address:o.address||'', product:prodLines, qty:totalQty, date:fmtDate(o.date||todayStr())};
+  }).filter(Boolean);
+
+  const css = `.label{width:75mm;height:100mm;border:0.5px solid #bbb;padding:4mm;display:flex;flex-direction:column;font-family:Arial,sans-serif;color:#111;overflow:hidden;background:#fff;box-sizing:border-box;margin-bottom:4mm}.label *{box-sizing:border-box}.label-brand{display:flex;align-items:flex-start;justify-content:space-between;border-bottom:1px solid #222;padding-bottom:2mm;margin-bottom:2.5mm}.brand-name{font-size:8.5pt;font-weight:700;letter-spacing:.5px;text-transform:uppercase;line-height:1.2}.brand-tagline{font-size:5pt;color:#666;text-transform:uppercase;margin-top:.5mm;letter-spacing:.3px}.brand-code{font-size:6.5pt;font-weight:700;margin-top:.5mm}.qty-badge{background:#111;color:#fff;font-size:7pt;font-weight:700;padding:1mm 2.5mm;border-radius:1mm;white-space:nowrap;flex-shrink:0;margin-left:3mm;margin-top:1mm}.lbl-title{font-size:4.5pt;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#888;margin-bottom:1mm}.lbl-name{font-size:10pt;font-weight:700;color:#111;line-height:1.15;margin-bottom:.8mm}.lbl-phone{font-size:7.5pt;color:#111;margin-bottom:.5mm;font-weight:700}.lbl-addr{font-size:6.5pt;color:#111;line-height:1.45;font-weight:700}.lbl-divider{border:none;border-top:0.5px dashed #ccc;margin:2mm 0}.lbl-prod-box{background:#f2f2f2;border-radius:1mm;padding:1.5mm 2.5mm;flex:1}.lbl-prod-name{font-size:8pt;font-weight:700;color:#111;line-height:1.3}.lbl-footer{margin-top:auto;border-top:0.5px solid #ddd;padding-top:1.5mm;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}.lbl-order{font-size:5.5pt;color:#888;font-family:monospace}.lbl-channel{font-size:5.5pt;color:#aaa}`;
+
+  const labelHtml = orders.map(o => `<div class="label">
+    <div class="label-brand"><div><div class="brand-name">LàSilk</div><div class="brand-tagline">VIETNAM · 0364000709</div><div class="brand-code">MÃ KH: BT1227</div></div><div class="qty-badge">× ${o.qty}</div></div>
+    <div style="margin-bottom:1.5mm"><div class="lbl-title">Người nhận</div><div class="lbl-name">${o.customer_name}</div><div class="lbl-phone">${o.phone||'—'}</div></div>
+    <div style="margin-bottom:1mm"><div class="lbl-title">Địa chỉ</div><div class="lbl-addr">${o.address||'<em style="color:#bbb">Chưa nhập</em>'}</div></div>
+    <div class="lbl-divider"></div>
+    <div style="margin-bottom:auto"><div class="lbl-title">Sản phẩm</div><div class="lbl-prod-box"><div class="lbl-prod-name">${Array.isArray(o.product)?o.product.map((p,i)=>`<div class="lbl-prod-line" style="font-size:7.5pt;font-weight:700;color:#111;line-height:1.5;${i>0?'border-top:0.5px solid #ddd;padding-top:1mm;margin-top:1mm':''}">${p}</div>`).join(''):o.product}</div></div></div>
+    <div class="lbl-footer"><div class="lbl-order">${o.order_code} · ${o.date}</div><div class="lbl-channel">🌐 Quốc Tế</div></div>
+  </div>`).join('');
+
+  const win = window.open('','_blank','width=500,height=700');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Tem Quốc Tế</title><style>*{margin:0;padding:0}body{background:#eee;padding:6mm}@media print{body{background:#fff;padding:0}}</style></head><body><style>${css}</style>${labelHtml}</body></html>`);
+  win.document.close();
+  setTimeout(()=>win.print(), 600);
+}
+
+async function downloadIntlLabelsPDF(orderCodes){
+  if(typeof window.jspdf==='undefined'){ toast('Đang tải thư viện PDF, thử lại sau 2 giây', true); return; }
+  const orders = orderCodes.map(code => {
+    const items = allOrders.filter(o => o.order_code === code);
+    if(!items.length) return null;
+    const o = items[0];
+    return {order_code:code, customer_name:o.customer_name||'—', phone:o.phone||'', address:o.address||'', product:items.map(i=>`${i.product_name||'—'} × ${i.quantity||1}`), qty:items.reduce((s,i)=>s+(i.quantity||0),0), date:fmtDate(o.date||todayStr())};
+  }).filter(Boolean);
+
+  const css = `.label{width:75mm;height:100mm;border:0.5px solid #bbb;padding:4mm;display:flex;flex-direction:column;font-family:Arial,sans-serif;color:#111;overflow:hidden;background:#fff;box-sizing:border-box}.label *{box-sizing:border-box}.label-brand{display:flex;align-items:flex-start;justify-content:space-between;border-bottom:1px solid #222;padding-bottom:2mm;margin-bottom:2.5mm}.brand-name{font-size:8.5pt;font-weight:700;letter-spacing:.5px;text-transform:uppercase}.brand-tagline{font-size:5pt;color:#666;text-transform:uppercase;margin-top:.5mm;letter-spacing:.3px}.brand-code{font-size:6.5pt;font-weight:700;margin-top:.5mm}.qty-badge{background:#111;color:#fff;font-size:7pt;font-weight:700;padding:1mm 2.5mm;border-radius:1mm;white-space:nowrap;flex-shrink:0;margin-left:3mm;margin-top:1mm}.lbl-title{font-size:4.5pt;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#888;margin-bottom:1mm}.lbl-name{font-size:10pt;font-weight:700;color:#111;line-height:1.15;margin-bottom:.8mm}.lbl-phone{font-size:7.5pt;color:#111;margin-bottom:.5mm;font-weight:700}.lbl-addr{font-size:6.5pt;color:#111;line-height:1.45;font-weight:700}.lbl-divider{border:none;border-top:0.5px dashed #ccc;margin:2mm 0}.lbl-prod-box{background:#f2f2f2;border-radius:1mm;padding:1.5mm 2.5mm;flex:1}.lbl-prod-name{font-size:8pt;font-weight:700;color:#111;line-height:1.3}.lbl-footer{margin-top:auto;border-top:0.5px solid #ddd;padding-top:1.5mm;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}.lbl-order{font-size:5.5pt;color:#888;font-family:monospace}.lbl-channel{font-size:5.5pt;color:#aaa}`;
+  const labelHtml = orders.map(o=>`<div class="label"><div class="label-brand"><div><div class="brand-name">LàSilk</div><div class="brand-tagline">VIETNAM · 0364000709</div><div class="brand-code">MÃ KH: BT1227</div></div><div class="qty-badge">× ${o.qty}</div></div><div style="margin-bottom:1.5mm"><div class="lbl-title">Người nhận</div><div class="lbl-name">${o.customer_name}</div><div class="lbl-phone">${o.phone||'—'}</div></div><div style="margin-bottom:1mm"><div class="lbl-title">Địa chỉ</div><div class="lbl-addr">${o.address||'Chưa nhập'}</div></div><div class="lbl-divider"></div><div style="margin-bottom:auto"><div class="lbl-title">Sản phẩm</div><div class="lbl-prod-box"><div class="lbl-prod-name">${Array.isArray(o.product)?o.product.map((p,i)=>`<div class="lbl-prod-line" style="font-size:7.5pt;font-weight:700;color:#111;line-height:1.5;${i>0?'border-top:0.5px solid #ddd;padding-top:1mm;margin-top:1mm':''}">${p}</div>`).join(''):o.product}</div></div></div><div class="lbl-footer"><div class="lbl-order">${o.order_code} · ${o.date}</div><div class="lbl-channel">🌐 Quốc Tế</div></div></div>`).join('');
+
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed;left:-99999px;top:0;background:#fff';
+  wrap.innerHTML = `<style>${css}</style>${labelHtml}`;
+  document.body.appendChild(wrap);
+  toast('Đang tạo PDF…');
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({unit:'mm', format:[75,100], orientation:'portrait'});
+    const labels = wrap.querySelectorAll('.label');
+    for(let i=0;i<labels.length;i++){
+      const canvas = await html2canvas(labels[i],{scale:3,backgroundColor:'#ffffff'});
+      if(i>0) doc.addPage([75,100],'portrait');
+      doc.addImage(canvas.toDataURL('image/png'),'PNG',0,0,75,100);
+    }
+    doc.save('Tem-QuocTe-'+labels.length+'.pdf');
+    toast('📄 Đã tải PDF tem quốc tế');
+  } catch(e){ toast('Lỗi tạo PDF: '+e.message, true); }
+  finally { wrap.remove(); }
+}
+// ══ END ĐƠN QUỐC TẾ ══════════════════════════════════════════
 </script>
 </body>
 </html>
