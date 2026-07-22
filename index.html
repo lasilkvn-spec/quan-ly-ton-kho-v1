@@ -415,13 +415,13 @@ tr:last-child td{border-bottom:none}
     <!-- QR CODE SẢN PHẨM -->
     <section class="pg" id="pg-qr">
       <div class="pg-t">🔳 QR Code Sản Phẩm</div>
-      <div class="pg-s">Tự động sinh · in ra dán vào tag hàng.</div>
-      <div class="row" style="margin-bottom:14px;align-items:center">
+      <div class="pg-s">Tự động sinh · in ra dán vào tag hàng. Chọn sản phẩm rồi chọn màu bên dưới để xem từng phần cho dễ.</div>
+      <div class="row" style="margin-bottom:10px;align-items:center">
         <button class="btn btn-dark" onclick="window.print()">🖨 In tất cả QR</button>
-        <select id="qr-filter-prod" onchange="qrFilterProdChange()" style="max-width:220px"></select>
-        <select id="qr-filter-color" onchange="qrFilterColorChange()" style="max-width:180px"></select>
         <button class="btn btn-sm" onclick="qrFilterReset()">✕ Bỏ lọc</button>
       </div>
+      <div class="tabs" id="qr-tabs-prod" style="margin-bottom:8px"></div>
+      <div class="tabs" id="qr-tabs-color" style="margin-bottom:14px"></div>
       <div class="card" style="max-width:680px;margin-bottom:16px">
         <div style="font-size:13px;font-weight:700;margin-bottom:12px">Thêm sản phẩm mới → QR tự sinh ngay</div>
         <div class="field3">
@@ -441,8 +441,10 @@ tr:last-child td{border-bottom:none}
     <!-- DANH MỤC SẢN PHẨM -->
     <section class="pg" id="pg-products">
       <div class="pg-t">🗂️ Danh Mục Sản Phẩm</div>
-      <div class="pg-s">Quản lý toàn bộ sản phẩm trong hệ thống.</div>
-      <div class="row" style="margin-bottom:12px"><button class="btn btn-dark" onclick="openAddProduct()">+ Thêm sản phẩm</button></div>
+      <div class="pg-s">Quản lý toàn bộ sản phẩm trong hệ thống. Chọn sản phẩm rồi chọn màu bên dưới để xem từng phần cho dễ.</div>
+      <div class="row" style="margin-bottom:10px"><button class="btn btn-dark" onclick="openAddProduct()">+ Thêm sản phẩm</button><button class="btn btn-sm" onclick="prodFilterReset()">✕ Bỏ lọc</button></div>
+      <div class="tabs" id="prod-tabs-prod" style="margin-bottom:8px"></div>
+      <div class="tabs" id="prod-tabs-color" style="margin-bottom:14px"></div>
       <div id="dup-sku-box"></div>
       <div class="card" style="padding:0;overflow:auto">
         <table>
@@ -619,12 +621,12 @@ async function loadAll(){
   showLoad(true);
   try{
     const[pr,tx,or]=await Promise.all([
-      GET('products?order=name'),
+      sbAll('products?order=name'), // phân trang luôn cho chắc — phòng khi danh mục SP sau này vượt quá 1000 dòng
       sbAll('transactions?order=date.desc,id.desc'), // phân trang — không bị Max Rows của Supabase cắt bớt sổ cái
       sbAll('orders?order=created_at.desc'),
     ]);
     allProducts=pr;allTx=tx;allOrders=or;
-    try{kolPosts=await GET('kol_posts?order=created_at.desc&limit=5000');}catch(e){kolPosts=[];}
+    try{kolPosts=await sbAll('kol_posts?order=created_at.desc');}catch(e){kolPosts=[];}
     setConn(true,'Đã kết nối Supabase');
     document.getElementById('setup-note').innerHTML='';
     renderAll();
@@ -781,12 +783,14 @@ const DON_FILTERS=[
   {k:'Chờ chốt',f:o=>o.status==='Chờ chốt'},
   {k:'Nợ hàng',f:o=>o.status==='Nợ hàng'}, // chưa xác nhận đi đơn — chưa trừ kho, chưa vào Cần gửi
   {k:'Đã gửi',f:o=>['Đã gửi','Đã giao'].includes(o.status)},
-  {k:'Đơn Grab',f:o=>o.ship_method==='Grab'}, // Grab·Khách + Grab·KOL — bên trong có 2 sub-tab: Cần gửi / Đã gửi
-  {k:'Đơn KOL',f:o=>KOL_CH.includes(o.channel)&&!['Đã hoàn','Đã đổi'].includes(o.status)}, // [LIÊN KẾT] = đúng toàn bộ dữ liệu trang KOL (cả 2 vùng, gồm cả Grab·KOL/Thái·KOL tạo tay)
-  {k:'Đơn Thái Khách',f:o=>o.channel==='Thái'&&!['Đã hoàn','Đã đổi'].includes(o.status)},
-  {k:'Đơn Thái KOL',f:o=>[...KOL_THAI_CH,'KOL Thái'].includes(o.channel)&&!['Đã hoàn','Đã đổi'].includes(o.status)}, // [LIÊN KẾT] = đúng dữ liệu vùng "Thái Lan" trong trang KOL
-  {k:'Đơn Quốc tế',f:o=>o.channel==='Quốc tế'&&!['Đã hoàn','Đã đổi'].includes(o.status)},
-  {k:'Đổi/trả',f:o=>o.status==='Chờ hàng về'||['Đã hoàn','Đã đổi'].includes(o.status)},
+  // [SỬA] số hiển thị trên các tab dưới đây (badgeF) chỉ đếm đơn CHƯA GỬI / CHƯA GIẢI QUYẾT — không đếm luôn cả lịch sử đã xong,
+  // để số trên tab luôn là "còn bao nhiêu việc cần làm" chứ không phải tổng số từ trước tới giờ. Bấm vào tab thì vẫn xem được đủ cả (f không đổi).
+  {k:'Đơn Grab',f:o=>o.ship_method==='Grab',badgeF:o=>o.ship_method==='Grab'&&!['Đã gửi','Đã giao'].includes(o.status)}, // Grab·Khách + Grab·KOL — bên trong có 2 sub-tab: Cần gửi / Đã gửi
+  {k:'Đơn KOL',f:o=>KOL_CH.includes(o.channel)&&!['Đã hoàn','Đã đổi'].includes(o.status),badgeF:o=>KOL_CH.includes(o.channel)&&!['Đã hoàn','Đã đổi','Đã gửi','Đã giao'].includes(o.status)}, // [LIÊN KẾT] = đúng toàn bộ dữ liệu trang KOL (cả 2 vùng, gồm cả Grab·KOL/Thái·KOL tạo tay)
+  {k:'Đơn Thái Khách',f:o=>o.channel==='Thái'&&!['Đã hoàn','Đã đổi'].includes(o.status),badgeF:o=>o.channel==='Thái'&&!['Đã hoàn','Đã đổi','Đã gửi','Đã giao'].includes(o.status)},
+  {k:'Đơn Thái KOL',f:o=>[...KOL_THAI_CH,'KOL Thái'].includes(o.channel)&&!['Đã hoàn','Đã đổi'].includes(o.status),badgeF:o=>[...KOL_THAI_CH,'KOL Thái'].includes(o.channel)&&!['Đã hoàn','Đã đổi','Đã gửi','Đã giao'].includes(o.status)}, // [LIÊN KẾT] = đúng dữ liệu vùng "Thái Lan" trong trang KOL
+  {k:'Đơn Quốc tế',f:o=>o.channel==='Quốc tế'&&!['Đã hoàn','Đã đổi'].includes(o.status),badgeF:o=>o.channel==='Quốc tế'&&!['Đã hoàn','Đã đổi','Đã gửi','Đã giao'].includes(o.status)},
+  {k:'Đổi/trả',f:o=>o.status==='Chờ hàng về'||['Đã hoàn','Đã đổi'].includes(o.status),badgeF:o=>o.status==='Chờ hàng về'}, // chỉ đếm phần CHỜ HÀNG VỀ (chưa giải quyết xong), không đếm Đã hoàn/Đã đổi (đã xong)
 ];
 const DON_DATE_TABS=['Đơn đã tạo','Đã gửi'];
 let donDatePreset='all';let donDateFrom='';let donDateTo='';
@@ -894,7 +898,7 @@ function renderDonDateBar(){
 }
 function renderDonTabs(){
   document.getElementById('don-tabs').innerHTML=DON_FILTERS.map(ff=>{
-    const codes=new Set(allOrders.filter(ff.f).map(o=>o.order_code));
+    const codes=new Set(allOrders.filter(ff.badgeF||ff.f).map(o=>o.order_code));
     return `<div class="tab ${ff.k===donFilter?'on':''}" onclick="donFilter='${ff.k}';renderDonTabs();renderDon()">${ff.k}${codes.size?`<span class="c">${codes.size}</span>`:''}</div>`;
   }).join('');
 }
@@ -2281,7 +2285,7 @@ async function saveSupplierOrder(){
   showLoad(false);
 }
 let supplierRows=[];
-async function loadSupplier(){try{supplierRows=await GET('supplier_orders?order=po_code.desc&limit=2000');}catch(e){supplierRows=[];}renderOrderPage();renderKho();renderOrderPlan();}
+async function loadSupplier(){try{supplierRows=await sbAll('supplier_orders?order=po_code.desc');}catch(e){supplierRows=[];}renderOrderPage();renderKho();renderOrderPlan();}
 // Xoá 1 lô đơn order NCC — chỉ cho xoá an toàn khi CHƯA có đợt hàng nào về (received=0 ở mọi dòng),
 // vì nếu đã về hàng thì kho đã được cộng qua postNhap (ref_type='po') — xoá thẳng sẽ làm lệch sổ kho.
 async function deleteSupplierOrderAsk(po){
@@ -3045,21 +3049,28 @@ async function ghnConfirm(){
 /* ═══════════ QR CODE SẢN PHẨM ═══════════ */
 let qrFilterProd='ALL',qrFilterColor='ALL';
 function qrGroupNameOf(p,nmMap){return nmMap[(p.name||'').trim().toLowerCase()]||(p.name||'');}
+function qrSetProd(nm){qrFilterProd=nm;qrFilterColor='ALL';renderQR(allProducts);}
+function qrSetColor(c){qrFilterColor=c;renderQR(allProducts);}
+function qrFilterReset(){qrFilterProd='ALL';qrFilterColor='ALL';renderQR(allProducts);}
+// [SỬA] chuyển từ 2 dropdown sang 2 dải tab: chọn SẢN PHẨM trước (1 trang nhỏ / sản phẩm), rồi mới hiện tab MÀU của đúng sản phẩm đó.
 function buildQrFilters(){
-  const selP=document.getElementById('qr-filter-prod'),selC=document.getElementById('qr-filter-color');
-  if(!selP||!selC)return;
+  const tabsP=document.getElementById('qr-tabs-prod'),tabsC=document.getElementById('qr-tabs-color');
+  if(!tabsP||!tabsC)return;
   const nmMap=normName();
   const names=[...new Set(allProducts.map(p=>qrGroupNameOf(p,nmMap)))].sort((a,b)=>a.localeCompare(b,'vi'));
-  selP.innerHTML='<option value="ALL">Tất cả sản phẩm</option>'+names.map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
-  selP.value=[...selP.options].some(o=>o.value===qrFilterProd)?qrFilterProd:(qrFilterProd='ALL');
-  const base=qrFilterProd==='ALL'?allProducts:allProducts.filter(p=>qrGroupNameOf(p,nmMap)===qrFilterProd);
+  if(qrFilterProd!=='ALL'&&!names.includes(qrFilterProd))qrFilterProd='ALL';
+  tabsP.innerHTML=['ALL',...names].map(n=>
+    `<div class="tab ${qrFilterProd===n?'on':''}" onclick="qrSetProd('${jsq(n)}')">${n==='ALL'?'Tất cả sản phẩm':escapeHtml(n)}</div>`).join('');
+  if(qrFilterProd==='ALL'){
+    tabsC.innerHTML='';qrFilterColor='ALL';
+    return;
+  }
+  const base=allProducts.filter(p=>qrGroupNameOf(p,nmMap)===qrFilterProd);
   const colors=[...new Set(base.map(p=>p.color).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'vi'));
-  selC.innerHTML='<option value="ALL">Tất cả màu</option>'+colors.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
-  selC.value=[...selC.options].some(o=>o.value===qrFilterColor)?qrFilterColor:(qrFilterColor='ALL');
+  if(qrFilterColor!=='ALL'&&!colors.includes(qrFilterColor))qrFilterColor='ALL';
+  tabsC.innerHTML=['ALL',...colors].map(c=>
+    `<div class="tab ${qrFilterColor===c?'on':''}" onclick="qrSetColor('${jsq(c)}')">${c==='ALL'?'Tất cả màu':escapeHtml(c)}</div>`).join('');
 }
-function qrFilterProdChange(){qrFilterProd=document.getElementById('qr-filter-prod').value;qrFilterColor='ALL';renderQR(allProducts);}
-function qrFilterColorChange(){qrFilterColor=document.getElementById('qr-filter-color').value;renderQR(allProducts);}
-function qrFilterReset(){qrFilterProd='ALL';qrFilterColor='ALL';renderQR(allProducts);}
 function renderQR(prods, newCode){
   const grid=document.getElementById('qr-grid'); if(!grid) return;
   if(newCode){qrFilterProd='ALL';qrFilterColor='ALL';} // vừa thêm SP mới → bỏ lọc để chắc chắn thấy ngay
@@ -3295,10 +3306,36 @@ function renderDupSkuCheckInto(boxId){
     </tbody></table>
   </div>`;
 }
+let prodFilterProd='ALL',prodFilterColor='ALL';
+function prodSetProd(nm){prodFilterProd=nm;prodFilterColor='ALL';renderProductsTable();}
+function prodSetColor(c){prodFilterColor=c;renderProductsTable();}
+function prodFilterReset(){prodFilterProd='ALL';prodFilterColor='ALL';renderProductsTable();}
+function buildProdFilters(){
+  const tabsP=document.getElementById('prod-tabs-prod'),tabsC=document.getElementById('prod-tabs-color');
+  if(!tabsP||!tabsC)return;
+  const nmMap=normName();
+  const names=[...new Set(allProducts.map(p=>qrGroupNameOf(p,nmMap)))].sort((a,b)=>a.localeCompare(b,'vi'));
+  if(prodFilterProd!=='ALL'&&!names.includes(prodFilterProd))prodFilterProd='ALL';
+  tabsP.innerHTML=['ALL',...names].map(n=>
+    `<div class="tab ${prodFilterProd===n?'on':''}" onclick="prodSetProd('${jsq(n)}')">${n==='ALL'?'Tất cả sản phẩm':escapeHtml(n)}</div>`).join('');
+  if(prodFilterProd==='ALL'){tabsC.innerHTML='';prodFilterColor='ALL';return;}
+  const base=allProducts.filter(p=>qrGroupNameOf(p,nmMap)===prodFilterProd);
+  const colors=[...new Set(base.map(p=>p.color).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'vi'));
+  if(prodFilterColor!=='ALL'&&!colors.includes(prodFilterColor))prodFilterColor='ALL';
+  tabsC.innerHTML=['ALL',...colors].map(c=>
+    `<div class="tab ${prodFilterColor===c?'on':''}" onclick="prodSetColor('${jsq(c)}')">${c==='ALL'?'Tất cả màu':escapeHtml(c)}</div>`).join('');
+}
 function renderProductsTable(){
   renderDupSkuCheck();
+  buildProdFilters();
   const box=document.getElementById('products-body'); if(!box)return;
-  box.innerHTML=sortPS(allProducts).map(p=>`
+  const nmMap=normName();
+  const list=sortPS(allProducts).filter(p=>{
+    if(prodFilterProd!=='ALL'&&qrGroupNameOf(p,nmMap)!==prodFilterProd)return false;
+    if(prodFilterColor!=='ALL'&&(p.color||'')!==prodFilterColor)return false;
+    return true;
+  });
+  box.innerHTML=list.map(p=>`
     <tr>
       <td>${p.image_url?`<img src="${normalizeImageUrl(p.image_url)}" alt="${escapeHtml(p.name||'Sản phẩm')}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid var(--border)" onerror="this.style.display='none'">`:`<div style="width:40px;height:40px;background:var(--bg);border-radius:6px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:16px">👗</div>`}</td>
       <td class="l mono">${p.code}</td>
@@ -3310,7 +3347,7 @@ function renderProductsTable(){
         <button class="btn btn-sm" onclick="openEditProduct('${p.code}')">✏️</button>
         <button class="btn btn-sm btn-red" onclick="deleteProductAsk('${p.code}','${jsq(p.name)}')">🗑</button>
       </td>
-    </tr>`).join('')||'<tr><td colspan="7" class="dim" style="padding:20px">Chưa có sản phẩm.</td></tr>';
+    </tr>`).join('')||'<tr><td colspan="7" class="dim" style="padding:20px">Không có sản phẩm nào khớp bộ lọc.</td></tr>';
 }
 function openAddProduct(){
   m_title('+ Thêm sản phẩm mới');
@@ -3358,6 +3395,7 @@ async function saveProductModal(){
       const rows=await POST('products',{code,...data});
       if(rows&&rows[0])allProducts.push(rows[0]); else allProducts.push({code,...data});
       toast(`Đã thêm ${code}`);
+      prodFilterProd='ALL';prodFilterColor='ALL'; // vừa thêm SP mới → bỏ lọc để chắc chắn thấy ngay
     }
     closeModal();renderProductsTable();renderQR(allProducts);
   }catch(e){toast('Lỗi: '+e.message,true);}
