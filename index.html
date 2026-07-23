@@ -980,9 +980,9 @@ function orderCard(g,actions,emphTime){
     }else if(o.status==='Chờ xuất'){
       // Đơn tạo tay (Grab/Grab KOL/Thái/Thái KOL/Quốc tế) mới tạo — chưa trừ kho, chờ xác nhận xuất/đi đơn.
       if(o.ship_method==='Grab'){
-        btns=`<button class="btn btn-grn btn-sm" onclick="confirmTayExport('${code}','Chờ xuất','Đã gửi','Xác nhận xuất')">✅ Xác nhận xuất (có tem in đơn)</button>${!avail?'<span class="warnbadge">chưa đủ hàng</span>':''}`;
+        btns=`<button class="btn btn-grn btn-sm" onclick="confirmTayExport('${code}','Chờ xuất','Đã gửi','Xác nhận xuất',true)">✅ Xác nhận xuất (có tem in đơn)</button>${!avail?'<span class="warnbadge">chưa đủ hàng</span>':''}`;
       }else if(isThaiIntl){
-        btns=`<button class="btn btn-dark btn-sm" onclick="confirmTayExport('${code}','Chờ xuất','Chờ gửi','Xác nhận đi đơn')">🖨️ Xác nhận đi đơn (có tem in)</button>${!avail?'<span class="warnbadge">chưa đủ hàng</span>':''}`;
+        btns=`<button class="btn btn-dark btn-sm" onclick="confirmTayExport('${code}','Chờ xuất','Chờ gửi','Xác nhận đi đơn',true)">🖨️ Xác nhận đi đơn (có tem in)</button>${!avail?'<span class="warnbadge">chưa đủ hàng</span>':''}`;
       }
     }else if(o.status==='Nợ hàng'){
       // Nợ đơn — chưa trừ kho, chờ nhân viên xác nhận đi đơn thì mới nhảy vào "Cần gửi" và trừ kho.
@@ -1006,7 +1006,7 @@ function orderCard(g,actions,emphTime){
             <span class="warnbadge" style="background:var(--org-bg);color:var(--org-fg)">chờ hàng về · chưa cộng kho</span>`;
     }
   }
-  if(isThaiIntl)btns=(btns?btns:'')+`<button class="btn btn-sm" style="background:#222;color:#fff" onclick="printThaiLabel('${code}')">🖨 In tem</button>`;
+  if(isThaiIntl||o.ship_method==='Grab')btns=(btns?btns:'')+`<button class="btn btn-sm" style="background:#222;color:#fff" onclick="printThaiLabel('${code}')">🖨 In tem</button>`;
   btns=(btns?btns:'')+`<button class="btn btn-sm" style="background:var(--red-bg);color:var(--red-fg);border-color:#E7A5A4" onclick="deleteOrderAsk('${code}')">🗑 Xoá đơn</button>`;
   return `<div class="oc ${selected.has(code)?'sel':''}" id="oc-${code}">
     <div class="oc-hd">
@@ -1080,7 +1080,10 @@ async function chotOrder(code){
 }
 // Xác nhận xuất / đi đơn cho các đơn tạo tay (Grab·Khách, Grab·KOL, Nợ đơn, Thái·Khách, Thái·KOL, Quốc tế).
 // Đây là lúc kho THẬT SỰ bị trừ (giống hệt cơ chế chotOrder ở trên) — trước đó chỉ là số liệu ghi nhận, chưa trừ kho.
-async function confirmTayExport(code,fromStatus,target,label){
+// [SỬA] Nút "Xác nhận xuất (có tem in đơn)" / "Xác nhận đi đơn (có tem in)" trước đây CHỈ trừ kho + đổi trạng thái,
+// KHÔNG hề mở tem in như tên nút hứa hẹn — đơn Grab do không có nút "In tem" riêng nào khác nên coi như KHÔNG BAO GIỜ
+// in được tem. Giờ thêm tham số autoPrint: xác nhận xong sẽ tự mở luôn cửa sổ in tem (dùng lại đúng mẫu tem 70×100mm).
+async function confirmTayExport(code,fromStatus,target,label,autoPrint){
   const rows=allOrders.filter(o=>o.order_code===code&&o.status===fromStatus);
   if(!rows.length)return;
   if(!confirmShortfall(rows,`${label} ${code}`))return;
@@ -1098,6 +1101,7 @@ async function confirmTayExport(code,fromStatus,target,label){
     allOrders.forEach(o=>{if(o.order_code===code&&o.status===fromStatus){o.status=target;if(target==='Đã gửi')o.sent_date=todayStr();}});
     toast(dup?`✓ Đã xác nhận đơn ${code} (kho đã trừ từ trước)`:`✓ ${label} · đã trừ kho ${code}`);
     renderDonTabs();renderDon();renderKho();updateBadges();
+    if(autoPrint)printThaiLabel(code); // mở tem ngay — nếu trình duyệt chặn popup, vẫn còn nút "🖨 In tem" trên thẻ đơn để bấm lại
   }catch(e){toast('Lỗi: '+e.message,true);}
   showLoad(false);
 }
