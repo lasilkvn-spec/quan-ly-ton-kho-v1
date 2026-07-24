@@ -187,6 +187,7 @@ tr:last-child td{border-bottom:none}
       <div class="nav-i" data-pg="kol"><span class="nav-ico">⭐</span><span class="nav-t">KOL</span><span class="nav-b" id="b-kol" style="display:none">0</span></div>
       <div class="nav-grp">Vận hành kho</div>
       <div class="nav-i" data-pg="kho"><span class="nav-ico">📦</span><span class="nav-t">Quản Lý Kho</span></div>
+      <div class="nav-i" data-pg="loikho"><span class="nav-ico">🚫</span><span class="nav-t">Kho hàng lỗi</span></div>
       <div class="nav-i" data-pg="order"><span class="nav-ico">🛒</span><span class="nav-t">Order Hàng</span></div>
       <div class="nav-i" data-pg="phukien"><span class="nav-ico">🧵</span><span class="nav-t">Kiểm kho phụ kiện</span></div>
       <div class="nav-grp">Kiểm kê</div>
@@ -350,6 +351,36 @@ tr:last-child td{border-bottom:none}
       <div id="kho-content"></div>
     </section>
 
+    <!-- KHO HÀNG LỖI -->
+    <section class="pg" id="pg-loikho">
+      <div class="pg-t">🚫 Kho hàng lỗi</div>
+      <div class="pg-s">Kho riêng, tách khỏi Quản Lý Kho chính — hàng "Dành cho KOL" &amp; "Lỗi không chỉnh được" được tách ra khi nhận lô hàng NCC ở trang Order Hàng.</div>
+      <div class="tabs" id="lk-tabs"></div>
+      <div class="tabs" id="lk-view-tabs" style="margin:6px 0 4px"></div>
+
+      <!-- SUB-TAB: ĐI ĐƠN (giữ nguyên logic cũ — 3 bảng theo ngày) -->
+      <div id="lk-view-didon">
+        <div class="card" style="margin:14px 0">
+          <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+            <label class="fld" style="margin:0"><span>Từ</span><input id="lk-from" type="date"></label>
+            <label class="fld" style="margin:0"><span>đến</span><input id="lk-to" type="date"></label>
+            <button class="btn btn-sm" onclick="loiQuick(7)">7 ngày</button>
+            <button class="btn btn-sm" onclick="loiQuick(30)">30 ngày</button>
+            <button class="btn btn-dark btn-sm" onclick="renderLoiKho()">🔎 Xem</button>
+          </div>
+        </div>
+        <div class="metrics" id="lk-metrics"></div>
+        <div id="lk-xuat-box"></div>
+        <div id="lk-content"></div>
+      </div>
+
+      <!-- SUB-TAB: KHO HÀNG (đếm kho / cập nhật kho — logic như trang Kho hàng thuộc Quản Lý Kho) -->
+      <div id="lk-view-khohang" style="display:none;margin-top:14px">
+        <div class="tabs" id="lk-kh-tabs"></div>
+        <div id="lk-kh-content"></div>
+      </div>
+    </section>
+
     <!-- ORDER HÀNG -->
     <section class="pg" id="pg-order">
       <div class="pg-t">🛒 Order Hàng</div>
@@ -493,7 +524,7 @@ tr:last-child td{border-bottom:none}
       <div id="dup-sku-box"></div>
       <div class="card" style="padding:0;overflow:auto">
         <table>
-          <thead><tr><th class="l">Ảnh</th><th class="l">Mã SP</th><th class="l">Tên sản phẩm</th><th class="l">Màu</th><th class="l">Ảnh URL</th><th class="l">Tạo lúc</th><th>Thao tác</th></tr></thead>
+          <thead><tr><th class="l">Ảnh</th><th class="l">Mã SP</th><th class="l">Tên sản phẩm</th><th class="l">Màu</th><th class="l">Size</th><th class="l">Ảnh URL</th><th class="l">Tạo lúc</th><th>Thao tác</th></tr></thead>
           <tbody id="products-body"></tbody>
         </table>
       </div>
@@ -601,15 +632,18 @@ function setConn(ok,msg){document.getElementById('cdot').className='dot '+(ok?'o
 function isKK(t){return t.channel==='Điều chỉnh'||t.ref_type==='adjust'||(t.note||'').includes('[KIỂM KÊ]');}
 // [VẤN ĐỀ 2] bút toán "sửa số đã bán" (ref_type='sales_adjust') CHỈ sửa số 7D/30D/60D hiển thị — không đụng tồn kho thật
 function isSalesAdjust(t){return t.ref_type==='sales_adjust';}
+// [MỚI] bút toán vào/ra "Kho hàng lỗi" (Dành cho KOL / Lỗi không chỉnh được) — đây là KHO RIÊNG, tách hẳn khỏi
+// Quản Lý Kho chính, nên phải loại khỏi mọi phép tính tồn kho chính (stockOne/eodMap...).
+function isLoiKho(t){return t.ref_type==='po_kol'||t.ref_type==='po_loi'||t.ref_type==='kol_out'||t.ref_type==='loi_out';}
 function stockOne(code){
-  return allTx.filter(t=>t.product_code===code&&!isSalesAdjust(t))
+  return allTx.filter(t=>t.product_code===code&&!isSalesAdjust(t)&&!isLoiKho(t))
     .reduce((s,t)=>s+(t.type==='Nhập'?(t.quantity||0):-(t.quantity||0)),0);
 }
 function computeStock(){const r={};allProducts.forEach(p=>r[p.code]=stockOne(p.code));return r;}
 // [VẤN ĐỀ] tồn kho hệ thống TÍNH ĐẾN 1 ngày cụ thể (dùng khi kiểm kê bị nhập trễ, VD đếm hôm qua nay mới nhập số) —
 // nếu chỉ lấy tồn hiện tại (đến hôm nay) để so với số đếm của hôm qua thì sẽ lệch vì đã cộng/trừ thêm giao dịch hôm nay.
 function stockOneAsOf(code,date){
-  return allTx.filter(t=>t.product_code===code&&!isSalesAdjust(t)&&t.date<=date)
+  return allTx.filter(t=>t.product_code===code&&!isSalesAdjust(t)&&!isLoiKho(t)&&t.date<=date)
     .reduce((s,t)=>s+(t.type==='Nhập'?(t.quantity||0):-(t.quantity||0)),0);
 }
 // [ĐÃ ĐỔI LOGIC] Trước đây đơn "Chờ gửi/Nợ hàng" chỉ giữ chỗ mềm (chưa trừ kho thật, trừ ở lúc Gửi).
@@ -708,7 +742,7 @@ function confirmShortfall(items,action){
   const lines=sf.map(s=>`• ${s.name}: cần ${s.need}, còn ${s.have} (thiếu ${s.short})`).join('\n');
   return confirm(`⚠️ Không đủ hàng để ${action}:\n\n${lines}\n\nVẫn tiếp tục? Kho sẽ bị âm và được ghi nhận bán âm.`);
 }
-function renderAll(){renderToday();renderDiDon();renderDonTabs();renderDon();renderKol();renderKho();renderOrderPlan();buildOProdSelect();renderOrderPage();renderLog();updateBadges();renderLines();
+function renderAll(){renderToday();renderDiDon();renderDonTabs();renderDon();renderKol();renderKho();renderLoiKho();renderOrderPlan();buildOProdSelect();renderOrderPage();renderLog();updateBadges();renderLines();
   if(document.getElementById('pg-qr')?.classList.contains('on'))renderQR(allProducts);
   if(document.getElementById('pg-products')?.classList.contains('on'))renderProductsTable();
   renderPhuKienIfVisible();
@@ -733,6 +767,7 @@ function goToPage(pg){
   if(pg==='qr'){renderQR(allProducts);}
   if(pg==='products'){renderProductsTable();}
   if(pg==='phukien'){renderPhuKien();}
+  if(pg==='loikho'){renderLoiKho();}
   toggleSidebar(false); // mobile: đóng menu sau khi chọn trang
 }
 document.querySelectorAll('.nav-i').forEach(n=>n.onclick=()=>goToPage(n.dataset.pg));
@@ -1425,8 +1460,13 @@ function ddGroups(){ // canonical name -> [products]
 }
 let ddTab='ALL';
 let ddColorFocus={}; // [VẤN ĐỀ] nm -> màu đang lọc riêng ở trang Đi đơn để dễ xem, giống trang Kho
-// map code->date->qty cho đơn đi (Xuất ref_type order)
-function shipMap(){const m={};allTx.filter(t=>t.type==='Xuất'&&t.ref_type==='order'&&!t.is_kol).forEach(t=>{(m[t.product_code]=m[t.product_code]||{});m[t.product_code][t.date]=(m[t.product_code][t.date]||0)+(t.quantity||0);});return m;}
+// ngày "gửi thật" của 1 đơn — CÙNG logic với orderDateOf() ở trang Quản lý đơn (tab "Đã gửi")
+function sentDateOf(o){return String(o.sent_date||o.created_at||o.date||'').slice(0,10);}
+// map code->date->qty cho đơn đi — LẤY THẲNG từ Quản lý đơn » "Đã gửi" (status Đã gửi/Đã giao, theo sent_date)
+// để trang Thống kê luôn khớp số với trang Quản lý đơn (không tính theo ngày trừ kho nữa).
+function shipMap(){const m={};(allOrders||[]).filter(o=>['Đã gửi','Đã giao'].includes(o.status)).forEach(o=>{
+  const d=sentDateOf(o);if(!d)return;
+  (m[o.product_code]=m[o.product_code]||{});m[o.product_code][d]=(m[o.product_code][d]||0)+(o.quantity||0);});return m;}
 function poMap(){const m={};allTx.filter(t=>t.type==='Nhập'&&t.ref_type==='po').forEach(t=>{(m[t.product_code]=m[t.product_code]||{});m[t.product_code][t.date]=(m[t.product_code][t.date]||0)+(t.quantity||0);});return m;}
 // hàng đổi/trả về CÒN BÁN ĐƯỢC (loại "Hàng lỗi" ra vì nhập rồi xuất bù ngay, không thật sự về kho bán)
 function returnMap(){const m={};allTx.filter(t=>t.type==='Nhập'&&t.ref_type==='return'&&t.channel==='Hàng trả về').forEach(t=>{(m[t.product_code]=m[t.product_code]||{});m[t.product_code][t.date]=(m[t.product_code][t.date]||0)+(t.quantity||0);});return m;}
@@ -1448,19 +1488,19 @@ function poLotsInRange(from,to){
 }
 // tồn cuối mỗi ngày (running) cho 1 SKU
 function eodMap(code,from,days){
-  let base=allTx.filter(t=>t.product_code===code&&t.date<from).reduce((s,t)=>s+(t.type==='Nhập'?(t.quantity||0):-(t.quantity||0)),0);
-  const dd={};allTx.filter(t=>t.product_code===code&&t.date>=from).forEach(t=>{dd[t.date]=(dd[t.date]||0)+(t.type==='Nhập'?(t.quantity||0):-(t.quantity||0));});
+  let base=allTx.filter(t=>t.product_code===code&&!isLoiKho(t)&&t.date<from).reduce((s,t)=>s+(t.type==='Nhập'?(t.quantity||0):-(t.quantity||0)),0);
+  const dd={};allTx.filter(t=>t.product_code===code&&!isLoiKho(t)&&t.date>=from).forEach(t=>{dd[t.date]=(dd[t.date]||0)+(t.type==='Nhập'?(t.quantity||0):-(t.quantity||0));});
   const r={};days.forEach(d=>{base+=dd[d]||0;r[d]=base;});return r;
 }
 function renderDiDon(){
   if(!document.getElementById('dd-to').value)ddInit();
   const{from,to,days}=ddRange();
   const sm=shipMap();
-  // metrics (doanh số: loại KOL)
-  const nonKol=allTx.filter(t=>t.type==='Xuất'&&t.ref_type==='order'&&!t.is_kol&&t.date>=from&&t.date<=to);
-  const total=nonKol.reduce((s,t)=>s+(t.quantity||0),0);
-  const dayset=new Set(nonKol.map(t=>t.date));
-  const perProd={};nonKol.forEach(t=>{perProd[t.product_code]=(perProd[t.product_code]||0)+(t.quantity||0);});
+  // metrics — nguồn: Quản lý đơn » "Đã gửi" (status Đã gửi/Đã giao, theo sent_date), gồm cả KOL để khớp số 2 trang
+  const sentInRange=(allOrders||[]).filter(o=>['Đã gửi','Đã giao'].includes(o.status)).filter(o=>{const d=sentDateOf(o);return d>=from&&d<=to;});
+  const total=sentInRange.reduce((s,o)=>s+(o.quantity||0),0);
+  const dayset=new Set(sentInRange.map(sentDateOf));
+  const perProd={};sentInRange.forEach(o=>{perProd[o.product_code]=(perProd[o.product_code]||0)+(o.quantity||0);});
   let best='—',bestN=0;Object.entries(perProd).forEach(([c,n])=>{if(n>bestN){bestN=n;const p=allProducts.find(x=>x.code===c);best=p?pname(p):c;}});
   document.getElementById('dd-metrics').innerHTML=`
     <div class="metric"><div class="metric-v">${total}</div><div class="metric-l">Tổng đơn (kỳ)</div></div>
@@ -1518,7 +1558,7 @@ function renderDiDonOverview(groups,names,days,sm){
 /* ══════════ ĐI ĐƠN — TỔNG QUAN THEO KÊNH ══════════ */
 let ddChanTab='ALL';
 let ddChanSortDir='desc'; // 'desc'=ngày mới nhất trên cùng, 'asc'=cũ nhất trên cùng
-let ddProdSortKey='amt';  // 'amt' | 'qty' | 'name'
+let ddProdSortKey='qty';  // 'qty' | 'name'
 let ddProdSortDir='desc';
 // gộp nhãn kênh dễ hiểu từ ship_method/channel của đơn (orders)
 function chanLabelOf(o){
@@ -1534,11 +1574,11 @@ function chanLabelOf(o){
   return sm||ch||'Khác';
 }
 function renderDiDonChannel(from,to){
-  // chỉ tính đơn ĐÃ GỬI thật trong kỳ (sent_date) — khớp với khái niệm "đi đơn"
-  const all=(allOrders||[]).filter(o=>o.sent_date&&o.sent_date>=from&&o.sent_date<=to);
+  // chỉ tính đơn ĐÃ GỬI thật trong kỳ — CÙNG nguồn với Quản lý đơn » "Đã gửi" (status Đã gửi/Đã giao, theo sent_date)
+  const all=(allOrders||[]).filter(o=>['Đã gửi','Đã giao'].includes(o.status)).filter(o=>{const d=sentDateOf(o);return d>=from&&d<=to;});
   const chansAll=[...new Set(all.map(chanLabelOf))].sort((a,b)=>{
-    const sa=all.filter(o=>chanLabelOf(o)===a).reduce((s,o)=>s+(o.amount_due||0),0);
-    const sb=all.filter(o=>chanLabelOf(o)===b).reduce((s,o)=>s+(o.amount_due||0),0);
+    const sa=all.filter(o=>chanLabelOf(o)===a).reduce((s,o)=>s+(o.quantity||0),0);
+    const sb=all.filter(o=>chanLabelOf(o)===b).reduce((s,o)=>s+(o.quantity||0),0);
     return sb-sa;
   });
   // tabs kênh
@@ -1547,49 +1587,45 @@ function renderDiDonChannel(from,to){
   const rows=ddChanTab==='ALL'?all:all.filter(o=>chanLabelOf(o)===ddChanTab);
   const chans=ddChanTab==='ALL'?chansAll:[ddChanTab];
   // metrics
-  const totalAmt=rows.reduce((s,o)=>s+(o.amount_due||0),0);
   const totalQty=rows.reduce((s,o)=>s+(o.quantity||0),0);
-  const dayset=new Set(rows.map(o=>o.sent_date));
+  const dayset=new Set(rows.map(sentDateOf));
   document.getElementById('dd-metrics').innerHTML=`
-    <div class="metric"><div class="metric-v">${_sMoney(totalAmt)}</div><div class="metric-l">Doanh số (kỳ)</div></div>
-    <div class="metric honey"><div class="metric-v">${totalQty}</div><div class="metric-l">SL sản phẩm</div></div>
-    <div class="metric"><div class="metric-v">${dayset.size}</div><div class="metric-l">Ngày có đơn</div></div>
+    <div class="metric"><div class="metric-v">${totalQty}</div><div class="metric-l">SL sản phẩm (kỳ)</div></div>
+    <div class="metric honey"><div class="metric-v">${dayset.size}</div><div class="metric-l">Ngày có đơn</div></div>
     <div class="metric pink" style="grid-column:span 2"><div class="metric-v" style="font-size:15px;line-height:1.2">${escapeHtml(ddChanTab==='ALL'?(chansAll[0]||'—'):ddChanTab)}</div><div class="metric-l">Kênh nổi bật</div></div>`;
-  // ── bảng theo ngày × kênh (SL / $) ──
-  const byDayChan={}; // date -> chan -> {qty,amt}
-  rows.forEach(o=>{const d=o.sent_date,c=chanLabelOf(o);(byDayChan[d]=byDayChan[d]||{});(byDayChan[d][c]=byDayChan[d][c]||{qty:0,amt:0});byDayChan[d][c].qty+=(o.quantity||0);byDayChan[d][c].amt+=(o.amount_due||0);});
+  // ── bảng theo ngày × kênh (SL) ──
+  const byDayChan={}; // date -> chan -> {qty}
+  rows.forEach(o=>{const d=sentDateOf(o),c=chanLabelOf(o);(byDayChan[d]=byDayChan[d]||{});(byDayChan[d][c]=byDayChan[d][c]||{qty:0});byDayChan[d][c].qty+=(o.quantity||0);});
   let days=[...dayset];
   days.sort((a,b)=>ddChanSortDir==='desc'?(a<b?1:-1):(a<b?-1:1));
-  const dayHead=`<th class="l">Ngày</th>`+chans.map(c=>`<th>${escapeHtml(c)}<br><span style="font-weight:400;font-size:9.5px;opacity:.7">SL · $</span></th>`).join('')+`<th>Tổng SL · $</th>`;
-  let dayBody='';const colTotQ={},colTotA={};let grandQ=0,grandA=0;
+  const dayHead=`<th class="l">Ngày</th>`+chans.map(c=>`<th>${escapeHtml(c)}<br><span style="font-weight:400;font-size:9.5px;opacity:.7">SL</span></th>`).join('')+`<th>Tổng SL</th>`;
+  let dayBody='';const colTotQ={};let grandQ=0;
   days.forEach(d=>{
-    let rq=0,ra=0,tds='';
+    let rq=0,tds='';
     chans.forEach(c=>{
-      const v=byDayChan[d]?.[c]||{qty:0,amt:0};
-      colTotQ[c]=(colTotQ[c]||0)+v.qty;colTotA[c]=(colTotA[c]||0)+v.amt;
-      rq+=v.qty;ra+=v.amt;
-      tds+=`<td>${v.qty?`${v.qty} · ${_sMoney(v.amt)}`:'—'}</td>`;
+      const v=byDayChan[d]?.[c]||{qty:0};
+      colTotQ[c]=(colTotQ[c]||0)+v.qty;
+      rq+=v.qty;
+      tds+=`<td>${v.qty||'—'}</td>`;
     });
-    grandQ+=rq;grandA+=ra;
-    dayBody+=`<tr><td class="l" style="font-size:11px">${fmtDate(d)}</td>${tds}<td style="font-weight:700">${rq} · ${_sMoney(ra)}</td></tr>`;
+    grandQ+=rq;
+    dayBody+=`<tr><td class="l" style="font-size:11px">${fmtDate(d)}</td>${tds}<td style="font-weight:700">${rq}</td></tr>`;
   });
-  const dayFoot=`<td class="l">TỔNG</td>`+chans.map(c=>`<td>${colTotQ[c]||0} · ${_sMoney(colTotA[c]||0)}</td>`).join('')+`<td>${grandQ} · ${_sMoney(grandA)}</td>`;
-  // ── bảng theo sản phẩm (SL / $) ──
-  const byProd={}; // name -> {qty,amt}
-  rows.forEach(o=>{const nm=o.product_name||o.product_code||'—';(byProd[nm]=byProd[nm]||{qty:0,amt:0});byProd[nm].qty+=(o.quantity||0);byProd[nm].amt+=(o.amount_due||0);});
+  const dayFoot=`<td class="l">TỔNG</td>`+chans.map(c=>`<td>${colTotQ[c]||0}</td>`).join('')+`<td>${grandQ}</td>`;
+  // ── bảng theo sản phẩm (SL) ──
+  const byProd={}; // name -> {qty}
+  rows.forEach(o=>{const nm=o.product_name||o.product_code||'—';(byProd[nm]=byProd[nm]||{qty:0});byProd[nm].qty+=(o.quantity||0);});
   let prodRows=Object.entries(byProd).map(([nm,v])=>({nm,...v}));
   prodRows.sort((a,b)=>{
     const dir=ddProdSortDir==='desc'?-1:1;
     if(ddProdSortKey==='name')return dir*a.nm.localeCompare(b.nm,'vi');
-    if(ddProdSortKey==='qty')return dir*(a.qty-b.qty);
-    return dir*(a.amt-b.amt);
+    return dir*(a.qty-b.qty);
   });
   const arrow=k=>ddProdSortKey===k?(ddProdSortDir==='desc'?' ▼':' ▲'):'';
   const prodHead=`<th class="l" style="cursor:pointer" onclick="ddProdSortKey='name';ddProdSortDir=(ddProdSortKey==='name'&&ddProdSortDir==='asc')?'desc':'asc';renderDiDon()">Sản phẩm${arrow('name')}</th>
-    <th style="cursor:pointer" onclick="ddProdSortKey='qty';ddProdSortDir=(ddProdSortKey==='qty'&&ddProdSortDir==='desc')?'asc':'desc';renderDiDon()">Số lượng${arrow('qty')}</th>
-    <th style="cursor:pointer" onclick="ddProdSortKey='amt';ddProdSortDir=(ddProdSortKey==='amt'&&ddProdSortDir==='desc')?'asc':'desc';renderDiDon()">Doanh số ($)${arrow('amt')}</th>`;
-  const prodBody=prodRows.map(r=>`<tr><td class="l" style="font-size:12px">${escapeHtml(r.nm)}</td><td style="font-weight:700">${r.qty}</td><td style="font-weight:700">${_sMoney(r.amt)}</td></tr>`).join('')
-    ||`<tr><td colspan="3" class="dim" style="padding:12px;text-align:center">Không có dữ liệu trong kỳ.</td></tr>`;
+    <th style="cursor:pointer" onclick="ddProdSortKey='qty';ddProdSortDir=(ddProdSortKey==='qty'&&ddProdSortDir==='desc')?'asc':'desc';renderDiDon()">Số lượng${arrow('qty')}</th>`;
+  const prodBody=prodRows.map(r=>`<tr><td class="l" style="font-size:12px">${escapeHtml(r.nm)}</td><td style="font-weight:700">${r.qty}</td></tr>`).join('')
+    ||`<tr><td colspan="2" class="dim" style="padding:12px;text-align:center">Không có dữ liệu trong kỳ.</td></tr>`;
   document.getElementById('dd-content').innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin:4px 0 8px">
       <div style="font-size:11px;font-weight:700;color:var(--brown);letter-spacing:.05em;text-transform:uppercase">📅 Theo ngày${ddChanTab!=='ALL'?' · '+escapeHtml(ddChanTab):''}</div>
@@ -1600,9 +1636,9 @@ function renderDiDonChannel(from,to){
     <div class="card" style="padding:0;overflow:auto"><table><thead><tr>${prodHead}</tr></thead><tbody>${prodBody}</tbody></table></div>`;
 }
 // bảng chéo màu×size×ngày. cellFn(code,date)->số; nếu cellFn=null → tồn cuối ngày (running từ `from`)
-function crossTable(prods,days,cellFn,from,focusColor){
+function crossTable(prods,days,cellFn,from,focusColor,eodFn){
   const colorGroups=colorGroupsOf(prods);
-  const eod={};if(!cellFn)prods.forEach(p=>eod[p.code]=eodMap(p.code,from,days));
+  const eod={};if(!cellFn)prods.forEach(p=>eod[p.code]=(eodFn||eodMap)(p.code,from,days));
   const val=(code,d)=>cellFn?cellFn(code,d):(eod[code]?.[d]??0);
   const colTot={};let rows='';
   colorGroups.forEach(cg=>{
@@ -1620,6 +1656,250 @@ function crossTable(prods,days,cellFn,from,focusColor){
   colorGroups.forEach(cg=>{cg.items.forEach(p=>{days.forEach(d=>{if(cellFn)colTot[d]=(colTot[d]||0)+val(p.code,d);});});});
   const foot=cellFn?`<tr class="tot"><td colspan="2" class="l">Tổng${focusColor?' (đang lọc màu)':''}</td>${days.map(d=>`<td>${colTot[d]||'—'}</td>`).join('')}<td>${Object.values(colTot).reduce((a,b)=>a+b,0)||'—'}</td></tr>`:'';
   return `<div style="overflow:auto"><table style="font-size:11.5px"><thead><tr><th style="width:22px"></th><th class="l">Size</th>${days.map(d=>`<th style="font-size:9px;white-space:nowrap">${d.slice(8)}/${d.slice(5,7)}</th>`).join('')}<th>Tổng</th></tr></thead><tbody>${rows}${foot}</tbody></table></div>`;
+}
+
+/* ══════════ KHO HÀNG LỖI — kho riêng, tách khỏi Quản Lý Kho chính ══════════
+   Nguồn hàng vào: chỗ "Nhập kho" ở Đặt NCC (Order Hàng) khi tách lô hàng về thành 3 cột:
+   Nhập kho (kho chính, không đổi) · Dành cho KOL (ref_type='po_kol') · Lỗi không chỉnh được (ref_type='po_loi').
+   Hàng ra: ghi nhận thủ công ngay tại trang này (ref_type='kol_out'/'loi_out').
+   Các ref_type này bị loại khỏi stockOne()/eodMap() chính (xem isLoiKho()) nên KHÔNG đụng Quản Lý Kho/Order/Đi đơn. */
+const LOI_BUCKETS=[{k:'all',label:'Tổng'},{k:'kol',label:'Dành cho KOL'},{k:'loi',label:'Lỗi không chỉnh được'}];
+const LOI_REF={kol:{in:'po_kol',out:'kol_out'},loi:{in:'po_loi',out:'loi_out'}};
+function loiInRefs(b){return b==='all'?['po_kol','po_loi']:[LOI_REF[b].in];}
+function loiOutRefs(b){return b==='all'?['kol_out','loi_out']:[LOI_REF[b].out];}
+function loiShipMap(b){const refs=loiOutRefs(b);const m={};allTx.filter(t=>t.type==='Xuất'&&refs.includes(t.ref_type)).forEach(t=>{(m[t.product_code]=m[t.product_code]||{});m[t.product_code][t.date]=(m[t.product_code][t.date]||0)+(t.quantity||0);});return m;}
+function loiNewMap(b){const refs=loiInRefs(b);const m={};allTx.filter(t=>t.type==='Nhập'&&refs.includes(t.ref_type)).forEach(t=>{(m[t.product_code]=m[t.product_code]||{});m[t.product_code][t.date]=(m[t.product_code][t.date]||0)+(t.quantity||0);});return m;}
+function loiEodMap(code,from,days,b){
+  const inR=loiInRefs(b),outR=loiOutRefs(b);
+  const rel=t=>t.product_code===code&&(inR.includes(t.ref_type)||outR.includes(t.ref_type));
+  let base=allTx.filter(t=>rel(t)&&t.date<from).reduce((s,t)=>s+(t.type==='Nhập'?(t.quantity||0):-(t.quantity||0)),0);
+  const dd={};allTx.filter(t=>rel(t)&&t.date>=from).forEach(t=>{dd[t.date]=(dd[t.date]||0)+(t.type==='Nhập'?(t.quantity||0):-(t.quantity||0));});
+  const r={};days.forEach(d=>{base+=dd[d]||0;r[d]=base;});return r;
+}
+function loiStockOne(code,b){
+  const inR=loiInRefs(b),outR=loiOutRefs(b);
+  return allTx.filter(t=>t.product_code===code&&(inR.includes(t.ref_type)||outR.includes(t.ref_type)))
+    .reduce((s,t)=>s+(t.type==='Nhập'?(t.quantity||0):-(t.quantity||0)),0);
+}
+// [MỚI] tồn kho hàng lỗi của TOÀN BỘ sản phẩm, theo đúng bucket đang chọn — dùng cho sub-tab "Kho hàng"
+function loiStockMap(b){const m={};allProducts.forEach(p=>m[p.code]=loiStockOne(p.code,b));return m;}
+// tên các đợt hàng (note "[LÔ ...]") có phát sinh nhập trong kỳ — để hiện chú thích "đợt nào"
+function loiLotsInRange(from,to,b){
+  const refs=loiInRefs(b);const seen=new Set();
+  allTx.filter(t=>t.type==='Nhập'&&refs.includes(t.ref_type)&&t.date>=from&&t.date<=to).forEach(t=>{
+    const m=(t.note||'').match(/^\[LÔ ([^\]]+)\]/);if(m)seen.add(m[1]);
+  });
+  return [...seen];
+}
+let loiBucket='all';
+let loiColorFocus={};
+let loiView='didon'; // [MỚI] 'didon' = Đi đơn (bảng theo ngày, logic cũ) | 'khohang' = Kho hàng (đếm/cập nhật kho, logic như trang Kho hàng chính)
+let loiKhTab='ALL';        // tab sản phẩm riêng cho sub-tab Kho hàng của Kho hàng lỗi
+let loiKhColorFocus={};    // lọc màu riêng cho sub-tab Kho hàng của Kho hàng lỗi
+function setLoiView(v){loiView=v;renderLoiKho();}
+function loiInit(){const f=document.getElementById('lk-from'),t=document.getElementById('lk-to');if(t&&!t.value){t.value=todayStr();f.value=daysAgo(29);}}
+function loiRange(){const from=document.getElementById('lk-from')?.value||daysAgo(29);const to=document.getElementById('lk-to')?.value||todayStr();
+  const days=[];let d=new Date(from);const end=new Date(to);while(d<=end){days.push(`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`);d.setDate(d.getDate()+1);}return{from,to,days};}
+function loiQuick(n){document.getElementById('lk-to').value=todayStr();document.getElementById('lk-from').value=daysAgo(n-1);renderLoiKho();}
+function loiSetBucket(b){loiBucket=b;renderLoiKho();}
+async function loiXuat(){
+  const sel=document.getElementById('lk-xuat-prod'),qtyEl=document.getElementById('lk-xuat-qty'),noteEl=document.getElementById('lk-xuat-note');
+  const code=sel?.value,n=parseInt(qtyEl?.value)||0;
+  if(loiBucket==='all'){toast('Chọn tab "Dành cho KOL" hoặc "Lỗi không chỉnh được" để ghi nhận xuất',true);return;}
+  if(!code||n<=0){toast('Chọn sản phẩm và nhập số lượng > 0',true);return;}
+  const have=loiStockOne(code,loiBucket);
+  if(n>have&&!confirm(`Kho "${LOI_BUCKETS.find(x=>x.k===loiBucket).label}" chỉ còn ${have} — vẫn ghi nhận xuất ${n}?`))return;
+  showLoad(true);
+  try{
+    const label=LOI_BUCKETS.find(x=>x.k===loiBucket).label;
+    await postXuat({product_code:code,quantity:n,channel:label,ref_type:LOI_REF[loiBucket].out,
+      ref_id:'LOIKHO-'+loiBucket+'-'+code+'-'+Date.now(),is_kol:false,
+      note:(noteEl?.value||'').trim()||`Xuất kho ${label}`});
+    toast('✓ Đã ghi nhận xuất kho');
+    if(qtyEl)qtyEl.value='';if(noteEl)noteEl.value='';
+    renderLoiKho();renderKho();
+  }catch(e){toast('Lỗi: '+e.message,true);}
+  showLoad(false);
+}
+function renderLoiKho(){
+  document.getElementById('lk-tabs').innerHTML=LOI_BUCKETS.map(b=>
+    `<div class="tab ${b.k===loiBucket?'on':''}" onclick="loiSetBucket('${b.k}')">${escapeHtml(b.label)}</div>`).join('');
+  // [MỚI] 2 tab con trong MỖI tab nhỏ (Tổng / Dành cho KOL / Lỗi không chỉnh được): Đi đơn (cũ) · Kho hàng (mới)
+  document.getElementById('lk-view-tabs').innerHTML=`
+    <div class="tab ${loiView==='didon'?'on':''}" onclick="setLoiView('didon')">📊 Đi đơn</div>
+    <div class="tab ${loiView==='khohang'?'on':''}" onclick="setLoiView('khohang')">🗂 Kho hàng</div>`;
+  document.getElementById('lk-view-didon').style.display=loiView==='didon'?'':'none';
+  document.getElementById('lk-view-khohang').style.display=loiView==='khohang'?'':'none';
+  if(loiView==='khohang'){renderLoiKhoHang();return;}
+  if(!document.getElementById('lk-to'))return;
+  loiInit();
+  const{from,to,days}=loiRange();
+  const nm2=loiNewMap(loiBucket),sm2=loiShipMap(loiBucket);
+  const inRange=(map)=>Object.values(map).reduce((s,byd)=>s+Object.entries(byd).filter(([d])=>d>=from&&d<=to).reduce((a,[,v])=>a+v,0),0);
+  const totalIn=inRange(nm2),totalOut=inRange(sm2);
+  const stockNow=allProducts.reduce((s,p)=>s+loiStockOne(p.code,loiBucket),0);
+  document.getElementById('lk-metrics').innerHTML=`
+    <div class="metric"><div class="metric-v">${stockNow}</div><div class="metric-l">Tồn hiện tại</div></div>
+    <div class="metric honey"><div class="metric-v">${totalIn}</div><div class="metric-l">Về kho (kỳ)</div></div>
+    <div class="metric"><div class="metric-v">${totalOut}</div><div class="metric-l">Xuất kho (kỳ)</div></div>`;
+  const xuatBox=document.getElementById('lk-xuat-box');
+  if(loiBucket==='all'){xuatBox.innerHTML='';}
+  else{
+    const label=LOI_BUCKETS.find(b=>b.k===loiBucket).label;
+    const opts=allProducts.filter(p=>loiStockOne(p.code,loiBucket)>0)
+      .map(p=>`<option value="${p.code}">${escapeHtml(pname(p))} (còn ${loiStockOne(p.code,loiBucket)})</option>`).join('');
+    xuatBox.innerHTML=`<div class="card" style="padding:12px 14px;margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <b style="font-size:12.5px;white-space:nowrap">📤 Ghi nhận xuất kho ${escapeHtml(label)}:</b>
+      <select id="lk-xuat-prod" style="flex:1;min-width:180px;padding:7px;border-radius:8px;border:1px solid var(--border)"><option value="">— chọn SP —</option>${opts}</select>
+      <input id="lk-xuat-qty" type="number" min="1" placeholder="SL" style="width:70px;padding:7px;border-radius:8px;border:1px solid var(--border)">
+      <input id="lk-xuat-note" type="text" placeholder="Ghi chú (tuỳ chọn)" style="flex:1;min-width:140px;padding:7px;border-radius:8px;border:1px solid var(--border)">
+      <button class="btn btn-dark btn-sm" onclick="loiXuat()">✓ Ghi nhận</button>
+    </div>`;
+  }
+  const groups=groupByName();const names=Object.keys(groups);
+  const lots=loiLotsInRange(from,to,loiBucket);
+  let html='';
+  names.forEach(nm=>{
+    const prods=(groups[nm]||[]);
+    const stockSum=prods.reduce((s,p)=>s+loiStockOne(p.code,loiBucket),0);
+    // [SỬA] Trước đây ẩn hẳn sản phẩm nếu tồn kho lỗi = 0 và không phát sinh trong kỳ — khiến hầu hết sản phẩm
+    // biến mất khỏi trang (vì đa số hàng không nằm ở Kho hàng lỗi). Giờ LUÔN hiện đủ mọi sản phẩm với đủ 3 bảng,
+    // giống hệt trang "Đi Đơn — Thống kê · Chi tiết theo sản phẩm" (không lọc theo tồn/phát sinh).
+    const focus=loiColorFocus[nm]||null;
+    const chips=colorGroupsOf(prods).map(cg=>`<button class="btn btn-sm" style="background:${focus===cg.color?colorBg(cg.color):'var(--bg)'};color:${focus===cg.color?'#fff':'var(--brown)'};border-color:${colorBg(cg.color)}" onclick="loiColorFocus['${jsq(nm)}']=loiColorFocus['${jsq(nm)}']==='${jsq(cg.color)}'?null:'${jsq(cg.color)}';renderLoiKho()">${escapeHtml(cg.color)}</button>`).join('');
+    html+=`<div class="card" style="padding:0;margin-bottom:16px;overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:11px 15px;border-bottom:1px solid var(--border)">
+        <b style="font-family:var(--f-head)">▸ ${escapeHtml(nm).toUpperCase()}</b>
+        <span style="font-size:12px;color:var(--brown)">Tồn hiện tại: <b>${stockSum}</b></span></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;padding:9px 15px 0">${chips}${focus?`<button class="btn btn-sm" style="background:transparent;color:var(--brown);border-color:var(--border)" onclick="loiColorFocus['${jsq(nm)}']=null;renderLoiKho()">✕ Xem tất cả màu</button>`:''}</div>
+      <div style="padding:10px 12px 4px;font-size:11px;font-weight:700;color:var(--brown)">📤 HÀNG ĐI MỖI NGÀY</div>
+      ${crossTable(prods,days,(code,d)=>(sm2[code]||{})[d]||0,null,focus)}
+      <div style="padding:10px 12px 4px;font-size:11px;font-weight:700;color:var(--brown)">🏠 KHO HIỆN TẠI (cuối ngày)</div>
+      ${crossTable(prods,days,null,from,focus,(code,f,d)=>loiEodMap(code,f,d,loiBucket))}
+      <div style="padding:10px 12px 4px;font-size:11px;font-weight:700;color:var(--brown)">🚚 HÀNG MỚI VỀ MỖI NGÀY${lots.length?` · đợt: ${lots.map(escapeHtml).join(', ')}`:''}</div>
+      ${crossTable(prods,days,(code,d)=>(nm2[code]||{})[d]||0,null,focus)}
+    </div>`;
+  });
+  document.getElementById('lk-content').innerHTML=html||'<div class="card dim" style="text-align:center">Chưa có dữ liệu Kho hàng lỗi trong kỳ đã chọn.</div>';
+}
+
+/* ══════════ KHO HÀNG LỖI » sub-tab "KHO HÀNG" — đếm kho / cập nhật kho, logic y hệt trang Kho hàng của Quản Lý Kho,
+   nhưng tồn kho lấy theo đúng bucket (Tổng / Dành cho KOL / Lỗi không chỉnh được) của Kho hàng lỗi, KHÔNG đụng
+   Quản Lý Kho chính. ══════════ */
+function renderLoiKhoHang(){
+  const groups=groupByName();const names=Object.keys(groups);
+  document.getElementById('lk-kh-tabs').innerHTML=['ALL',...names].map(k=>
+    `<div class="tab ${k===loiKhTab?'on':''}" onclick="loiKhTab='${jsq(k)}';renderLoiKhoHang()">${k==='ALL'?'Tất cả':escapeHtml(k)}</div>`).join('');
+  const stock=loiStockMap(loiBucket);
+  const bucketLabel=(LOI_BUCKETS.find(b=>b.k===loiBucket)||{}).label||'';
+  const show=loiKhTab==='ALL'?names:[loiKhTab];
+  let html='';
+  show.forEach(nm=>{
+    const prods=(groups[nm]||[]);
+    const colorGroups=colorGroupsOf(prods);
+    const focus=loiKhColorFocus[nm]||null;
+    let sTon=0,rows='';
+    colorGroups.forEach(cg=>{
+      if(focus&&focus!==cg.color)return;
+      const c=cg.color;
+      const sizes=cg.items.slice().sort((a,b)=>sizeRank(a.size)-sizeRank(b.size));
+      sizes.forEach((p,si)=>{
+        const ton=stock[p.code]||0;sTon+=ton;
+        rows+=`<tr style="${ton<0?'background:var(--red-bg)':''}">
+          ${si===0?`<td rowspan="${sizes.length}" style="background:${colorBg(c)};color:#fff;font-weight:700;font-size:10px;letter-spacing:.1em;writing-mode:vertical-rl;transform:rotate(180deg);text-align:center;padding:6px 2px;width:26px">${escapeHtml(c)}</td>`:''}
+          <td class="l" style="font-weight:600;padding-left:12px">${p.size||'—'}</td>
+          <td style="font-weight:800;background:var(--bg);color:${ton<0?'var(--red-fg)':'inherit'}">${ton===0?'—':ton}</td>
+        </tr>`;
+      });
+    });
+    html+=`<div class="card" style="padding:0;margin-bottom:16px;overflow:hidden;border:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;background:#B5715C;color:#fff;padding:10px 16px">
+        <div style="font-family:var(--f-head);font-weight:800;font-size:12.5px;letter-spacing:.12em;text-transform:uppercase">● ${escapeHtml(nm)}</div>
+        <div style="font-size:11px">Tồn (${escapeHtml(bucketLabel)}): <b>${sTon}</b></div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;padding:9px 16px 0;background:var(--dark)">
+        ${colorGroupsOf(prods).map(cg=>`<button class="btn btn-sm" style="background:${focus===cg.color?colorBg(cg.color):'rgba(255,255,255,.08)'};color:#fff;border-color:${colorBg(cg.color)}" onclick="loiKhColorFocus['${jsq(nm)}']=loiKhColorFocus['${jsq(nm)}']==='${jsq(cg.color)}'?null:'${jsq(cg.color)}';renderLoiKhoHang()">${escapeHtml(cg.color)}</button>`).join('')}
+        ${focus?`<button class="btn btn-sm" style="background:transparent;color:var(--honey);border-color:rgba(255,255,255,.3)" onclick="loiKhColorFocus['${jsq(nm)}']=null;renderLoiKhoHang()">✕ Xem tất cả màu</button>`:''}
+      </div>
+      <div style="overflow:auto"><table>
+        <thead><tr><th style="width:26px"></th><th class="l" style="padding-left:12px">Size</th><th style="background:var(--dark);color:var(--honey)">Tồn kho</th></tr></thead>
+        <tbody>${rows}
+          <tr style="background:#B5715C;color:#fff;font-weight:800"><td colspan="2" class="l" style="padding-left:12px">TỔNG${focus?' (đang lọc màu)':''}</td><td>${sTon}</td></tr>
+        </tbody></table></div>
+      <div style="background:var(--dark);padding:9px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <button class="btn btn-honey btn-sm" ${loiBucket==='all'?'disabled':''} onclick="openLoiKiemKe('${jsq(nm)}')">✏️ Đếm kho</button>
+        <span style="font-size:11px;color:rgba(255,255,255,.5)">${loiBucket==='all'?'Chọn tab "Dành cho KOL" hoặc "Lỗi không chỉnh được" ở trên để đếm & cập nhật kho':'Đếm kho '+escapeHtml(bucketLabel)}</span>
+      </div>
+    </div>`;
+  });
+  document.getElementById('lk-kh-content').innerHTML=html||'<div class="card dim" style="text-align:center">Chưa có sản phẩm. Kiểm tra bảng products.</div>';
+}
+// Đếm kho cho Kho hàng lỗi — y hệt "Đếm kho" ở Quản Lý Kho (openKiemKe/saveKiemKe), nhưng ghi bút toán điều chỉnh
+// riêng vào đúng bucket đang chọn (kol: ref_type po_kol/kol_out · loi: ref_type po_loi/loi_out) nên KHÔNG đụng
+// Quản Lý Kho chính lẫn bucket còn lại.
+function openLoiKiemKe(nm){
+  if(loiBucket==='all'){toast('Chọn tab "Dành cho KOL" hoặc "Lỗi không chỉnh được" để đếm kho',true);return;}
+  const prods=sortPS(groupByName()[nm]||[]);
+  const label=LOI_BUCKETS.find(b=>b.k===loiBucket).label;
+  const sysTotal=prods.reduce((s,p)=>s+loiStockOne(p.code,loiBucket),0);
+  m_title(`Đếm kho — ${nm} · ${label}`);
+  document.getElementById('m-body').innerHTML=`
+    <div style="font-size:12px;color:var(--brown);margin-bottom:10px">Nhập số đếm thực tế cho từng mã trong kho <b>${escapeHtml(label)}</b> — số bạn nhập sẽ là tồn cuối cùng của đúng mã đó, không ảnh hưởng Quản Lý Kho chính hay bucket còn lại.</div>
+    <table><thead><tr><th class="l">Mã · Màu · Size</th><th>Tồn HT</th><th>Đếm thực tế</th><th class="l">Chênh lệch</th></tr></thead><tbody>
+    ${prods.map(p=>{const cur=loiStockOne(p.code,loiBucket);
+      return `<tr><td class="l" style="font-size:12px">${p.code}<br><span style="font-size:11px;color:var(--brown)">${escapeHtml((p.color||'')+' '+(p.size||''))}</span></td>
+      <td style="font-weight:700" id="lkkh-${p.code}">${cur}</td>
+      <td><input type="number" min="0" value="${cur}" class="lkk-inp" data-code="${p.code}" data-cur="${cur}" oninput="lkkPreview(this)" style="width:80px;margin:0 auto"></td>
+      <td class="l" id="lkkd-${p.code}" style="font-size:11.5px;color:var(--brown)">Không đổi</td></tr>`;}).join('')}
+    </tbody>
+    <tfoot><tr style="background:#B5715C;color:#fff;font-weight:800">
+      <td class="l">TỔNG CỘNG — ${escapeHtml(nm)}</td>
+      <td id="lkk-tot-sys">${sysTotal}</td>
+      <td id="lkk-tot-typed">${sysTotal}</td>
+      <td class="l" id="lkk-tot-delta">Không đổi</td>
+    </tr></tfoot></table>
+    <label class="fld" style="margin-top:12px"><span>Lý do chênh lệch</span>
+      <select id="lkk-reason"><option>Thất thoát</option><option>Đếm sai</option><option>Quên ghi xuất</option><option>Xuất trùng</option><option>Hàng hỏng/tặng</option><option>Hàng trả về</option><option>Khác</option></select></label>`;
+  m_foot(`<button class="btn" onclick="closeModal()">Đóng</button><button class="btn btn-honey" onclick="saveLoiKiemKe('${jsq(nm)}')">💾 Lưu điều chỉnh</button>`);
+  openModal();
+}
+function lkkPreview(inp){
+  const cur=+inp.dataset.cur,counted=intv(inp.value,0),delta=counted-cur;
+  const el=document.getElementById('lkkd-'+inp.dataset.code);if(!el)return;
+  el.textContent=delta===0?'Không đổi':(delta>0?`Lệch +${delta}`:`Lệch −${Math.abs(delta)}`);
+  el.style.color=delta===0?'var(--brown)':(delta>0?'var(--grn-fg)':'var(--red-fg)');
+  el.style.fontWeight=delta===0?'400':'700';
+  const totTyped=[...document.querySelectorAll('.lkk-inp')].reduce((s,i)=>s+intv(i.value,0),0);
+  const totSys=[...document.querySelectorAll('.lkk-inp')].reduce((s,i)=>s+(+i.dataset.cur||0),0);
+  const totDelta=totTyped-totSys;
+  const tEl=document.getElementById('lkk-tot-typed');if(tEl)tEl.textContent=totTyped;
+  const sEl=document.getElementById('lkk-tot-sys');if(sEl)sEl.textContent=totSys;
+  const dEl=document.getElementById('lkk-tot-delta');
+  if(dEl){dEl.textContent=totDelta===0?'Không đổi':(totDelta>0?`Lệch +${totDelta}`:`Lệch −${Math.abs(totDelta)}`);}
+}
+async function saveLoiKiemKe(nm){
+  const reason=document.getElementById('lkk-reason').value;
+  const inps=[...document.querySelectorAll('.lkk-inp')];
+  const label=LOI_BUCKETS.find(b=>b.k===loiBucket).label;
+  showLoad(true);
+  try{
+    let n=0;
+    for(const inp of inps){
+      const code=inp.dataset.code,counted=intv(inp.value,0),system=loiStockOne(code,loiBucket),delta=counted-system;
+      if(delta===0)continue;
+      const p=allProducts.find(x=>x.code===code);
+      const refType=delta<0?LOI_REF[loiBucket].out:LOI_REF[loiBucket].in;
+      const row=await POST('transactions',{date:todayStr(),type:delta<0?'Xuất':'Nhập',product_code:code,
+        product_name:p?pname(p):'',quantity:Math.abs(delta),channel:`Điều chỉnh · ${label}`,ref_type:refType,
+        ref_id:'LOIKHO-KK-'+loiBucket+'-'+code+'-'+Date.now(),
+        system_qty:system,counted_qty:counted,reason,
+        note:`[KIỂM KÊ KHO LỖI · ${label}] HT=${system}·Đếm=${counted}·Δ${delta>0?'+':''}${delta}·${reason}`});
+      if(row&&row[0])allTx.push(row[0]);n++;
+    }
+    closeModal();renderLoiKho();renderKho();renderLog();
+    toast(n?`✓ Đã lưu điều chỉnh ${n} mã (${label})`:'Khớp, không cần điều chỉnh');
+  }catch(e){toast('Lỗi: '+e.message,true);}
+  showLoad(false);
 }
 
 /* ══════════ KHO ══════════ */
@@ -2452,14 +2732,19 @@ function buildOProdSelect(){
 function renderOGrid(){
   const nm=document.getElementById('o-prod')?.value;
   const prods=(groupByName()[nm]||[]);
-  const colors=[...new Set(prods.map(p=>p.color).filter(Boolean))];
+  // [SỬA] Trước gộp màu bằng so khớp chuỗi y hệt từng ký tự (Set thô) — nếu 1 size (VD S) bị lệch khoảng trắng
+  // thừa/hoa-thường ở cột màu so với các size còn lại (VD "Xanh lá " so với "Xanh lá"), hệ thống hiểu nhầm là
+  // 2 màu khác nhau, tách size đó ra thành khối màu lẻ riêng — nhìn như bị "nhảy" đi chỗ khác. Giờ dùng đúng
+  // colorGroupsOf() (chuẩn hoá bỏ khoảng trắng thừa + không phân biệt hoa/thường) y hệt trang Kho hàng/Order hàng.
+  const colorGroups=colorGroupsOf(prods);
   const box=document.getElementById('o-grid');
-  if(!colors.length){box.innerHTML='<div class="dim" style="padding:8px">SP này chưa có cấu trúc màu/size trong danh mục.</div>';return;}
+  if(!colorGroups.length){box.innerHTML='<div class="dim" style="padding:8px">SP này chưa có cấu trúc màu/size trong danh mục.</div>';return;}
   const stock=computeStock();
   let h='';
-  colors.forEach(c=>{
+  colorGroups.forEach(cg=>{
+    const c=cg.color;
     const cid=c.replace(/\W/g,'_');
-    const sizes=prods.filter(p=>p.color===c).sort((a,b)=>sizeRank(a.size)-sizeRank(b.size));
+    const sizes=cg.items.slice().sort((a,b)=>sizeRank(a.size)-sizeRank(b.size));
     h+=`<div class="card" style="padding:0;margin-bottom:10px;overflow:hidden;border:none">
       <div style="background:${colorBg(c)};color:#fff;font-weight:700;letter-spacing:.06em;padding:8px 14px">${escapeHtml(c)}</div>
       <table><thead><tr><th class="l" style="padding-left:14px">Size</th><th>Tồn hiện tại</th><th>SL đặt</th></tr></thead><tbody>
@@ -2511,7 +2796,7 @@ async function saveSupplierOrder(){
   showLoad(false);
 }
 let supplierRows=[];
-async function loadSupplier(){try{supplierRows=await sbAll('supplier_orders?order=po_code.desc');}catch(e){supplierRows=[];}renderOrderPage();renderKho();renderOrderPlan();}
+async function loadSupplier(){try{supplierRows=await sbAll('supplier_orders?order=po_code.desc');}catch(e){supplierRows=[];}renderOrderPage();renderKho();renderLoiKho();renderOrderPlan();}
 // Xoá 1 lô đơn order NCC — chỉ cho xoá an toàn khi CHƯA có đợt hàng nào về (received=0 ở mọi dòng),
 // vì nếu đã về hàng thì kho đã được cộng qua postNhap (ref_type='po') — xoá thẳng sẽ làm lệch sổ kho.
 async function deleteSupplierOrderAsk(po){
@@ -2546,42 +2831,83 @@ async function deleteSupplierOrderAsk(po){
   showLoad(false);
 }
 let orderView='lo'; // 'lo' theo lô | 'sp' theo sản phẩm
+let ncColorFocusByGroup={}; // [MỚI] lọc theo màu RIÊNG cho từng lô/nhóm — key 'po:PXXX' hoặc 'sp:TênSP', không dùng chung toàn trang
+// [MỚI] lấy đúng màu/size của 1 dòng đặt hàng NCC — khớp qua product_code vào danh mục sản phẩm (đáng tin hơn tách chuỗi product_name)
+function rowColorSize(r){const p=allProducts.find(x=>x.code===r.product_code);return{color:(p?.color||'').trim()||'—',size:p?.size||''};}
+// sắp xếp 1 danh sách dòng đặt NCC theo đúng màu (giữ thứ tự xuất hiện) → size (S<M<L...)
+function sortOrderRows(rows){
+  const order=[];const seen=new Set();
+  rows.forEach(r=>{const k=colorKeyOf(rowColorSize(r).color);if(!seen.has(k)){seen.add(k);order.push(k);}});
+  return rows.slice().sort((a,b)=>{
+    const ca=rowColorSize(a),cb=rowColorSize(b);
+    const ka=colorKeyOf(ca.color),kb=colorKeyOf(cb.color);
+    if(ka!==kb)return order.indexOf(ka)-order.indexOf(kb);
+    return sizeRank(ca.size)-sizeRank(cb.size);
+  });
+}
+// [MỚI] chip lọc màu cho ĐÚNG 1 lô/nhóm (gkey) — mỗi lô lọc độc lập, không ảnh hưởng các lô khác.
+// Chỉ hiện khi lô có từ 2 màu trở lên; dùng TOÀN BỘ dòng của lô (rowsAllInGroup) để bảng màu không co lại sau khi đã lọc.
+function ncColorChipsHtml(gkey,rowsAllInGroup){
+  const seen=new Map();
+  rowsAllInGroup.forEach(r=>{const c=rowColorSize(r).color;const k=colorKeyOf(c);if(c&&c!=='—'&&!seen.has(k))seen.set(k,c);});
+  if(seen.size<2)return'';
+  const focus=ncColorFocusByGroup[gkey]||null;
+  return `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:10px 15px 0">
+    <span style="font-size:11px;color:var(--brown);font-weight:700">🎨 Lọc màu:</span>
+    ${[...seen.entries()].map(([k,label])=>`<button class="btn btn-sm" style="background:${focus===k?colorBg(label):'var(--bg)'};color:${focus===k?'#fff':'var(--brown)'};border-color:${colorBg(label)}" onclick="setNcColorFocusFor('${jsq(gkey)}','${jsq(k)}')">${escapeHtml(label)}</button>`).join('')}
+    ${focus?`<button class="btn btn-sm" style="background:transparent;color:var(--brown);border-color:var(--border)" onclick="setNcColorFocusFor('${jsq(gkey)}',null)">✕ Xem tất cả màu</button>`:''}
+  </div>`;
+}
+function setNcColorFocusFor(gkey,k){ncColorFocusByGroup[gkey]=(ncColorFocusByGroup[gkey]===k?null:k);renderOrderPage();}
 function setOrderView(v){orderView=v;
   document.getElementById('ov-lo').className='tab'+(v==='lo'?' on':'');
   document.getElementById('ov-sp').className='tab'+(v==='sp'?' on':'');
   renderOrderPage();
 }
 // 1 dòng sản phẩm trong 1 lô — thanh tiến trình đã về/đã đặt (%) + số còn lại + ô nhập số về đợt này
-function orderRowHtml(r){
+function orderRowHtml(r,simple){
   const remain=r.qty-r.received,pct=r.qty?Math.round(r.received/r.qty*100):0,full=remain<=0;
   const parts=(r.product_name||'').split(' · ');
   const baseName=parts[0]||r.product_name||'';
   const sub=parts.slice(1).join(' · ');
-  return `<div style="display:flex;align-items:center;gap:16px;padding:16px 18px;border-top:1px solid var(--border)">
-    <div style="flex:1.1;min-width:0">
+  const inp=(kind)=>`<input type="number" min="0" placeholder="0" data-id="${r.id}" data-po="${escapeHtml(r.po_code)}" data-kind="${kind}" class="recv-inp" style="width:100%;box-sizing:border-box;text-align:center;padding:7px 4px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600">`;
+  return `<div style="display:flex;align-items:center;gap:14px;padding:16px 18px;border-top:1px solid var(--border);flex-wrap:wrap">
+    <div style="flex:1.1;min-width:150px">
       <div style="font-size:15px;font-weight:700">${escapeHtml(baseName)}</div>
       ${sub?`<div style="font-size:12.5px;color:var(--brown);margin-top:1px">${escapeHtml(sub)}</div>`:''}
     </div>
-    <div style="flex:1.6;min-width:0">
-      <div style="display:flex;justify-content:space-between;font-size:13.5px;color:var(--dark);margin-bottom:5px"><span>${r.received}/${r.qty} đã về</span><span>${pct}%</span></div>
+    <div style="flex:1.4;min-width:140px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--dark);margin-bottom:5px"><span>${r.received}/${r.qty} đã về</span><span>${pct}%</span></div>
       <div style="height:6px;background:var(--bg);border-radius:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${full?'#639922':'var(--honey-deep)'};border-radius:4px"></div></div>
     </div>
-    <div style="width:70px;text-align:center">
-      ${full?`<div style="font-size:20px;color:var(--grn-fg)">✓</div><div style="font-size:11px;color:var(--brown)">đã đủ</div>`
-        :`<div style="font-size:19px;font-weight:800;color:var(--red-fg)">${remain}</div><div style="font-size:11px;color:var(--brown)">còn lại</div>`}
+    <div style="width:60px;text-align:center">
+      ${full?`<div style="font-size:20px;color:var(--grn-fg)">✓</div><div style="font-size:10.5px;color:var(--brown)">đã đủ</div>`
+        :`<div style="font-size:18px;font-weight:800;color:var(--red-fg)">${remain}</div><div style="font-size:10.5px;color:var(--brown)">còn lại</div>`}
     </div>
-    <div style="width:80px">
-      ${full?'':`<input type="number" min="0" max="${remain}" placeholder="0" data-id="${r.id}" data-po="${escapeHtml(r.po_code)}" class="recv-inp" style="width:100%;box-sizing:border-box;text-align:center;padding:8px 4px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-weight:600">`}
+    ${full?'':simple?`<div style="width:80px">${inp('kho')}</div>`:`
+    <div style="width:72px">
+      <div style="font-size:9px;color:var(--brown);text-align:center;margin-bottom:3px;white-space:nowrap">🗂 Nhập kho</div>
+      ${inp('kho')}
     </div>
+    <div style="width:72px">
+      <div style="font-size:9px;color:var(--brown);text-align:center;margin-bottom:3px;white-space:nowrap">⭐ Dành KOL</div>
+      ${inp('kol')}
+    </div>
+    <div style="width:72px">
+      <div style="font-size:9px;color:var(--brown);text-align:center;margin-bottom:3px;white-space:nowrap">🚫 Lỗi k.bán</div>
+      ${inp('loi')}
+    </div>`}
   </div>`;
 }
-// lịch sử từng ĐỢT về hàng của 1 lô (đọc từ sổ cái transactions, nhóm theo số đợt gắn trong ref_id)
+// lịch sử từng ĐỢT về hàng của 1 lô (đọc từ sổ cái transactions, nhóm theo số đợt gắn trong ref_id) —
+// gồm cả 3 nhánh: kho chính (po) · Dành cho KOL (po_kol) · Lỗi không chỉnh được (po_loi)
 function lotRoundHistory(po){
   const rounds={};
-  allTx.filter(t=>t.type==='Nhập'&&t.ref_type==='po'&&(t.ref_id||'').startsWith(po+'-r')).forEach(t=>{
+  allTx.filter(t=>t.type==='Nhập'&&['po','po_kol','po_loi'].includes(t.ref_type)&&(t.ref_id||'').startsWith(po+'-r')).forEach(t=>{
     const m=(t.ref_id||'').match(/-r(\d+)-/);if(!m)return;const rn=+m[1];
     const g=(rounds[rn]=rounds[rn]||{roundNo:rn,date:t.date,total:0,lines:[]});
-    g.total+=t.quantity||0;g.lines.push({name:t.product_name||'',qty:t.quantity||0});
+    const tag=t.ref_type==='po_kol'?' (⭐KOL)':t.ref_type==='po_loi'?' (🚫Lỗi)':'';
+    g.total+=t.quantity||0;g.lines.push({name:(t.product_name||'')+tag,qty:t.quantity||0});
     if(!g.date||t.date<g.date)g.date=t.date;
   });
   return Object.values(rounds).sort((a,b)=>a.roundNo-b.roundNo);
@@ -2594,21 +2920,27 @@ function renderOrderByLot(){
   const box=document.getElementById('o-list');if(!box)return;
   const rowsApparel=apparelSupplierRows();
   const groups={};rowsApparel.forEach(r=>{(groups[r.po_code]=groups[r.po_code]||[]).push(r);});
-  const arr=Object.entries(groups).sort((a,b)=>b[0].localeCompare(a[0]));
-  if(!arr.length){box.innerHTML='<div class="card dim" style="text-align:center">Chưa có đơn đặt. (Cần bảng <code>supplier_orders</code> — xem SQL.)</div>';return;}
-  box.innerHTML=arr.map(([po,rows])=>{
-    const o=rows[0];const done=rows.every(r=>r.received>=r.qty);
+  const poArr=Object.entries(groups).sort((a,b)=>b[0].localeCompare(a[0]));
+  if(!poArr.length){box.innerHTML='<div class="card dim" style="text-align:center">Chưa có đơn đặt. (Cần bảng <code>supplier_orders</code> — xem SQL.)</div>';return;}
+  box.innerHTML=poArr.map(([po,rowsRaw])=>{
+    const gkey='po:'+po;
+    const rowsAll=sortOrderRows(rowsRaw); // [MỚI] sắp đúng theo màu → size, thay vì giữ thứ tự thô từ CSDL
+    const focus=ncColorFocusByGroup[gkey]||null;
+    const rows=focus?rowsAll.filter(r=>colorKeyOf(rowColorSize(r).color)===focus):rowsAll;
+    const o=rowsAll[0];const done=rowsAll.every(r=>r.received>=r.qty); // "Đã về đủ" luôn tính trên CẢ lô, không bị ảnh hưởng bởi bộ lọc màu
     const hist=lotRoundHistory(po);
     return `<div class="card" style="padding:0;overflow:hidden;margin-bottom:14px">
       <div style="background:var(--dark);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;border-radius:9px 9px 0 0">
         <div><b style="font-size:16px">${escapeHtml(o.name)}</b> <span class="mono" style="opacity:.6;font-size:12px">${escapeHtml(po)}</span>
           <div style="font-size:12px;opacity:.75;margin-top:3px">Về dự kiến: ${fmtDate(o.arr_date)}</div></div>
-        <div style="display:flex;align-items:center;gap:8px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span style="background:${done?'var(--grn-bg)':'var(--honey)'};color:${done?'var(--grn-fg)':'var(--dark)'};padding:5px 14px;border-radius:7px;font-size:12px;font-weight:700">${done?'✓ Đã về đủ':'Đang về'}</span>
+          <button class="btn btn-sm" style="background:var(--honey);color:var(--dark);border-color:var(--honey);font-weight:700" onclick="openGuiNCC('${jsq(po)}')">📤 Gửi đơn NCC</button>
           <button class="btn btn-sm" style="background:var(--red-bg);color:var(--red-fg);border-color:#E7A5A4" onclick="deleteSupplierOrderAsk('${jsq(po)}')">🗑 Xoá đơn</button>
         </div>
       </div>
-      <div>${rows.map(orderRowHtml).join('')}</div>
+      ${ncColorChipsHtml(gkey,rowsAll)}
+      <div>${rows.map(r=>orderRowHtml(r)).join('')||'<div class="dim" style="padding:16px;text-align:center;font-size:12.5px">Không có dòng nào khớp màu đang lọc.</div>'}</div>
       ${hist.length?`<div style="padding:10px 15px;border-top:1px solid var(--border)">
         <div style="font-size:11px;font-weight:700;color:var(--brown);letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px">📜 Lịch sử về hàng (${hist.length} đợt)</div>
         ${hist.map(h=>`<div style="font-size:12px;padding:5px 0;border-top:1px dashed var(--border);display:flex;justify-content:space-between;gap:10px">
@@ -2631,13 +2963,18 @@ function renderOrderBySP(){
     const key=nm[base.toLowerCase()]||base;
     (byName[key]=byName[key]||[]).push(r);
   });
-  box.innerHTML=Object.entries(byName).map(([name,rows])=>{
-    const tOrd=rows.reduce((s,r)=>s+r.qty,0),tRec=rows.reduce((s,r)=>s+r.received,0),tRem=tOrd-tRec;
+  box.innerHTML=Object.entries(byName).map(([name,rowsRaw])=>{
+    const gkey='sp:'+name;
+    const rowsAll=sortOrderRows(rowsRaw); // [MỚI] sắp đúng theo màu → size
+    const focus=ncColorFocusByGroup[gkey]||null;
+    const rows=focus?rowsAll.filter(r=>colorKeyOf(rowColorSize(r).color)===focus):rowsAll;
+    const tOrd=rowsAll.reduce((s,r)=>s+r.qty,0),tRec=rowsAll.reduce((s,r)=>s+r.received,0),tRem=tOrd-tRec;
     return `<div class="card" style="padding:0;overflow:hidden;margin-bottom:14px">
       <div style="background:var(--honey);padding:10px 15px;display:flex;justify-content:space-between;align-items:center;border-radius:9px 9px 0 0">
         <b style="font-size:13.5px">${escapeHtml(name)}</b>
         <span style="font-size:12px">còn về <b style="color:${tRem>0?'var(--red-fg)':'var(--grn-fg)'}">${tRem>0?tRem:0}</b> / ${tOrd}</span>
       </div>
+      ${ncColorChipsHtml(gkey,rowsAll)}
       ${rows.map(r=>{
         const rem=r.qty-r.received,rpct=r.qty?Math.round(r.received/r.qty*100):0;
         return `<div style="display:flex;align-items:center;gap:14px;padding:10px 15px;border-top:1px solid var(--border)">
@@ -2649,34 +2986,97 @@ function renderOrderBySP(){
           <div style="height:6px;background:var(--bg);border-radius:4px;overflow:hidden"><div style="height:100%;width:${rpct}%;background:${rem<=0?'#639922':'var(--honey-deep)'};border-radius:4px"></div></div>
         </div>
         <div style="width:56px;text-align:right;font-size:13px;font-weight:700;color:${rem>0?'var(--red-fg)':'var(--grn-fg)'}">${rem>0?rem:'✓'}</div>
-      </div>`;}).join('')}
+      </div>`;}).join('')||'<div class="dim" style="padding:16px;text-align:center;font-size:12.5px">Không có dòng nào khớp màu đang lọc.</div>'}
     </div>`;
   }).join('');
 }
-// Xác nhận cả lô 1 lượt: đọc tất cả ô đã nhập trong lô này, cộng dồn vào kho + cập nhật received, rồi mới render lại
+// [MỚI] Modal "Gửi đơn NCC" — tóm gọn lại TOÀN BỘ đơn đặt của 1 lô (không bị ảnh hưởng bởi bộ lọc màu đang xem)
+// kèm ảnh sản phẩm, để chụp màn hình gửi qua Zalo/tin nhắn cho xưởng/NCC dễ theo dõi & đối chiếu.
+function openGuiNCC(po){
+  const rows=sortOrderRows(supplierRows.filter(r=>r.po_code===po&&!ACC_ALL_CODES.has(r.product_code)));
+  if(!rows.length){toast('Không tìm thấy đơn order '+po,true);return;}
+  const o=rows[0];
+  const totalQty=rows.reduce((s,r)=>s+r.qty,0);
+  m_title('📤 Gửi đơn cho NCC');
+  document.getElementById('m-body').innerHTML=`
+    <div id="ncc-send-card" style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px;border-bottom:2px solid var(--dark);padding-bottom:10px">
+        <div>
+          <div style="font-family:var(--f-head);font-size:18px;font-weight:800;color:var(--dark)">${escapeHtml(o.name||po)}</div>
+          <div class="mono" style="font-size:11px;color:var(--brown)">${escapeHtml(po)}</div>
+        </div>
+        <div style="text-align:right;font-size:12px;color:var(--brown);white-space:nowrap">
+          <div>Ngày đặt: <b>${fmtDate(o.ord_date)}</b></div>
+          <div>Về dự kiến: <b>${fmtDate(o.arr_date)}</b></div>
+        </div>
+      </div>
+      ${o.note?`<div style="font-size:12px;color:var(--brown);margin-bottom:10px">📝 ${escapeHtml(o.note)}</div>`:''}
+      <div style="overflow:auto"><table style="width:100%;border-collapse:collapse">
+        <thead><tr style="border-bottom:1px solid var(--border)">
+          <th style="text-align:left;padding:6px 4px;font-size:11px;color:var(--brown)">Ảnh</th>
+          <th style="text-align:left;padding:6px 4px;font-size:11px;color:var(--brown)">Sản phẩm</th>
+          <th style="text-align:center;padding:6px 4px;font-size:11px;color:var(--brown)">Màu</th>
+          <th style="text-align:center;padding:6px 4px;font-size:11px;color:var(--brown)">Size</th>
+          <th style="text-align:right;padding:6px 4px;font-size:11px;color:var(--brown)">SL đặt</th>
+        </tr></thead>
+        <tbody>
+        ${rows.map(r=>{
+          const p=allProducts.find(x=>x.code===r.product_code);
+          const baseName=(r.product_name||'').split(' · ')[0]||r.product_name||'';
+          const cs=rowColorSize(r);
+          return `<tr style="border-bottom:1px solid var(--bg)">
+            <td style="padding:6px 4px">${p&&p.image_url?`<img src="${normalizeImageUrl(p.image_url)}" alt="" style="width:46px;height:46px;object-fit:cover;border-radius:6px;border:1px solid var(--border)" onerror="this.style.display='none'">`:`<div style="width:46px;height:46px;background:var(--bg);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:18px">👗</div>`}</td>
+            <td style="padding:6px 4px;font-size:13px;font-weight:600;color:var(--dark)">${escapeHtml(baseName)}</td>
+            <td style="padding:6px 4px;text-align:center;font-size:12px;color:var(--brown)">${escapeHtml(cs.color)}</td>
+            <td style="padding:6px 4px;text-align:center;font-size:12px;font-weight:700;color:var(--dark)">${escapeHtml(cs.size||'—')}</td>
+            <td style="padding:6px 4px;text-align:right;font-size:14px;font-weight:800;color:var(--dark)">${r.qty}</td>
+          </tr>`;
+        }).join('')}
+        </tbody>
+        <tfoot><tr style="border-top:2px solid var(--dark)">
+          <td colspan="4" style="padding:8px 4px;font-weight:800;text-align:right;color:var(--dark)">TỔNG CỘNG</td>
+          <td style="padding:8px 4px;text-align:right;font-weight:900;font-size:16px;color:var(--dark)">${totalQty}</td>
+        </tr></tfoot>
+      </table></div>
+    </div>
+    <div class="setup" style="margin-top:12px;font-size:11.5px">💡 Chụp màn hình đúng khung trắng phía trên rồi gửi qua Zalo/tin nhắn cho NCC — có kèm ảnh từng sản phẩm để họ dễ đối chiếu.</div>`;
+  m_foot(`<button class="btn" onclick="closeModal()">Đóng</button>`);
+  openModal();
+}
+// Xác nhận cả lô 1 lượt: đọc các ô đã nhập (3 cột: Nhập kho / Dành KOL / Lỗi không chỉnh được) trong lô này,
+// cộng dồn đúng nơi (kho chính / Kho hàng lỗi » KOL / Kho hàng lỗi » Lỗi không chỉnh được) + cập nhật received, rồi render lại.
 async function confirmLot(po){
-  const entries=[...document.querySelectorAll('.recv-inp')]
-    .filter(inp=>inp.dataset.po===po)
-    .map(inp=>({id:+inp.dataset.id,n:parseInt(inp.value)||0}))
-    .filter(e=>e.n>0);
-  if(!entries.length){toast('Nhập số lượng về ít nhất 1 dòng trước khi xác nhận',true);return;}
+  const byId={};
+  [...document.querySelectorAll('.recv-inp')].filter(inp=>inp.dataset.po===po).forEach(inp=>{
+    const id=+inp.dataset.id,kind=inp.dataset.kind,n=parseInt(inp.value)||0;
+    (byId[id]=byId[id]||{kho:0,kol:0,loi:0});if(n>0)byId[id][kind]=n;
+  });
+  const ids=Object.keys(byId).filter(id=>{const v=byId[id];return v.kho+v.kol+v.loi>0;});
+  if(!ids.length){toast('Nhập số lượng về ít nhất 1 dòng trước khi xác nhận',true);return;}
+  for(const id of ids){
+    const r=supplierRows.find(x=>x.id===+id);if(!r)continue;
+    const remain=r.qty-r.received,tot=byId[id].kho+byId[id].kol+byId[id].loi;
+    if(tot>remain){toast(`Dòng "${(r.product_name||'').split(' · ').slice(1).join(' · ')||r.product_name}" nhập tổng ${tot} vượt số còn lại ${remain} — sửa lại trước khi xác nhận`,true);return;}
+  }
   showLoad(true);
   try{
-    // số đợt = số đợt đã có trước đó (đọc từ ref_id "PO-r<N>-<id>") + 1
     const prevRounds=lotRoundHistory(po).map(h=>h.roundNo);
     const roundNo=prevRounds.length?Math.max(...prevRounds)+1:1;
-    for(const e of entries){
-      const r=supplierRows.find(x=>x.id===e.id);if(!r)continue;
-      const remain=r.qty-r.received;
-      const n=Math.min(e.n,remain);
-      if(n<=0)continue;
-      await postNhap({product_code:r.product_code,quantity:n,channel:'Nhập hàng NCC',ref_type:'po',
-        ref_id:r.po_code+'-r'+roundNo+'-'+r.id,note:`[LÔ ${r.name||r.po_code}] Đợt ${roundNo} · Mã đơn order: ${r.po_code} · Hàng về`});
-      await PATCH(`supplier_orders?id=eq.${r.id}`,{received:r.received+n,status:(r.received+n>=r.qty)?'Đã về':'Đang về'});
-      r.received+=n;
+    const lotName=(supplierRows.find(x=>x.po_code===po)||{}).name||po;
+    for(const id of ids){
+      const r=supplierRows.find(x=>x.id===+id);if(!r)continue;
+      const{kho,kol,loi}=byId[id],tot=kho+kol+loi;if(tot<=0)continue;
+      if(kho>0)await postNhap({product_code:r.product_code,quantity:kho,channel:'Nhập hàng NCC',ref_type:'po',
+        ref_id:r.po_code+'-r'+roundNo+'-'+r.id,note:`[LÔ ${lotName}] Đợt ${roundNo} · Mã đơn order: ${r.po_code} · Hàng về`});
+      if(kol>0)await postNhap({product_code:r.product_code,quantity:kol,channel:'Dành cho KOL',ref_type:'po_kol',
+        ref_id:r.po_code+'-r'+roundNo+'-kol-'+r.id,note:`[LÔ ${lotName}] Đợt ${roundNo} · Mã đơn order: ${r.po_code} · Dành cho KOL`});
+      if(loi>0)await postNhap({product_code:r.product_code,quantity:loi,channel:'Lỗi không chỉnh được',ref_type:'po_loi',
+        ref_id:r.po_code+'-r'+roundNo+'-loi-'+r.id,note:`[LÔ ${lotName}] Đợt ${roundNo} · Mã đơn order: ${r.po_code} · Lỗi không chỉnh được`});
+      await PATCH(`supplier_orders?id=eq.${r.id}`,{received:r.received+tot,status:(r.received+tot>=r.qty)?'Đã về':'Đang về'});
+      r.received+=tot;
     }
     toast(`✓ Đã ghi nhận Đợt ${roundNo} về hàng, cập nhật kho`);
-    renderOrderPage();renderKho();
+    renderOrderPage();renderKho();renderLoiKho();
   }catch(e){toast('Lỗi: '+e.message,true);}
   showLoad(false);
 }
@@ -2907,7 +3307,7 @@ function renderPkNccList(){
           <button class="btn btn-sm" style="background:var(--red-bg);color:var(--red-fg);border-color:#E7A5A4" onclick="deleteSupplierOrderAsk('${jsq(po)}')">🗑 Xoá đơn</button>
         </div>
       </div>
-      <div>${prows.map(orderRowHtml).join('')}</div>
+      <div>${prows.map(r=>orderRowHtml(r,true)).join('')}</div>
       ${hist.length?`<div style="padding:10px 15px;border-top:1px solid var(--border)">
         <div style="font-size:11px;font-weight:700;color:var(--brown);letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px">📜 Lịch sử về hàng (${hist.length} đợt)</div>
         ${hist.map(h=>`<div style="font-size:12px;padding:5px 0;border-top:1px dashed var(--border);display:flex;justify-content:space-between;gap:10px">
@@ -3152,8 +3552,17 @@ function shParseVar(v){
   return {color,size};
 }
 const shNorm=s=>String(s||'').trim().toLowerCase().replace(/\s+/g,'');
-// Nguyên tắc: KHÔNG SUY ĐOÁN khi thiếu dữ liệu — nếu không tách được rõ Size (hoặc SKU),
-// KHÔNG tự chọn đại 1 sản phẩm dù tên có vẻ khớp. Trả về '' để dòng đó bắt buộc vào "cần duyệt tay".
+// [MỚI] Một số listing Shopee đặt TÊN TRONG NGOẶC khác nhau theo từng màu — VD "[Dream Girl Nâu]" (ứng với
+// SP màu "Nâu Đen" trong kho) và "[Dream Girl Vàng]" (ứng với SP màu "Vàng Hồng" trong kho) — chứ KHÔNG ghi
+// Màu ở "Phân loại hàng". Bảng khai báo tay dưới đây dùng cho trường hợp HIẾM khi việc dò từ-trùng (bên dưới)
+// không ra kết quả duy nhất — khớp theo tên trong ngoặc (không dấu, chứa chuỗi). Thêm dòng mới nếu gặp case
+// tương tự sau này mà không dò tự động được.
+const SHOPEE_TITLE_COLOR_OVERRIDE=[
+  // {nameHas:'ten trong ngoac (khong dau)', color:'Tên màu trong kho'},
+];
+// Nguyên tắc: KHÔNG SUY ĐOÁN khi thiếu dữ liệu — nếu không tách được rõ Size hoặc không xác định được
+// đúng 1 Màu (khi sản phẩm có nhiều màu), KHÔNG tự chọn đại 1 sản phẩm dù tên có vẻ khớp. Trả về '' để
+// dòng đó bắt buộc vào "cần duyệt tay", chọn tay đúng màu/size rồi mới trừ kho.
 function shMatch(line){
   if(line.skuVar){const p=allProducts.find(x=>x.code===line.skuVar);if(p)return p.code;}
   if(line.skuProd){const p=allProducts.find(x=>x.code===line.skuProd);if(p)return p.code;}
@@ -3162,9 +3571,32 @@ function shMatch(line){
   // ưu tiên khớp CHÍNH XÁC tên trước (an toàn nhất); chỉ hạ xuống khớp mờ (chứa chuỗi con) nếu không có khớp chính xác nào
   const exact=allProducts.filter(p=>shNorm(p.name)===shNorm(nm));
   const cands=exact.length?exact:allProducts.filter(p=>{const a=shNorm(p.name),b=shNorm(nm);return a&&b&&(a.includes(b)||b.includes(a));});
-  let p=cands.find(x=>shNorm(x.size)===shNorm(size)&&shNorm(x.color)===shNorm(color));
-  if(!p)p=cands.find(x=>shNorm(x.size)===shNorm(size)&&(!color||!x.color));
-  return p?p.code:'';
+  const sizeCands=cands.filter(x=>shNorm(x.size)===shNorm(size));
+  // Khớp đúng cả Màu + Size (an toàn nhất, khi "Phân loại hàng" trên Shopee có ghi rõ màu)
+  let p=sizeCands.find(x=>shNorm(x.color)===shNorm(color));
+  if(p)return p.code;
+  if(sizeCands.length===1)return sizeCands[0].code; // SP này chỉ có đúng 1 biến thể ở size đó -> không cần phân biệt màu, an toàn nhận
+  if(!color){
+    // [MỚI] "Phân loại hàng" không ghi Màu — nhưng TÊN TRONG NGOẶC trên Shopee thường có nhắc màu ngay trong đó
+    // (VD "[Dream Girl Nâu]" / "[Dream Girl Vàng]"). So khớp theo TỪNG TỪ của tên trong ngoặc với từng từ của
+    // field Màu mỗi ứng viên cùng Size — CHỈ nhận khi khớp DUY NHẤT 1 màu, tránh đoán bừa khi mập mờ.
+    const nmToks=shvNorm(nm).split(' ').filter(t=>t.length>=3);
+    let hit=sizeCands.filter(x=>x.color&&nmToks.some(t=>shvNorm(x.color).split(' ').includes(t)));
+    if(hit.length!==1){
+      // dự phòng: dò trong TÊN ĐẦY ĐỦ (cả phần ngoài ngoặc, VD "...Màu Nâu Đen...")
+      const fullNorm=shvNorm(line.prod);
+      hit=sizeCands.filter(x=>x.color&&fullNorm.includes(shvNorm(x.color)));
+    }
+    if(hit.length===1)return hit[0].code;
+    // dự phòng cuối: tra bảng khai báo tay ở trên (khi không dò tự động được)
+    const nmNorm=shvNorm(nm);
+    const ov=SHOPEE_TITLE_COLOR_OVERRIDE.find(o=>nmNorm.includes(shvNorm(o.nameHas)));
+    if(ov){
+      const forced=sizeCands.find(x=>x.color&&(shvNorm(x.color).includes(shvNorm(ov.color))||shvNorm(ov.color).includes(shvNorm(x.color))));
+      if(forced)return forced.code;
+    }
+  }
+  return ''; // nhiều màu trùng size mà không xác định được đúng màu -> KHÔNG đoán, bắt buộc duyệt tay
 }
 function shDate(v){
   if(typeof v==='number'&&XLSX.SSF){const d=XLSX.SSF.parse_date_code(v);if(d)return `${d.y}-${p2(d.m)}-${p2(d.d)}`;}
@@ -3178,13 +3610,33 @@ function renderShopeePending(){
   const box=document.getElementById('sh-pending');if(!box)return;
   let list=[];try{list=JSON.parse(localStorage.getItem('shopee_pending_review')||'[]');}catch(e){}
   if(!list.length){box.innerHTML='';return;}
+  // [SỬA] Trước đây banner này cứ nằm mãi tới khi bấm "Xoá" thủ công, dù đơn cùng mã đó đã được xử lý/trừ kho
+  // xong bằng cách khác (VD tạo tay lại) — gây báo nhầm "chưa xử lý" mãi dù đã xong thật rồi. Giờ tự lọc bỏ
+  // các dòng mà mã đơn ĐÃ TỒN TẠI thật trong hệ thống (allOrders) trước khi hiển thị, và tự lưu lại danh sách
+  // đã dọn xuống localStorage (chỉ còn đúng những dòng THẬT SỰ vẫn chưa được tạo).
+  const existCodes=new Set(allOrders.map(o=>o.order_code));
+  const stillPending=list.filter(l=>!existCodes.has(l.sn));
+  if(stillPending.length!==list.length){try{localStorage.setItem('shopee_pending_review',JSON.stringify(stillPending));}catch(e){}}
+  if(!stillPending.length){box.innerHTML='';return;}
   box.innerHTML=`<div class="setup" style="background:var(--red-bg);color:var(--red-fg)">
-    ⚠️ Có <b>${list.length}</b> dòng đơn cũ CHƯA khớp được sản phẩm (chưa trừ kho) — cần lên lại phần mềm Shopee để xử lý tay:
+    ⚠️ Có <b>${stillPending.length}</b> dòng đơn cũ CHƯA khớp được sản phẩm (chưa trừ kho) — cần lên lại phần mềm Shopee để xử lý tay:
     <button class="btn btn-sm" style="margin-left:8px" onclick="document.getElementById('sh-pending-list').style.display=document.getElementById('sh-pending-list').style.display==='none'?'':'none'">Xem chi tiết</button>
-    <button class="btn btn-sm" style="margin-left:4px" onclick="localStorage.removeItem('shopee_pending_review');renderShopeePending()">Đã xử lý xong · Xoá</button>
+    <button class="btn btn-sm" style="margin-left:4px" onclick="localStorage.removeItem('shopee_pending_review');renderShopeePending()">Đã xử lý xong · Xoá tất cả</button>
     <div id="sh-pending-list" style="display:none;margin-top:8px;font-size:11.5px">
-      ${list.map(l=>`<div style="padding:3px 0;border-top:1px dashed var(--border)">${escapeHtml(l.date)} · đơn <b>${escapeHtml(l.sn)}</b> · VĐ ${escapeHtml(l.tracking||'—')} · ${escapeHtml(l.prod)} ${l.variation?`(${escapeHtml(l.variation)})`:''} · SL ${l.qty}</div>`).join('')}
+      ${stillPending.map((l,i)=>`<div style="padding:3px 0;border-top:1px dashed var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+        <span>${escapeHtml(l.date)} · đơn <b>${escapeHtml(l.sn)}</b> · VĐ ${escapeHtml(l.tracking||'—')} · ${escapeHtml(l.prod)} ${l.variation?`(${escapeHtml(l.variation)})`:''} · SL ${l.qty}</span>
+        <button class="btn btn-sm" style="padding:2px 8px" onclick="removeShopeePendingLine(${i})">✕ Đã xử lý — xoá dòng này</button>
+      </div>`).join('')}
     </div></div>`;
+}
+// Xoá đúng 1 dòng đang "cần duyệt tay" (không đụng các dòng khác), dùng khi biết chắc dòng đó đã xử lý xong thủ công.
+function removeShopeePendingLine(idx){
+  let list=[];try{list=JSON.parse(localStorage.getItem('shopee_pending_review')||'[]');}catch(e){}
+  const existCodes=new Set(allOrders.map(o=>o.order_code));
+  const stillPending=list.filter(l=>!existCodes.has(l.sn));
+  stillPending.splice(idx,1);
+  try{localStorage.setItem('shopee_pending_review',JSON.stringify(stillPending));}catch(e){}
+  renderShopeePending();
 }
 function shopeeParse(input){
   const f=input.files&&input.files[0];if(!f)return;
@@ -3359,7 +3811,11 @@ async function shopeeParsePdf(file){
       if(!order_code)continue;
       const rcv=shpRecipient(rows);const buyer=rcv.name;
       const express=/H(ỏa|oả)\s*Tốc/i.test(full);
-      const tracking=(full.match(/(SPX[A-Z]{0,3}\d{6,})/)||[])[1]||(full.match(/Mã vận đơn:\s*([A-Z0-9]{8,})/i)||[])[1]||'';
+      // [SỬA] Tem SPX Hỏa Tốc thường KHÔNG in riêng "Mã vận đơn" — chỉ có "Mã đơn hàng". Trước đây để trống ''
+      // khiến dòng này bị coi là "notrack" và KHÔNG được tạo đơn (giống lỗi 3 tem Hỏa Tốc gửi lên). Giờ dùng
+      // luôn order_code làm mã vận đơn dự phòng khi tem không in mã vận đơn riêng — y hệt cách nhánh TikTok
+      // đã làm (tracking:tk.order_code ở trên) — để đơn vẫn được nhận diện & tạo/trừ kho bình thường.
+      const tracking=(full.match(/(SPX[A-Z]{0,3}\d{6,})/)||[])[1]||(full.match(/Mã vận đơn:\s*([A-Z0-9]{8,})/i)||[])[1]||order_code;
       const cod=parseInt(((full.match(/([\d.,]+)\s*VND/)||[])[1]||'0').replace(/[^\d]/g,''))||0;
       const sku=(full.match(/SĐT[:\s]*\d+\s+([A-Z0-9][A-Z0-9\-]{5,})\s+Nội dung/i)||[])[1]||'';
       const prods=shpParseProducts(full);
@@ -3421,18 +3877,19 @@ function renderShopeePreview(){
   const uniq=k=>[...new Set(shopeeLines.filter((l,i)=>kinds[i]===k).map(l=>l.sn))].length;
   const newN=uniq('new'),updN=uniq('upd'),linkN=uniq('link'),pickN=uniq('pick'),sameN=uniq('same');
   sum.innerHTML=`<div class="setup" style="background:var(--grn-bg);color:var(--grn-fg);border-color:#97C459">Đọc <b>${shopeeLines.length}</b> dòng · <b>${linkN}</b> gắn mã VĐ vào đơn có sẵn (không trừ kho) · <b>${updN}</b> cập nhật mã VĐ · <b>${newN}</b> đơn mới (tạo + trừ kho)${pickN?` · <b style="color:var(--org-fg)">${pickN}</b> trùng tên cần chọn`:''}${sameN?` · ${sameN} đã có`:''}.</div>`;
-  box.innerHTML=`<div class="card" style="padding:0;overflow:auto"><table><thead><tr><th class="l">Mã đơn / Xử lý</th><th class="l">Khách</th><th class="l">SP Shopee</th><th>SL</th><th class="l">Mã vận đơn</th><th class="l">Khớp với (kho)</th></tr></thead><tbody>
+  box.innerHTML=`<div class="card" style="padding:0;overflow:auto"><table><thead><tr><th class="l">Mã đơn hàng</th><th class="l">Xử lý</th><th class="l">Khách</th><th class="l">SP Shopee</th><th>SL</th><th class="l">Mã vận đơn</th><th class="l">Khớp với (kho)</th></tr></thead><tbody>
     ${shopeeLines.map((l,i)=>{const k=kinds[i];
       const bg=k==='link'?'background:var(--grn-bg)':k==='upd'?'background:var(--blue-bg)':k==='pick'?'background:var(--org-bg)':k==='new'?(l.code?'':'background:var(--red-bg)'):'opacity:.5';
-      const tag=k==='link'?` <span class="pill" style="background:var(--grn-bg);color:var(--grn-fg)">→ gắn vào ${escapeHtml(l.linkTo)}</span>`
-        :k==='upd'?' <span class="pill" style="background:var(--blue-bg);color:var(--blue-fg)">cập nhật mã VĐ</span>'
-        :k==='pick'?' <span class="pill" style="background:var(--org-bg);color:var(--org-fg)">trùng tên — chọn đơn</span>'
-        :k==='new'?' <span class="pill" style="background:var(--honey);color:var(--dark)">đơn mới · trừ kho</span>'
-        :k==='notrack'?' <span class="pill" style="background:var(--bg)">tem không có mã VĐ</span>'
-        :k==='same'?' <span class="pill" style="background:var(--bg)">đã có</span>':'';
+      const tag=k==='link'?`<span class="pill" style="background:var(--grn-bg);color:var(--grn-fg)">→ gắn vào ${escapeHtml(l.linkTo)}</span>`
+        :k==='upd'?'<span class="pill" style="background:var(--blue-bg);color:var(--blue-fg)">cập nhật mã VĐ</span>'
+        :k==='pick'?'<span class="pill" style="background:var(--org-bg);color:var(--org-fg)">trùng tên — chọn đơn</span>'
+        :k==='new'?'<span class="pill" style="background:var(--honey);color:var(--dark)">đơn mới · trừ kho</span>'
+        :k==='notrack'?'<span class="pill" style="background:var(--bg)">tem không có mã VĐ</span>'
+        :k==='same'?'<span class="pill" style="background:var(--bg)">đã có</span>':'';
       const pickSel=k==='pick'?`<select onchange="shopeeLines[${i}].linkTo=this.value;renderShopeePreview()" style="font-size:11px;padding:4px 6px;margin-top:4px"><option value="">— chọn đơn —</option>${(l.cands||[]).map(c=>{const o=allOrders.find(x=>x.order_code===c);return `<option value="${c}">${escapeHtml(c)} · ${escapeHtml((o&&o.address||'').slice(0,40))}</option>`;}).join('')}</select>`:'';
       return `<tr style="${bg}">
-      <td class="l mono" style="font-size:10.5px">${escapeHtml(l.sn)}${tag}${pickSel}</td>
+      <td class="l mono" style="font-size:10.5px;font-weight:700">${escapeHtml(l.sn)}</td>
+      <td class="l" style="font-size:11px">${tag}${pickSel}</td>
       <td class="l" style="font-size:11px">${l.buyer?escapeHtml(l.buyer):'<span class="dim">—</span>'}${l.express?' <span class="pill" style="background:var(--red-bg);color:var(--red-fg)">🔥 Hỏa Tốc</span>':''}</td>
       <td class="l" style="font-size:11px;max-width:200px">${escapeHtml(shBracket(l.prod))}${l.variation?` <span class="dim">(${escapeHtml(l.variation)})</span>`:''}</td>
       <td style="font-weight:700">${l.qty}</td>
@@ -3646,7 +4103,7 @@ async function ghnParse(input){
       g.items.forEach((it,idx)=>{
         const line={sn:g.order_code,buyer:g.name,phone:g.phone,addr:g.addr,tag:g.tag,carrier:g.carrier,
           prod:it.prod,variation:it.variation,qty:it.qty,price:idx===0?g.cod:0,
-          kind:(g.tag&&/đổi/i.test(g.tag))?'doi':'khach'};
+          kind:(g.tag&&/đổi/i.test(g.tag))?'doi':'khach',khoSrc:'main'};
         line.code=shMatch(line);
         ghnLines.push(line);
       });
@@ -3683,14 +4140,20 @@ function renderGhnPreview(){
           <option value="khach" ${l.kind==='khach'?'selected':''}>👤 Khách</option>
           <option value="kol" ${l.kind==='kol'?'selected':''}>⭐ KOL</option>
           <option value="doi" ${l.kind==='doi'?'selected':''}>🔄 Đổi hàng</option>
-        </select>`:''}</td>
+        </select>${l.kind==='kol'?`<br><select onchange="ghnSetKhoSrc('${sn}',this.value)" style="font-size:10.5px;padding:3px 6px;margin-top:4px;border-color:var(--honey)">
+          <option value="main" ${(l.khoSrc||'main')==='main'?'selected':''}>🗂 Trừ: Quản lý kho</option>
+          <option value="loikho" ${l.khoSrc==='loikho'?'selected':''}>🚫 Trừ: Kho hàng lỗi</option>
+        </select>`:''}`:''}</td>
       </tr>`;
     }).join('');
   }).join('')}
   </tbody></table></div>
   <div class="row" style="margin-top:14px"><button class="btn btn-dark" onclick="ghnConfirm()">✅ Xác nhận nhập ${codes.length} đơn</button></div>`;
 }
-function ghnSetKind(sn,kind){ghnLines.forEach(l=>{if(l.sn===sn)l.kind=kind;});}
+// [SỬA] chọn "Loại đơn" xong render lại preview, để riêng đơn KOL hiện thêm ô chọn trừ kho nào (Quản lý kho / Kho hàng lỗi)
+function ghnSetKind(sn,kind){ghnLines.forEach(l=>{if(l.sn===sn){l.kind=kind;if(kind!=='kol')l.khoSrc='main';}});renderGhnPreview();}
+// riêng đơn KOL: chọn trừ kho chính (Quản lý kho) hay Kho hàng lỗi (mục "Dành cho KOL")
+function ghnSetKhoSrc(sn,src){ghnLines.forEach(l=>{if(l.sn===sn)l.khoSrc=src;});}
 async function ghnConfirm(){
   const bySn={};ghnLines.forEach(l=>{(bySn[l.sn]=bySn[l.sn]||[]).push(l);});
   const usedTrack=new Set(allOrders.map(o=>o.tracking_code||'').filter(Boolean));
@@ -3703,6 +4166,9 @@ async function ghnConfirm(){
       const items=bySn[sn].filter(l=>l.code);
       if(!items.length)continue;
       const kind=items[0].kind;
+      // [MỚI] Riêng đơn KOL: chọn trừ vào Quản lý kho (mặc định) hay Kho hàng lỗi (mục "Dành cho KOL")
+      const khoSrc=kind==='kol'?(items[0].khoSrc||'main'):'main';
+      const useLoiKho=kind==='kol'&&khoSrc==='loikho';
       const carrier=items[0].carrier||'GHN'; // [SỬA] trước hard-code 'GHN' cho MỌI đơn ngoại sàn dù đọc từ tem SPX/Shopee Express
       const shipLabel=carrier==='SPX'?'Shopee Express':'GHN';
       const channel=kind==='kol'?'KOL VN':(kind==='doi'?'Đổi hàng':'Ngoại sàn');
@@ -3717,8 +4183,10 @@ async function ghnConfirm(){
           sent_date:status==='Đã gửi'?todayStr():null}); // [VẤN ĐỀ 2] Ngoại sàn (Khách/KOL) nhảy thẳng "Đã gửi" lúc tạo — riêng "Đổi hàng" (Chờ hàng về) thì chưa
         if(rows&&rows[0])allOrders.unshift(rows[0]);
         if(kind!=='doi'){
-          await postXuat({product_code:l.code,quantity:l.qty,channel,ref_type:'order',ref_id:'NS-'+sn+'#'+(li++),
-            is_kol:kind==='kol',note:`${kind==='kol'?NO_REVENUE_NOTE+' ':''}Ngoại sàn ${kind==='kol'?'KOL':'Khách'} ${sn}`,date:todayStr()});
+          // useLoiKho=true → trừ vào Kho hàng lỗi (ref_type='kol_out', tách khỏi Quản lý kho chính, giống hệt logic trang Kho hàng lỗi)
+          await postXuat({product_code:l.code,quantity:l.qty,channel:useLoiKho?'Dành cho KOL':channel,
+            ref_type:useLoiKho?'kol_out':'order',ref_id:(useLoiKho?'NS-LOIKHO-':'NS-')+sn+'#'+(li++),
+            is_kol:kind==='kol',note:`${kind==='kol'?NO_REVENUE_NOTE+' ':''}Ngoại sàn ${kind==='kol'?'KOL':'Khách'} ${sn}${useLoiKho?' (trừ Kho hàng lỗi)':''}`,date:todayStr()});
         }
       }
       if(kind!=='doi')await applyAccessoryOnShip(sn,items,{isKol:kind==='kol'});
@@ -3754,10 +4222,15 @@ function buildQrFilters(){
     return;
   }
   const base=allProducts.filter(p=>qrGroupNameOf(p,nmMap)===qrFilterProd);
-  const colors=[...new Set(base.map(p=>p.color).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'vi'));
-  if(qrFilterColor!=='ALL'&&!colors.includes(qrFilterColor))qrFilterColor='ALL';
-  tabsC.innerHTML=['ALL',...colors].map(c=>
-    `<div class="tab ${qrFilterColor===c?'on':''}" onclick="qrSetColor('${jsq(c)}')">${c==='ALL'?'Tất cả màu':escapeHtml(c)}</div>`).join('');
+  // [SỬA] Trước gộp màu bằng so khớp chuỗi y hệt từng ký tự (Set thô) — nếu 2 dòng cùng 1 màu nhưng bị gõ lệch
+  // hoa/thường hoặc khoảng trắng thừa (VD "Gấm Xanh lá" vs "Gấm Xanh Lá") sẽ tách thành 2 tab màu riêng, khiến
+  // sản phẩm "bị chia làm 2". Giờ dùng colorGroupsOf() (chuẩn hoá) y hệt trang Kho hàng/Order hàng, và lưu bộ lọc
+  // theo KEY đã chuẩn hoá (colorKeyOf) thay vì chuỗi màu thô.
+  const colorGroups=colorGroupsOf(base).sort((a,b)=>a.color.localeCompare(b.color,'vi'));
+  if(qrFilterColor!=='ALL'&&!colorGroups.some(cg=>cg.key===qrFilterColor))qrFilterColor='ALL';
+  tabsC.innerHTML=['ALL',...colorGroups].map(cg=>cg==='ALL'
+    ?`<div class="tab ${qrFilterColor==='ALL'?'on':''}" onclick="qrSetColor('ALL')">Tất cả màu</div>`
+    :`<div class="tab ${qrFilterColor===cg.key?'on':''}" onclick="qrSetColor('${jsq(cg.key)}')">${escapeHtml(cg.color)}</div>`).join('');
 }
 function renderQR(prods, newCode){
   const grid=document.getElementById('qr-grid'); if(!grid) return;
@@ -3768,7 +4241,7 @@ function renderQR(prods, newCode){
   const nmMap=normName();
   const list=(prods||[]).filter(p=>{
     if(qrFilterProd!=='ALL'&&qrGroupNameOf(p,nmMap)!==qrFilterProd)return false;
-    if(qrFilterColor!=='ALL'&&(p.color||'')!==qrFilterColor)return false;
+    if(qrFilterColor!=='ALL'&&colorKeyOf(p.color)!==qrFilterColor)return false;
     return true;
   });
   if(!list.length){grid.innerHTML='<div class="dim" style="padding:20px">Không có sản phẩm nào khớp bộ lọc.</div>';return;}
@@ -4008,10 +4481,15 @@ function buildProdFilters(){
     `<div class="tab ${prodFilterProd===n?'on':''}" onclick="prodSetProd('${jsq(n)}')">${n==='ALL'?'Tất cả sản phẩm':escapeHtml(n)}</div>`).join('');
   if(prodFilterProd==='ALL'){tabsC.innerHTML='';prodFilterColor='ALL';return;}
   const base=allProducts.filter(p=>qrGroupNameOf(p,nmMap)===prodFilterProd);
-  const colors=[...new Set(base.map(p=>p.color).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'vi'));
-  if(prodFilterColor!=='ALL'&&!colors.includes(prodFilterColor))prodFilterColor='ALL';
-  tabsC.innerHTML=['ALL',...colors].map(c=>
-    `<div class="tab ${prodFilterColor===c?'on':''}" onclick="prodSetColor('${jsq(c)}')">${c==='ALL'?'Tất cả màu':escapeHtml(c)}</div>`).join('');
+  // [SỬA] Trước gộp màu bằng so khớp chuỗi y hệt từng ký tự (Set thô) — nếu 2 dòng cùng 1 màu nhưng bị gõ lệch
+  // hoa/thường hoặc khoảng trắng thừa (VD "Gấm Xanh lá" vs "Gấm Xanh Lá") sẽ tách thành 2 tab màu riêng, khiến
+  // sản phẩm "bị chia làm 2". Giờ dùng colorGroupsOf() (chuẩn hoá) y hệt trang Kho hàng/Order hàng, và lưu bộ lọc
+  // theo KEY đã chuẩn hoá (colorKeyOf) thay vì chuỗi màu thô.
+  const colorGroups=colorGroupsOf(base).sort((a,b)=>a.color.localeCompare(b.color,'vi'));
+  if(prodFilterColor!=='ALL'&&!colorGroups.some(cg=>cg.key===prodFilterColor))prodFilterColor='ALL';
+  tabsC.innerHTML=['ALL',...colorGroups].map(cg=>cg==='ALL'
+    ?`<div class="tab ${prodFilterColor==='ALL'?'on':''}" onclick="prodSetColor('ALL')">Tất cả màu</div>`
+    :`<div class="tab ${prodFilterColor===cg.key?'on':''}" onclick="prodSetColor('${jsq(cg.key)}')">${escapeHtml(cg.color)}</div>`).join('');
 }
 function renderProductsTable(){
   renderDupSkuCheck();
@@ -4020,7 +4498,7 @@ function renderProductsTable(){
   const nmMap=normName();
   const list=sortPS(allProducts).filter(p=>{
     if(prodFilterProd!=='ALL'&&qrGroupNameOf(p,nmMap)!==prodFilterProd)return false;
-    if(prodFilterColor!=='ALL'&&(p.color||'')!==prodFilterColor)return false;
+    if(prodFilterColor!=='ALL'&&colorKeyOf(p.color)!==prodFilterColor)return false;
     return true;
   });
   box.innerHTML=list.map(p=>`
@@ -4029,23 +4507,37 @@ function renderProductsTable(){
       <td class="l mono">${p.code}</td>
       <td class="l" style="font-weight:600">${escapeHtml(p.name)}</td>
       <td class="l">${escapeHtml(p.color||'—')}</td>
+      <td class="l" style="font-weight:700">${escapeHtml(p.size||'—')}</td>
       <td class="l" style="font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.image_url?escapeHtml(p.image_url):'<span class="dim">—</span>'}</td>
       <td class="l" style="font-size:11px">${fmtDate(p.created_at)}</td>
       <td style="white-space:nowrap">
         <button class="btn btn-sm" onclick="openEditProduct('${p.code}')">✏️</button>
         <button class="btn btn-sm btn-red" onclick="deleteProductAsk('${p.code}','${jsq(p.name)}')">🗑</button>
       </td>
-    </tr>`).join('')||'<tr><td colspan="7" class="dim" style="padding:20px">Không có sản phẩm nào khớp bộ lọc.</td></tr>';
+    </tr>`).join('')||'<tr><td colspan="8" class="dim" style="padding:20px">Không có sản phẩm nào khớp bộ lọc.</td></tr>';
+}
+// [MỚI] tự tính mã SP tiếp theo (VD đang có P001..P031 → gợi ý P032) — giữ đúng số chữ số đệm hiện có (VD P031 → P032, không phải P32)
+function nextProductCode(){
+  let max=0,pad=3;
+  allProducts.forEach(p=>{
+    const m=String(p.code||'').match(/^P(\d+)$/);
+    if(m){const n=+m[1];if(n>=max){max=n;pad=Math.max(pad,m[1].length);}}
+  });
+  return 'P'+String(max+1).padStart(pad,'0');
 }
 function openAddProduct(){
   m_title('+ Thêm sản phẩm mới');
+  const nextCode=nextProductCode();
   document.getElementById('m-body').innerHTML=`
     <input type="hidden" id="p-edit-code">
     <div class="grid2">
-      <label class="fld"><span>Mã SP *</span><input id="p-code" placeholder="P013"></label>
+      <label class="fld"><span>Mã SP *</span><input id="p-code" value="${escapeHtml(nextCode)}" placeholder="P013"></label>
       <label class="fld"><span>Tên sản phẩm *</span><input id="p-name" placeholder="Đầm Butterfly"></label>
     </div>
-    <label class="fld"><span>Màu sắc</span><input id="p-color" placeholder="Đỏ rượu"></label>
+    <div class="grid2">
+      <label class="fld"><span>Màu sắc</span><input id="p-color" placeholder="Đỏ rượu"></label>
+      <label class="fld"><span>Size</span><input id="p-size" placeholder="S / M / L..."></label>
+    </div>
     <label class="fld"><span>Link ảnh sản phẩm (URL)</span><input id="p-image" placeholder="https://..."></label>`;
   m_foot(`<button class="btn" onclick="closeModal()">Huỷ</button><button class="btn btn-dark" onclick="saveProductModal()">Lưu sản phẩm</button>`);
   openModal();
@@ -4059,7 +4551,10 @@ function openEditProduct(code){
       <label class="fld"><span>Mã SP</span><input id="p-code2" value="${code}" disabled style="opacity:.6"></label>
       <label class="fld"><span>Tên sản phẩm *</span><input id="p-name2" value="${escapeHtml(p.name||'')}"></label>
     </div>
-    <label class="fld"><span>Màu sắc</span><input id="p-color2" value="${escapeHtml(p.color||'')}"></label>
+    <div class="grid2">
+      <label class="fld"><span>Màu sắc</span><input id="p-color2" value="${escapeHtml(p.color||'')}"></label>
+      <label class="fld"><span>Size</span><input id="p-size2" value="${escapeHtml(p.size||'')}" placeholder="S / M / L..."></label>
+    </div>
     <label class="fld"><span>Link ảnh sản phẩm (URL)</span><input id="p-image2" value="${escapeHtml(p.image_url||'')}"></label>`;
   m_foot(`<button class="btn" onclick="closeModal()">Huỷ</button><button class="btn btn-dark" onclick="saveProductModal()">Lưu sản phẩm</button>`);
   openModal();
@@ -4071,6 +4566,7 @@ async function saveProductModal(){
   const name=document.getElementById(isEdit?'p-name2':'p-name').value.trim();
   if(!code||!name){toast('Vui lòng điền mã và tên sản phẩm',true);return;}
   const data={name,color:document.getElementById(isEdit?'p-color2':'p-color').value.trim(),
+    size:document.getElementById(isEdit?'p-size2':'p-size').value.trim(),
     image_url:normalizeImageUrl(document.getElementById(isEdit?'p-image2':'p-image').value)};
   showLoad(true);
   try{
