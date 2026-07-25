@@ -222,15 +222,25 @@ tr:last-child td{border-bottom:none}
         <div id="sh-preview" style="margin-top:16px"></div>
       </div>
 
-      <!-- NGOẠI SÀN: GHN hoặc đơn vị vận chuyển ngoài (Khách / KOL / Đổi hàng) -->
+      <!-- NGOẠI SÀN: tách riêng 2 mục GHN và Shopee Express để đọc tem đúng loại, không tự nhận diện lẫn lộn -->
       <div id="tao-ngoai" style="display:none">
-        <div class="pg-s">Đơn đi qua đơn vị vận chuyển ngoài sàn TMĐT (GHN, SPX/Shopee Express...) — không thuộc đơn Shopee/TikTok sàn thật. Tải tem lên rồi <b>chọn loại cho từng đơn</b> — Khách/KOL trừ kho ngay, Đổi hàng đưa vào hàng chờ về (chưa cộng kho).</div>
-        <div class="setup">📥 Tải <b>tem PDF (GHN Express hoặc SPX/Shopee Express)</b> kéo vào ô dưới — tự nhận diện loại tem, đọc tên khách, địa chỉ, SĐT (nếu có), COD, sản phẩm. Lưu ý: tem SPX ngoại sàn thường không in SĐT khách — bạn có thể bổ sung tay nếu cần.</div>
+        <div class="pg-s">Đơn đi qua đơn vị vận chuyển ngoài sàn TMĐT — không thuộc đơn Shopee/TikTok sàn thật. Tải tem đúng mục bên dưới rồi <b>chọn loại cho từng đơn</b> — Khách/KOL trừ kho ngay, Đổi hàng đưa vào hàng chờ về (chưa cộng kho).</div>
+
+        <div class="pg-t" style="font-size:15px;margin-top:4px">🚚 Đơn GHN</div>
+        <div class="setup">📥 Tải <b>tem GHN (.pdf)</b> — layout "Từ:"/"Đến:" hoặc "Bên nhận", đọc mã vận đơn, tên khách, địa chỉ, COD, sản phẩm.</div>
         <div class="card" style="max-width:680px">
-          <label class="fld" style="margin:0"><span>File tem Ngoại sàn (.pdf)</span><input type="file" id="ng-file" accept=".pdf" onchange="ghnParse(this)"></label>
-          <div id="ng-summary" style="margin-top:12px"></div>
+          <label class="fld" style="margin:0"><span>File tem GHN (.pdf)</span><input type="file" id="ng-ghn-file" accept=".pdf" onchange="ngoaiParse('ghn',this)"></label>
+          <div id="ng-ghn-summary" style="margin-top:12px"></div>
         </div>
-        <div id="ng-preview" style="margin-top:16px"></div>
+        <div id="ng-ghn-preview" style="margin-top:16px"></div>
+
+        <div class="pg-t" style="font-size:15px;margin-top:26px">📦 Đơn Shopee Express (SPX)</div>
+        <div class="setup">📥 Tải <b>tem SPX/Shopee Express (.pdf)</b> — layout "Từ:"/"Đến:" cạnh nhau, không có "Mã đơn hàng". Lưu ý: tem SPX ngoại sàn thường không in SĐT khách — bạn có thể bổ sung tay nếu cần.</div>
+        <div class="card" style="max-width:680px">
+          <label class="fld" style="margin:0"><span>File tem Shopee Express (.pdf)</span><input type="file" id="ng-spx-file" accept=".pdf" onchange="ngoaiParse('spx',this)"></label>
+          <div id="ng-spx-summary" style="margin-top:12px"></div>
+        </div>
+        <div id="ng-spx-preview" style="margin-top:16px"></div>
       </div>
 
       <!-- TẠO TAY -->
@@ -992,6 +1002,11 @@ function renderDonDateBar(){
     </div>`;
     return;
   }
+  // [MỚI] tab "Đổi/trả" — thêm nút tạo đơn đổi/trả nhập tay, không cần đơn gốc hay tem PDF nào
+  if(donFilter==='Đổi/trả'){
+    box.innerHTML=`<div class="row"><button class="btn btn-dark btn-sm" onclick="openAddDoiTra()">➕ Thêm đơn Đổi/trả bằng tay</button></div>`;
+    return;
+  }
   if(!DON_DATE_TABS.includes(donFilter)){box.innerHTML='';return;}
   const btn=(p,label)=>`<div class="tab${donDatePreset===p?' on':''}" onclick="donSetDatePreset('${p}')">${label}</div>`;
   box.innerHTML=`<div class="tabs" style="margin-bottom:${donDatePreset==='custom'?'8px':'0'}">
@@ -1001,6 +1016,66 @@ function renderDonDateBar(){
     <label class="fld" style="margin:0"><span>Từ</span><input type="date" value="${donDateFrom}" onchange="donSetCustomDate('from',this.value)"></label>
     <label class="fld" style="margin:0"><span>đến</span><input type="date" value="${donDateTo}" onchange="donSetCustomDate('to',this.value)"></label>
   </div>`:''}`;
+}
+// ── Thêm đơn Đổi/trả bằng tay (không cần đơn gốc / tem PDF) — tạo thẳng đơn ở trạng thái "Chờ hàng về",
+// CHƯA trừ/cộng kho (giống hệt luồng "Đổi hàng" từ Ngoại Sàn) — chỉ khi bấm "📦 Hàng đã về — xử lý" sau
+// đó mới thật sự cộng/trừ kho, dùng lại đúng luồng doReturnArrived có sẵn.
+let dtLines=[];
+function dtAddLine(){dtLines.push({code:'',qty:1,price:0});dtRenderLines();}
+function dtRenderLines(){
+  const opts=sortPS(allProducts).map(p=>`<option value="${p.code}">${escapeHtml(pname(p))}</option>`).join('');
+  const box=document.getElementById('dt-lines');if(!box)return;
+  box.innerHTML=dtLines.map((l,i)=>`
+    <div class="prodline">
+      <select onchange="dtLines[${i}].code=this.value"><option value="">— chọn SP —</option>${opts}</select>
+      <input type="number" min="1" step="1" value="${l.qty}" oninput="dtLines[${i}].qty=intv(this.value,1)" placeholder="SL">
+      <input type="number" min="0" step="1" value="${l.price}" oninput="dtLines[${i}].price=intv(this.value,0)" placeholder="Giá">
+      <button class="btn btn-sm" onclick="dtLines.splice(${i},1);dtRenderLines()">✕</button>
+    </div>`).join('');
+  document.querySelectorAll('#dt-lines select').forEach((s,i)=>s.value=dtLines[i].code);
+}
+function openAddDoiTra(){
+  dtLines=[{code:'',qty:1,price:0}];
+  m_title('🔄 Thêm đơn Đổi/trả bằng tay');
+  document.getElementById('m-body').innerHTML=`
+    <div style="font-size:12px;color:var(--brown);margin-bottom:12px">Dùng cho đổi/trả không đi kèm tem hoặc không có đơn gốc trong hệ thống. Đơn tạo ra ở trạng thái <b>"Chờ hàng về"</b> — <b>chưa cộng/trừ kho</b>, chỉ khi bấm "Hàng đã về — xử lý" ở thẻ đơn sau đó mới thật sự cộng kho.</div>
+    <div class="grid2">
+      <label class="fld"><span>Tên khách</span><input id="dt-name" placeholder="Tên người đổi/trả"></label>
+      <label class="fld"><span>Số điện thoại</span><input id="dt-phone" placeholder="09..."></label>
+    </div>
+    <label class="fld"><span>Địa chỉ (tuỳ chọn)</span><input id="dt-addr" placeholder="123 Lê Lợi, P.Bến Nghé, Q.1, TP.HCM"></label>
+    <div style="font-size:11px;font-weight:600;color:var(--brown);margin:6px 0 6px">Sản phẩm đổi/trả</div>
+    <div id="dt-lines"></div>
+    <button class="btn btn-sm" onclick="dtAddLine()">+ Thêm dòng SP</button>
+    <label class="fld" style="margin-top:12px"><span>Lý do đổi/trả</span><input id="dt-reason" placeholder="VD: khách đổi size, hàng lỗi..."></label>`;
+  m_foot(`<button class="btn" onclick="closeModal()">Huỷ</button>
+    <button class="btn btn-dark" onclick="saveDoiTraTay()">✅ Tạo đơn Đổi/trả</button>`);
+  openModal();dtRenderLines();
+}
+async function saveDoiTraTay(){
+  const name=document.getElementById('dt-name').value.trim();
+  const phone=document.getElementById('dt-phone').value.trim();
+  const addr=document.getElementById('dt-addr').value.trim();
+  const reason=document.getElementById('dt-reason').value.trim()||'Đổi/trả nhập tay';
+  const lines=dtLines.filter(l=>l.code&&l.qty>0).map(l=>({...l,qty:intv(l.qty,1),price:intv(l.price,0)}));
+  if(!name){toast('Nhập tên khách',true);return;}
+  if(!lines.length){toast('Chọn ít nhất 1 sản phẩm',true);return;}
+  const code=newCode();
+  showLoad(true);
+  try{
+    for(const l of lines){
+      const p=allProducts.find(x=>x.code===l.code);
+      const rows=await POST('orders',{order_code:code,date:todayStr(),customer_name:name,phone,address:addr,
+        product_code:l.code,product_name:pname(p),quantity:l.qty,channel:'Đổi hàng',status:'Chờ hàng về',
+        tracking_code:'',staff:'',note:'[CHỜ VỀ] '+reason,amount_due:l.qty*l.price,is_paid:false,shipping_fee:0,
+        payment_method:'COD',ship_method:''});
+      if(rows&&rows[0])allOrders.unshift(rows[0]);
+      // KHÔNG trừ/cộng kho ở bước tạo — chỉ khi bấm "Hàng đã về — xử lý" (doReturnArrived) mới thật sự cộng kho.
+    }
+    toast(`✓ Đã tạo đơn Đổi/trả ${code} — chờ hàng về, chưa đụng kho`);
+    closeModal();renderDonTabs();renderDon();updateBadges();
+  }catch(e){toast('Lỗi: '+e.message,true);}
+  showLoad(false);
 }
 function renderDonTabs(){
   document.getElementById('don-tabs').innerHTML=DON_FILTERS.map(ff=>{
@@ -4006,13 +4081,40 @@ function ghnParsePage(full){
   }
   return{order_code,name,phone,addr,cod,tag,items,carrier:'GHN'};
 }
+/* ── Đọc tem GHN kiểu 2 cột "Từ:"/"Đến:" cạnh nhau (không có dòng "Bên nhận" như tem GHN cũ)
+   — đây là tem Shopee giao qua đối tác GHN, VẪN có "Mã vận đơn" + thường có cả "Mã đơn hàng",
+   nhưng khác tem SPX/Shopee Express ở logo/mã vận đơn không có tiền tố SPX. Dùng riêng cho
+   mục "Đơn GHN" nên không cần loại trừ theo "Mã đơn hàng" như spxOffParsePage. ── */
+function ghnOffParsePage(rows,full){
+  const fn=shvNorm(full);
+  if(!fn.includes('ma van don'))return null; // không có Mã vận đơn → không phải tem GHN dạng này
+  let order_code=(full.match(/[Mm][ãa]\s*v[ậa]n\s*đ[ơo]n[:\s]*\s*([A-Z0-9]{6,})/i)||[])[1]||'';
+  if(!order_code)return null;
+  const rcv=spxOffRecipient(rows)||{name:'',addr:''};
+  const cod=parseInt(((full.match(/Ti[eề]n\s*thu\s*[Nn]g[ưu][ờo]i\s*nh[ậa]n:?\s*([\d.,]+)/i)||[])[1]||'0').replace(/[^\d]/g,''))||0;
+  const items=[];
+  // [SỬA] trước dùng "." (không khớp newline) nên tên sản phẩm dài bị xuống dòng trên tem (rất phổ biến,
+  // như tem GHN mẫu) sẽ không đọc được sản phẩm nào. Đổi sang [\s\S] để khớp qua nhiều dòng, rồi gộp
+  // khoảng trắng/newline lại thành 1 khoảng trắng trước khi tách màu/size.
+  const re=/\d+\.\s*([\s\S]+?),\s*SL:\s*(\d+)/gi;
+  let m;
+  while((m=re.exec(full))){
+    const raw=m[1].replace(/\s+/g,' ').trim();
+    const {prod,variation}=spxSplitProdVar(raw);
+    items.push({prod,variation,qty:parseInt(m[2])||1});
+  }
+  if(!items.length)return null;
+  return{order_code,name:rcv.name,phone:'',addr:rcv.addr,cod,tag:'',items,carrier:'GHN'};
+}
 /* ── Đọc tem SPX (Shopee Express) dùng riêng cho đơn NGOẠI SÀN
    — khác tem GHN: layout 2 cột "Từ:" / "Đến:" nằm cạnh nhau, không
    có dòng "Bên nhận" như GHN, và KHÔNG có "Mã đơn hàng" (đó là dấu
    hiệu để phân biệt với tem Shopee sàn thật ở tab Đơn Sàn). ── */
 function spxOffRecipient(rows){
   let di=-1,xDen=null;
-  outer: for(let i=0;i<rows.length;i++){for(const ch of rowChunks(rows[i].items)){if(shvNorm(ch.s).trim()==='den'){di=i;xDen=ch.x;break outer;}}}
+  // [SỬA] một số tem (VD GHN) chữ "Đến:" dính liền dấu ":" trong CÙNG 1 khối (không tách rời như tem SPX
+  // cũ) nên so khớp tuyệt đối '=== "den"' không khớp được → đổi sang regex chấp nhận có/không dấu ":"
+  outer: for(let i=0;i<rows.length;i++){for(const ch of rowChunks(rows[i].items)){if(/^den:?$/.test(shvNorm(ch.s).trim())){di=i;xDen=ch.x;break outer;}}}
   if(di<0)return null;
   const out=[];
   for(let i=di+1;i<rows.length&&out.length<8;i++){
@@ -4036,7 +4138,13 @@ function spxOffRecipient(rows){
 // là phần đầu câu — phần dư giữa tên SP và size chính là màu.
 function spxSplitProdVar(raw){
   raw=String(raw||'').trim();
-  const ci=raw.lastIndexOf(':');
+  // [SỬA] một số tem bị lỗi font/icon chèn ký tự lạ có dấu ':' vào GIỮA câu (VD icon áo trước tên SP bị
+  // đọc thành "(cid:0)" hoặc ký tự khác có ':') khiến lastIndexOf(':') bắt nhầm dấu ':' đó thay vì dấu ':'
+  // phân cách size thật ở cuối câu → chỉ coi dấu ':' hợp lệ khi phần sau nó NGẮN (đúng kiểu size/số lượng
+  // thật như "M", "1c"), nếu không thì coi như không có dấu ':' và dò size theo cách khác ở dưới.
+  const ci0=raw.lastIndexOf(':');
+  const ciValid=ci0>=0&&(raw.length-ci0-1)>0&&(raw.length-ci0-1)<=12;
+  const ci=ciValid?ci0:-1;
   const left=ci>=0?raw.slice(0,ci).trim():raw;
   const right=ci>=0?raw.slice(ci+1).trim():'';
   let sizeTok='',rest=left;
@@ -4047,6 +4155,13 @@ function spxSplitProdVar(raw){
     const toks=rest.split(/\s+/);
     for(let i=toks.length-1;i>=Math.max(0,toks.length-2);i--){
       if(sizeRank(toks[i])!==99){sizeTok=toks[i];rest=toks.slice(0,i).join(' ');break;}
+    }
+    // [SỬA] một số tem gõ dính liền "màu,size" không có khoảng trắng trước dấu phẩy (VD "Xanh dương,M")
+    // → tách whitespace ở trên không bắt được vì "dương,M" bị coi là 1 từ. Thử thêm: cắt ở dấu phẩy/khoảng
+    // trắng CUỐI CÙNG của cả câu (không cần đúng 1 từ) rồi so khớp size lại.
+    if(!sizeTok){
+      const tailM=rest.match(/^(.*)[,\s]+([A-Za-z0-9]+)$/);
+      if(tailM&&sizeRank(tailM[2])!==99){sizeTok=tailM[2];rest=tailM[1];}
     }
     if(!sizeTok)return{prod:rest,variation:right}; // không dò được size ở đâu → để nguyên, dòng này sẽ rơi vào "cần duyệt tay"
   }
@@ -4075,72 +4190,90 @@ function spxOffParsePage(rows,full){
   const rcv=spxOffRecipient(rows)||{name:'',addr:''};
   const cod=parseInt(((full.match(/Ti[eề]n\s*thu\s*[Nn]g[ưu][ờo]i\s*nh[ậa]n:?\s*([\d.,]+)/i)||[])[1]||'0').replace(/[^\d]/g,''))||0;
   const items=[];
-  const re=/\d+\.\s*(.+?),\s*SL:\s*(\d+)/gi;
+  // [SỬA] như ghnOffParsePage — dùng [\s\S] để khớp được khi tên sản phẩm dài bị xuống dòng trên tem
+  const re=/\d+\.\s*([\s\S]+?),\s*SL:\s*(\d+)/gi;
   let m;
   while((m=re.exec(full))){
-    const {prod,variation}=spxSplitProdVar(m[1]);
+    const raw=m[1].replace(/\s+/g,' ').trim();
+    const {prod,variation}=spxSplitProdVar(raw);
     items.push({prod,variation,qty:parseInt(m[2])||1});
   }
   if(!items.length)return null;
   return{order_code,name:rcv.name,phone:'',addr:rcv.addr,cod,tag:'',items,carrier:'SPX'};
 }
-async function ghnParse(input){
+// [SỬA] Tách hẳn 2 mục "Đơn GHN" và "Đơn Shopee Express" — mỗi mục có ô tải riêng, đọc bằng đúng bộ
+// parser của loại tem đó (không còn tự nhận diện/fallback lẫn nhau như trước → tránh đọc sai/nhầm loại).
+let ngLines={ghn:[],spx:[]};
+const NG_LABEL={ghn:'GHN',spx:'Shopee Express'};
+async function ngoaiParse(type,input){
   const file=input.files&&input.files[0]; if(!file)return;
-  const sum=document.getElementById('ng-summary');sum.innerHTML='<div class="setup">Đang đọc tem PDF…</div>';
+  const sum=document.getElementById('ng-'+type+'-summary');sum.innerHTML='<div class="setup">Đang đọc tem PDF…</div>';
   if(!window.pdfjsLib){sum.innerHTML='<div class="setup" style="background:var(--red-bg);color:var(--red-fg)">Chưa tải được pdf.js (cần mạng).</div>';return;}
   try{
     const buf=await file.arrayBuffer();
     const pdf=await pdfjsLib.getDocument({data:buf}).promise;
-    ghnLines=[];
+    ngLines[type]=[];
     const debugPages=[];
     for(let i=1;i<=pdf.numPages;i++){
       const tc=await (await pdf.getPage(i)).getTextContent();
       const rows=shpPageRows(tc.items);
       const full=rows.map(r=>joinItemsGap(r.items)).join('\n');
       debugPages.push(full);
-      const g=ghnParsePage(full)||spxOffParsePage(rows,full);
+      // mỗi mục dùng đúng bộ đọc của mình — mục GHN thử 2 dạng tem GHN (Bên nhận / Từ-Đến), mục SPX chỉ đọc tem SPX
+      // [SỬA LỖI] trước dùng ghnParsePage(full)||ghnOffParsePage(...) — nhưng ghnParsePage LUÔN trả về object
+      // (kể cả khi đọc được 0 sản phẩm, vì nó chỉ cần thấy mã đơn là trả về) nên toán tử || dừng lại luôn,
+      // KHÔNG BAO GIỜ rơi xuống thử bộ đọc "Từ:/Đến:" mới → tem dạng mới bị đọc ra "0 đơn". Giờ đổi sang
+      // kiểm tra items.length thật sự trước khi quyết định có cần thử bộ đọc còn lại hay không.
+      let g=null;
+      if(type==='ghn'){
+        g=ghnParsePage(full);
+        if(!g||!g.items.length)g=ghnOffParsePage(rows,full);
+      }else{
+        g=spxOffParsePage(rows,full);
+      }
       if(!g||!g.items.length)continue;
       g.items.forEach((it,idx)=>{
-        const line={sn:g.order_code,buyer:g.name,phone:g.phone,addr:g.addr,tag:g.tag,carrier:g.carrier,
+        const line={sn:g.order_code,buyer:g.name,phone:g.phone,addr:g.addr,tag:g.tag,carrier:type==='ghn'?'GHN':'SPX',
           prod:it.prod,variation:it.variation,qty:it.qty,price:idx===0?g.cod:0,
           kind:(g.tag&&/đổi/i.test(g.tag))?'doi':'khach',khoSrc:'main'};
         line.code=shMatch(line);
-        ghnLines.push(line);
+        ngLines[type].push(line);
       });
     }
-    if(!ghnLines.length){
+    if(!ngLines[type].length){
       const dbg=escapeHtml(debugPages.join('\n\n────── (trang kế) ──────\n\n'));
-      sum.innerHTML='<div class="setup" style="background:var(--red-bg);color:var(--red-fg)">Không đọc được đơn nào từ PDF. Kiểm tra đúng file tem GHN hoặc SPX (Shopee Express).<br><br>'
+      sum.innerHTML='<div class="setup" style="background:var(--red-bg);color:var(--red-fg)">Không đọc được đơn nào từ PDF. Kiểm tra đúng file tem '+NG_LABEL[type]+'.<br><br>'
         +'<b>Chữ thô đọc được từ PDF (bấm chọn hết rồi copy gửi lại nếu cần hỗ trợ):</b>'
         +'<textarea readonly onclick="this.select()" style="width:100%;margin-top:8px;height:220px;font-family:monospace;font-size:11px;padding:8px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--dark)">'+dbg+'</textarea></div>';
       return;
     }
-    renderGhnPreview();
+    renderNgoaiPreview(type);
   }catch(e){sum.innerHTML='<div class="setup" style="background:var(--red-bg);color:var(--red-fg)">Lỗi đọc PDF: '+escapeHtml(e.message)+'</div>';}
 }
-function renderGhnPreview(){
-  const box=document.getElementById('ng-preview'),sum=document.getElementById('ng-summary');
+function renderNgoaiPreview(type){
+  const lines=ngLines[type];
+  const box=document.getElementById('ng-'+type+'-preview'),sum=document.getElementById('ng-'+type+'-summary');
   const usedTrack=new Set(allOrders.map(o=>o.tracking_code||'').filter(Boolean));
-  const bySn={};ghnLines.forEach(l=>{(bySn[l.sn]=bySn[l.sn]||[]).push(l);});
+  const bySn={};lines.forEach(l=>{(bySn[l.sn]=bySn[l.sn]||[]).push(l);});
   const opts=sortPS(allProducts).map(p=>`<option value="${p.code}">${escapeHtml(pname(p))}</option>`).join('');
   const codes=Object.keys(bySn);
-  sum.innerHTML=`<div class="setup" style="background:var(--grn-bg);color:var(--grn-fg);border-color:#97C459">Đọc được <b>${codes.length}</b> đơn (<b>${ghnLines.length}</b> dòng sản phẩm). Kiểm tra loại đơn cho từng mã rồi bấm xác nhận.</div>`;
+  sum.innerHTML=`<div class="setup" style="background:var(--grn-bg);color:var(--grn-fg);border-color:#97C459">Đọc được <b>${codes.length}</b> đơn (<b>${lines.length}</b> dòng sản phẩm). Kiểm tra loại đơn cho từng mã rồi bấm xác nhận.</div>`;
   box.innerHTML=`<div class="card" style="padding:0;overflow:auto"><table><thead><tr><th class="l">Mã đơn</th><th class="l">Khách</th><th class="l">Sản phẩm</th><th>SL</th><th class="l">Khớp kho</th><th class="l">Loại đơn</th></tr></thead><tbody>
   ${codes.map(sn=>{
     const already=usedTrack.has(sn);
     return bySn[sn].map((l,li)=>{
-      const first=li===0; const gi=ghnLines.indexOf(l);
+      const first=li===0; const gi=lines.indexOf(l);
       return `<tr style="${already?'opacity:.4':''}">
-        <td class="l mono" style="font-size:10.5px">${first?escapeHtml(sn):''}${first?` <span class="pill" style="background:var(--blue-bg);color:var(--blue-fg)">${l.carrier==='SPX'?'SPX':'GHN'}</span>`:''}${first&&already?' <span class="pill" style="background:var(--bg)">đã nhập</span>':''}</td>
+        <td class="l mono" style="font-size:10.5px">${first?escapeHtml(sn):''}${first?` <span class="pill" style="background:var(--blue-bg);color:var(--blue-fg)">${NG_LABEL[type]}</span>`:''}${first&&already?' <span class="pill" style="background:var(--bg)">đã nhập</span>':''}</td>
         <td class="l" style="font-size:11px">${first?escapeHtml(l.buyer||'—')+(l.phone?'<br><span class="dim">'+escapeHtml(l.phone)+'</span>':''):''}</td>
         <td class="l" style="font-size:11px">${escapeHtml(l.prod)}${l.variation?' <span class="dim">('+escapeHtml(l.variation)+')</span>':''}</td>
         <td style="font-weight:700">${l.qty}</td>
-        <td class="l">${l.code?`<span class="pill" style="background:var(--grn-bg);color:var(--grn-fg)">${l.code}</span>`:`<select onchange="ghnLines[${gi}].code=this.value" style="font-size:11px;padding:4px 6px"><option value="">— chưa khớp —</option>${opts}</select>`}</td>
-        <td class="l">${first?`<select onchange="ghnSetKind('${sn}',this.value)" style="font-size:11px;padding:5px 8px">
+        <td class="l">${l.code?`<span class="pill" style="background:var(--grn-bg);color:var(--grn-fg)">${l.code}</span>`:`<select onchange="ngLines.${type}[${gi}].code=this.value" style="font-size:11px;padding:4px 6px"><option value="">— chưa khớp —</option>${opts}</select>`}</td>
+        <td class="l">${first?`<select onchange="ngoaiSetKind('${type}','${sn}',this.value)" style="font-size:11px;padding:5px 8px">
           <option value="khach" ${l.kind==='khach'?'selected':''}>👤 Khách</option>
           <option value="kol" ${l.kind==='kol'?'selected':''}>⭐ KOL</option>
           <option value="doi" ${l.kind==='doi'?'selected':''}>🔄 Đổi hàng</option>
-        </select>${l.kind==='kol'?`<br><select onchange="ghnSetKhoSrc('${sn}',this.value)" style="font-size:10.5px;padding:3px 6px;margin-top:4px;border-color:var(--honey)">
+        </select>${l.kind==='kol'?`<br><select onchange="ngoaiSetKhoSrc('${type}','${sn}',this.value)" style="font-size:10.5px;padding:3px 6px;margin-top:4px;border-color:var(--honey)">
           <option value="main" ${(l.khoSrc||'main')==='main'?'selected':''}>🗂 Trừ: Quản lý kho</option>
           <option value="loikho" ${l.khoSrc==='loikho'?'selected':''}>🚫 Trừ: Kho hàng lỗi</option>
         </select>`:''}`:''}</td>
@@ -4148,14 +4281,15 @@ function renderGhnPreview(){
     }).join('');
   }).join('')}
   </tbody></table></div>
-  <div class="row" style="margin-top:14px"><button class="btn btn-dark" onclick="ghnConfirm()">✅ Xác nhận nhập ${codes.length} đơn</button></div>`;
+  <div class="row" style="margin-top:14px"><button class="btn btn-dark" onclick="ngoaiConfirm('${type}')">✅ Xác nhận nhập ${codes.length} đơn</button></div>`;
 }
 // [SỬA] chọn "Loại đơn" xong render lại preview, để riêng đơn KOL hiện thêm ô chọn trừ kho nào (Quản lý kho / Kho hàng lỗi)
-function ghnSetKind(sn,kind){ghnLines.forEach(l=>{if(l.sn===sn){l.kind=kind;if(kind!=='kol')l.khoSrc='main';}});renderGhnPreview();}
+function ngoaiSetKind(type,sn,kind){ngLines[type].forEach(l=>{if(l.sn===sn){l.kind=kind;if(kind!=='kol')l.khoSrc='main';}});renderNgoaiPreview(type);}
 // riêng đơn KOL: chọn trừ kho chính (Quản lý kho) hay Kho hàng lỗi (mục "Dành cho KOL")
-function ghnSetKhoSrc(sn,src){ghnLines.forEach(l=>{if(l.sn===sn)l.khoSrc=src;});}
-async function ghnConfirm(){
-  const bySn={};ghnLines.forEach(l=>{(bySn[l.sn]=bySn[l.sn]||[]).push(l);});
+function ngoaiSetKhoSrc(type,sn,src){ngLines[type].forEach(l=>{if(l.sn===sn)l.khoSrc=src;});}
+async function ngoaiConfirm(type){
+  const lines=ngLines[type];
+  const bySn={};lines.forEach(l=>{(bySn[l.sn]=bySn[l.sn]||[]).push(l);});
   const usedTrack=new Set(allOrders.map(o=>o.tracking_code||'').filter(Boolean));
   const codes=Object.keys(bySn).filter(sn=>!usedTrack.has(sn));
   const missing=codes.filter(sn=>bySn[sn].some(l=>!l.code));
@@ -4169,8 +4303,7 @@ async function ghnConfirm(){
       // [MỚI] Riêng đơn KOL: chọn trừ vào Quản lý kho (mặc định) hay Kho hàng lỗi (mục "Dành cho KOL")
       const khoSrc=kind==='kol'?(items[0].khoSrc||'main'):'main';
       const useLoiKho=kind==='kol'&&khoSrc==='loikho';
-      const carrier=items[0].carrier||'GHN'; // [SỬA] trước hard-code 'GHN' cho MỌI đơn ngoại sàn dù đọc từ tem SPX/Shopee Express
-      const shipLabel=carrier==='SPX'?'Shopee Express':'GHN';
+      const shipLabel=NG_LABEL[type];
       const channel=kind==='kol'?'KOL VN':(kind==='doi'?'Đổi hàng':'Ngoại sàn');
       const status=kind==='doi'?'Chờ hàng về':'Đã gửi';
       let li=0;
@@ -4194,7 +4327,7 @@ async function ghnConfirm(){
     }
     const parts=[];if(doneKhach)parts.push(`${doneKhach} dòng Khách (trừ kho)`);if(doneKol)parts.push(`${doneKol} dòng KOL (trừ kho)`);if(doneDoi)parts.push(`${doneDoi} dòng Đổi hàng (chờ hàng về)`);
     toast('✅ '+(parts.join(' · ')||'Đã xử lý'));
-    ghnLines=[];document.getElementById('ng-file').value='';document.getElementById('ng-preview').innerHTML='';document.getElementById('ng-summary').innerHTML='';
+    ngLines[type]=[];document.getElementById('ng-'+type+'-file').value='';document.getElementById('ng-'+type+'-preview').innerHTML='';document.getElementById('ng-'+type+'-summary').innerHTML='';
     renderAll();
   }catch(e){toast('Lỗi: '+e.message,true);}
   showLoad(false);
