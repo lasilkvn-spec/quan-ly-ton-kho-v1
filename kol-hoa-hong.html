@@ -399,7 +399,7 @@ td.act{text-align:right;width:36px}.del{border:none;background:none;color:#c9b8a
       <div class="how-t">Cách hoạt động</div>
       <div class="steps">
         <div class="step"><div class="snum">1</div><div><div class="st"><span class="emp-name">Nhân viên</span> thêm KOL + chọn sản phẩm</div><div class="sd">Mời được ai thì gõ tên + chọn mặt hàng bạn đó bán.</div></div></div>
-        <div class="step"><div class="snum">2</div><div><div class="st">App nhớ danh sách của <span class="emp-name">Nhân viên</span></div><div class="sd">Chưa có KOL nào — thêm dần vào danh sách, mặc định gán Quần Nịt Bụng, sửa được.</div></div></div>
+        <div class="step"><div class="snum">2</div><div><div class="st">App nhớ danh sách của <span class="emp-name">Nhân viên</span></div><div class="sd">Chưa có KOL nào — thêm dần vào danh sách, mặc định gán sản phẩm đầu tiên trong danh mục, sửa được.</div></div></div>
         <div class="step"><div class="snum">3</div><div><div class="st">Cuối tháng up file (khỏi tô vàng)</div><div class="sd">App dò tên trùng danh sách → tự tính tháng mới cho <span class="emp-name">Nhân viên</span>.</div></div></div>
       </div>
     </div>
@@ -455,13 +455,11 @@ td.act{text-align:right;width:36px}.del{border:none;background:none;color:#c9b8a
 <script>
 const REG_SEED=[]; // [LÀSILK] chưa có dữ liệu KOL nào — danh sách sẽ được thêm dần qua tab "➕ Nhập KOL mới" hoặc nhập file Excel cuối tháng
 let MONTHS={}; // [LÀSILK] chưa có dữ liệu tháng nào — nhập file Excel TikTok Shop cuối mỗi tháng để tự tính
-const PRODUCTS=[
-  {k:'QNB',name:'Quần Nịt Bụng',c:'#2A211C'},
-  {k:'NBL',name:'Quần NB Lót',c:'#5B4636'},
-  {k:'BSL',name:'Bodysuit Lót',c:'#BE735E'},
-  {k:'GY3',name:'Gym3',c:'#1A6B5C'}
-];
-const PMAP={};PRODUCTS.forEach(p=>PMAP[p.k]=p);
+// [LÀSILK] Danh sách sản phẩm — KHÔNG còn hard-code nữa, nạp thật từ "Danh Mục Sản Phẩm" (bảng `products`,
+// cùng Supabase với web chính) qua loadProductCatalog() ở cuối file, trước khi render lần đầu.
+let PRODUCTS=[];
+let PMAP={};
+function defaultProdKey(){return PRODUCTS[0]?PRODUCTS[0].k:'sp';}
 const SEED_MONTHS=MONTHS, SEED_ALLM=Object.keys(SEED_MONTHS).map(Number);
 let ALLM=[]; // [LÀSILK] chưa có tháng nào — tự điền khi nhập file Excel đầu tiên
 const KOL_YEAR=new Date().getFullYear(); // dùng năm hiện tại thay vì cố định
@@ -495,8 +493,8 @@ const norm=s=>s.trim().replace(/^@+/,'').toLowerCase();
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-// registry: {name, prod, m:[months], src}  — tạm gán tất cả 'QNB'
-let REG=REG_SEED.map(r=>({name:r.n,prod:'QNB',m:r.m.slice(),src:'file',zalo:'',phone:'',link:'',addDate:'',remind:[false,false,false],good:false,posted:false}));
+// registry: {name, prod, m:[months], src}  — tạm gán tất cả vào sản phẩm đầu tiên trong danh mục
+let REG=REG_SEED.map(r=>({name:r.n,prod:defaultProdKey(),m:r.m.slice(),src:'file',zalo:'',phone:'',link:'',addDate:'',remind:[false,false,false],good:false,posted:false}));
 let lastAdded=new Set();
 let OTHERS={}; // {handle(lowercase): tên nhân viên đang sở hữu} — KOL của nhân viên KHÁC
 let curMD='all', curMS='all';
@@ -506,7 +504,7 @@ let curNewMonth=String(new Date().getMonth()+1); // tháng xem báo cáo KOL m�
 const prodOptions=(sel)=>PRODUCTS.map(p=>`<option value="${p.k}" ${p.k===sel?'selected':''}>${p.name}</option>`).join('');
 function nameProd(){const map={};REG.forEach(r=>map[r.name.toLowerCase()]=r.prod);return map;}
 function monthTags(ms){return '<span class="mtags">'+ALLM.map(m=>`<span class="mtag ${ms.includes(m)?'a':''}">${m}</span>`).join('')+'</span>';}
-function ptag(pk){const p=PMAP[pk]||PMAP.QNB;return `<span class="ptag" style="background:${p.c}">${p.name}</span>`;}
+function ptag(pk){const p=PMAP[pk]||PRODUCTS[0]||{name:'—',c:'#9A8070'};return `<span class="ptag" style="background:${p.c}">${p.name}</span>`;}
 
 /* ============ DASHBOARD ============ */
 function dashTally(monthSel){
@@ -514,7 +512,7 @@ function dashTally(monthSel){
   const t={};PRODUCTS.forEach(p=>t[p.k]={kol:new Set(),orders:0,gmv:0,com:0});
   const use=monthSel==='all'?ALLM:[+monthSel];
   use.forEach(m=>(MONTHS[m]||[]).forEach(k=>{
-    const pk=np[k.n.toLowerCase()]||'QNB';
+    const pk=np[k.n.toLowerCase()]||defaultProdKey();
     if(!t[pk])return;
     t[pk].kol.add(k.n.toLowerCase());t[pk].orders+=k.o;t[pk].gmv+=k.g;t[pk].com+=k.c;
   }));
@@ -547,9 +545,9 @@ function renderDash(){
     </div>`;
   }).join('')
    +`<div class="ptot"><div>TỔNG${curMD==='all'?'':` · bậc ${tierLabel(lc.rate)}`}</div><div class="r pcol-kol">${kolSet.size}</div><div class="r">${tOrders.toLocaleString('vi-VN')}</div><div class="r">${vndShort(tGmv)}</div><div class="r">${vndShort(tCom)}</div></div>`;
-  const assigned=REG.filter(r=>r.prod!=='QNB').length;
+  const assigned=REG.filter(r=>r.prod!==defaultProdKey()).length;
   $('dashNote').innerHTML= assigned===0
-    ? '⚠️ Hiện <b>tất cả KOL đang tạm gán Quần Nịt Bụng</b> nên 3 sản phẩm kia = 0. Qua tab <b>➕ Nhập KOL mới</b> đổi sản phẩm cho từng KOL (cột "Sản phẩm") thì Dashboard tự cập nhật.'
+    ? `⚠️ Hiện <b>tất cả KOL đang tạm gán "${esc(PRODUCTS[0]?PRODUCTS[0].name:'—')}"</b> nên các sản phẩm khác = 0. Qua tab <b>➕ Nhập KOL mới</b> đổi sản phẩm cho từng KOL (cột "Sản phẩm") thì Dashboard tự cập nhật.`
     : `✓ Đã có <b>${assigned} KOL</b> gán sang sản phẩm khác. Dashboard cập nhật theo phân bổ thực tế.`;
 }
 function highlightTier(rate){
@@ -606,7 +604,7 @@ function renderSum(){
   $('cLlab').textContent=curMS==='all'?`Hoa hồng ${EMP} ${ALLM.length} tháng`:`Hoa hồng ${EMP} T${curMS} · bậc ${tierLabel(lc.rate)}`;
   $('cL').textContent=vnd(lc.com);
   $('sumBody').innerHTML=rows.map((r,i)=>{
-    const pk=np[r.n.toLowerCase()]||'QNB';
+    const pk=np[r.n.toLowerCase()]||defaultProdKey();
     return `<tr><td class="stt">${i+1}</td><td class="date hide">—</td>
       <td class="nm"><span class="at">@</span>${r.n}${curMS==='all'?monthTags(r.m):''}</td>
       <td>${ptag(pk)}</td>
@@ -929,8 +927,7 @@ $('cfxNo').onclick=()=>{
   const msg=$('upMsg');msg.className='upmsg';msg.textContent='Đã huỷ. Chưa nhập gì cả.';
 };
 
-// init
-$('oneProd').innerHTML=prodOptions('QNB');
+// init (phần nạp danh mục sản phẩm + render lần đầu nằm ở _kolBoot() cuối file, sau khi khai báo Supabase)
 
 // ═══ SUPABASE (lưu KOL + dữ liệu tháng) ══════════════════════
 const SB_URL='https://dwxhzqoeaaibzipvwtoy.supabase.co'; // [LÀSILK] dùng CHUNG Supabase với web chính — KHÔNG còn dùng project hannalstore97 cũ nữa
@@ -985,7 +982,7 @@ async function loadFromSupabase(){
     // KOL của các nhân viên KHÁC → để cảnh báo trùng khi nhập
     try{const others=await sbSel('kol_bonus_list',`select=name,employee&employee=neq.${EMP}`);OTHERS={};(others||[]).forEach(r=>{if(r&&r.name)OTHERS[r.name.toLowerCase()]=r.employee||'nhân viên khác';});}catch(_){OTHERS={};}
     if(Array.isArray(kl)&&kl.length){
-      REG=kl.map(r=>({name:r.name,prod:r.prod||'QNB',m:[],src:r.source||'file',zalo:r.zalo||'',phone:r.phone||'',link:r.link||'',addDate:r.add_date||'',remind:[!!r.remind1,!!r.remind2,!!r.remind3],good:!!r.good_conv,posted:!!r.posted}));
+      REG=kl.map(r=>({name:r.name,prod:r.prod||defaultProdKey(),m:[],src:r.source||'file',zalo:r.zalo||'',phone:r.phone||'',link:r.link||'',addDate:r.add_date||'',remind:[!!r.remind1,!!r.remind2,!!r.remind3],good:!!r.good_conv,posted:!!r.posted}));
     }else if(REG.length){
       // seed danh sách lần đầu (chỉ khi có sẵn trong file)
       await sbUpsert('kol_bonus_list',REG.map(k=>({name:k.name,employee:EMP,prod:k.prod,zalo:'',phone:'',link:'',add_date:'',source:'file'})),'name');
@@ -1011,9 +1008,35 @@ async function loadFromSupabase(){
   renderMonthBtnsD();renderMonthBtnsS();renderManaged();renderDash();renderSum();renderReg();renderReport();renderGood();
 }
 
-renderMonthBtnsD();renderMonthBtnsS();renderManaged();
-renderDash();renderSum();renderReg();renderReport();renderGood();
-loadFromSupabase();
+// [LÀSILK] Nạp danh sách sản phẩm THẬT từ "Danh Mục Sản Phẩm" (bảng `products`, cùng Supabase với web chính,
+// bỏ qua category='accessory' giống trang chính) — thay cho danh sách cứng Quần Nịt Bụng/Gym3 trước đây.
+const PROD_PALETTE=['#2A211C','#BE735E','#1A6B5C','#5B4636','#8E5FA3','#3E7C7C','#A6763A','#B23B3B','#0C447C','#5B9E2F'];
+function _prodKey(name){return (name||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')||'sp';}
+function _prodColor(name){let h=0;const s=name||'?';for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return PROD_PALETTE[h%PROD_PALETTE.length];}
+async function loadProductCatalog(){
+  try{
+    const rows=await sbSel('products','select=name,category&order=name');
+    const list=[];
+    (rows||[]).forEach(r=>{
+      const nm=(r.name||'').trim();
+      if(!nm||(r.category||'apparel')==='accessory')return; // bỏ phụ kiện, giống Danh Mục Sản Phẩm chính
+      if(list.some(p=>p.name===nm))return; // mỗi tên sản phẩm 1 dòng (bảng products có nhiều dòng màu·size trên 1 tên)
+      let key=_prodKey(nm),n=2;while(list.some(p=>p.k===key)){key=_prodKey(nm)+'_'+n;n++;}
+      list.push({k:key,name:nm,c:_prodColor(nm)});
+    });
+    if(list.length)PRODUCTS=list;
+  }catch(e){}
+  if(!PRODUCTS.length)PRODUCTS=[{k:'sp',name:'(Chưa có sản phẩm trong Danh Mục)',c:'#9A8070'}];
+  PMAP={};PRODUCTS.forEach(p=>PMAP[p.k]=p);
+}
+
+(async function _kolBoot(){
+  await loadProductCatalog();
+  $('oneProd').innerHTML=prodOptions(defaultProdKey());
+  renderMonthBtnsD();renderMonthBtnsS();renderManaged();
+  renderDash();renderSum();renderReg();renderReport();renderGood();
+  loadFromSupabase();
+})();
 </script>
 </body>
 </html>
