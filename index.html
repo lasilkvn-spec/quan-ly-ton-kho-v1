@@ -107,6 +107,18 @@ tr:last-child td{border-bottom:none}
 #sb-backdrop.on{display:block}
 @media(max-width:760px){.sb{position:fixed;left:0;z-index:100;transform:translateX(-100%);transition:.2s}.sb.open{transform:none}.main{padding:16px;padding-top:60px}.grid2{grid-template-columns:1fr}#menu-btn{display:flex}}
 
+/* ===== KPI NHÂN VIÊN — kanban + avatar + progress ===== */
+.kpi-board{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px}
+.kpi-col{flex:0 0 268px;width:268px;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:10px}
+.kpi-col-hd{display:flex;align-items:center;gap:7px;padding:2px 4px 10px;font-family:var(--f-head);font-weight:800;font-size:12.5px}
+.kpi-col-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.kpi-col-n{margin-left:auto;background:rgba(0,0,0,.08);padding:1px 8px;border-radius:10px;font-size:11px;font-weight:800}
+.kpi-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;color:#fff;flex-shrink:0}
+.kpi-pbar{height:5px;background:var(--border);border-radius:4px;overflow:hidden}
+.kpi-pbar i{display:block;height:100%;border-radius:4px}
+.kpi-search{padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--card);min-width:180px}
+
+
 /* ===== QR + DANH MỤC SẢN PHẨM ===== */
 .field{margin-bottom:14px}
 .field label{display:block;font-size:12px;font-weight:600;color:var(--brown);margin-bottom:5px}
@@ -197,6 +209,7 @@ tr:last-child td{border-bottom:none}
       <div class="nav-i" data-pg="products"><span class="nav-ico">🗂️</span><span class="nav-t">Danh mục sản phẩm</span></div>
       <div class="nav-grp">Nhân sự</div>
       <div class="nav-i" data-pg="staff"><span class="nav-ico">👩‍💼</span><span class="nav-t">Nhân viên & Lương</span><span class="nav-b" id="b-staff" style="display:none">0</span></div>
+      <div class="nav-i" data-pg="kpi"><span class="nav-ico">📈</span><span class="nav-t">KPI Nhân viên</span></div>
     </div>
   </nav>
 
@@ -581,6 +594,35 @@ tr:last-child td{border-bottom:none}
         </div>
       </div>
     </section>
+
+    <section class="pg" id="pg-kpi">
+      <div class="pg-t">📈 KPI Nhân viên</div>
+      <div style="font-size:12px;color:var(--brown);margin-bottom:14px">Phân công công việc theo tuần · theo dõi % đạt KPI · dashboard báo cáo Thứ 5 hàng tuần · lưu trên máy này (localStorage)</div>
+      <div style="display:flex;gap:6px;margin-bottom:16px">
+        <div id="kt-list" onclick="kpiTab('list')" style="flex:1;text-align:center;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--dark);color:var(--cream);cursor:pointer;font-weight:600;font-size:14px">📋 Phân công &amp; Theo dõi</div>
+        <div id="kt-dash" onclick="kpiTab('dash')" style="flex:1;text-align:center;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--brown);cursor:pointer;font-weight:600;font-size:14px">📊 Dashboard KPI tuần</div>
+      </div>
+
+      <div id="kview-list">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+          <span style="font-size:13px;color:var(--brown)">Lọc tuần:</span>
+          <select id="kpiListWeek" onchange="kpiFilterWeekChanged(this.value)" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card)"></select>
+          <input class="kpi-search" id="kpiSearch" placeholder="🔎 Tìm việc / người thực hiện..." oninput="kpiSearchChanged(this.value)">
+          <div style="flex:1"></div>
+          <button class="btn btn-dark" onclick="openKpiTaskModal()">＋ Thêm đầu việc</button>
+        </div>
+        <div id="kpiListMetrics" class="metrics" style="margin-bottom:16px"></div>
+        <div id="kpiTaskList"></div>
+      </div>
+
+      <div id="kview-dash" style="display:none">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+          <span style="font-size:13px;color:var(--brown)">Chọn tuần cần xem báo cáo:</span>
+          <select id="kpiDashWeek" onchange="renderKpiDash()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card)"></select>
+        </div>
+        <div id="kpiDashBody"></div>
+      </div>
+    </section>
   </main>
 </div>
 
@@ -794,6 +836,7 @@ function goToPage(pg){
   const navEl=document.querySelector(`.nav-i[data-pg="${pg}"]`);if(navEl)navEl.classList.add('on');
   const pgEl=document.getElementById('pg-'+pg);if(pgEl)pgEl.classList.add('on');
   if(pg==='staff'){staffTab('leave');}
+  if(pg==='kpi'){initKpiPage();}
   if(pg==='qr'){renderQR(allProducts);}
   if(pg==='products'){renderProductsTable();}
   if(pg==='phukien'){renderPhuKien();}
@@ -5323,6 +5366,352 @@ function sKolLink(name){
 function initStaffPage(){
   sEnsureYearOpts();
   renderStaffLeave();
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   KPI NHÂN VIÊN — theo đúng logic file "LaSilk_Phan_cong_theo_doi_KPI.xlsx":
+   Sheet "Phân công & Theo dõi" (từng đầu việc/tuần, tự tính % Đạt KPI) +
+   Sheet "Dashboard KPI tuần" (chọn 1 tuần → tổng quan tiến độ + theo người phụ trách +
+   danh sách việc Trễ hạn/Có rủi ro cần đọc lý do). Lưu trên máy này (localStorage),
+   giống hệt cách trang "Nhân viên & Lương" đang lưu, không cần bảng Supabase mới.
+   ══════════════════════════════════════════════════════════════════ */
+const KPI_STORE_KEY='lasilk_kpi_tasks_v1';
+let KPI_TASKS=(function(){
+  try{const a=JSON.parse(localStorage.getItem(KPI_STORE_KEY));if(Array.isArray(a))return a;}catch(_){}
+  return [];
+})();
+function kpiSave(){try{localStorage.setItem(KPI_STORE_KEY,JSON.stringify(KPI_TASKS));}catch(_){}}
+const KPI_PRIORITIES=['Cao','Trung bình','Thấp'];
+const KPI_STATUSES=['Chưa bắt đầu','Đang thực hiện','Hoàn thành','Trễ hạn','Có rủi ro'];
+let kpiSubTab='list',kpiFilterWeek='',kpiDashWeek='',kpiSearchTerm='',kpiListWeekInited=false;
+const KPI_STATUS_ORDER=['Có rủi ro','Trễ hạn','Đang thực hiện','Chưa bắt đầu','Hoàn thành'];
+const KPI_STATUS_DOT={'Hoàn thành':'#5B9E2F','Đang thực hiện':'#0C447C','Có rủi ro':'#B9790A','Trễ hạn':'#B23B3B','Chưa bắt đầu':'#9C8F72'};
+const KPI_AVATAR_PALETTE=['#6D4C41','#B9790A','#0C447C','#5B9E2F','#B23B3B','#8E5FA3','#3E7C7C','#A6763A'];
+// avatar tròn theo tên — cùng 1 tên luôn ra cùng 1 màu (hash đơn giản), để nhận diện nhanh ai đang làm gì
+function kpiInitials(name){const n=(name||'?').trim();if(!n)return'?';const parts=n.split(/\s+/);return(parts.length>1?parts[parts.length-1][0]:parts[0][0]).toUpperCase();}
+function kpiAvatarColor(name){let h=0;const s=name||'?';for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return KPI_AVATAR_PALETTE[h%KPI_AVATAR_PALETTE.length];}
+function kpiAvatarHtml(name){return`<div class="kpi-avatar" style="background:${kpiAvatarColor(name)}" title="${escapeHtml(name||'—')}">${kpiInitials(name)}</div>`;}
+// đếm ngày còn lại / trễ bao nhiêu ngày so với Hạn hoàn thành — để thấy ngay việc nào gấp mà không cần mở ra xem
+function kpiDeadlineInfo(t){
+  if(!t.dueDate||t.status==='Hoàn thành')return null;
+  const due=new Date(t.dueDate+'T00:00:00'),now=new Date();now.setHours(0,0,0,0);
+  const days=Math.round((due-now)/86400000);
+  if(days<0)return{text:`⏰ Trễ ${-days} ngày`,bg:'var(--red-bg)',fg:'var(--red-fg)'};
+  if(days===0)return{text:'⏰ Hạn hôm nay',bg:'var(--red-bg)',fg:'var(--red-fg)'};
+  if(days<=2)return{text:`⏳ Còn ${days} ngày`,bg:'var(--org-bg)',fg:'var(--org-fg)'};
+  return{text:`Còn ${days} ngày`,bg:'var(--bg)',fg:'var(--brown)'};
+}
+// tuần "liền trước" tuần đang chọn trong Dashboard — dùng để so sánh xu hướng tuần này vs tuần trước
+function kpiPrevWeek(w){
+  const weeks=kpiWeeks(),i=weeks.indexOf(w);
+  return i>-1&&i<weeks.length-1?weeks[i+1]:null;
+}
+// vòng tròn donut nhỏ vẽ bằng SVG thuần (không cần thư viện) — thể hiện tỉ trọng trạng thái trong tuần
+function kpiDonutSvg(segments,centerLabel,centerSub){
+  const total=segments.reduce((s,x)=>s+x.value,0);
+  const R=52,C=64,STK=16,CIRC=2*Math.PI*R;
+  let offset=0;
+  const arcs=total?segments.filter(s=>s.value>0).map(s=>{
+    const frac=s.value/total,len=frac*CIRC;
+    const dash=`${len} ${CIRC-len}`;
+    const el=`<circle cx="${C}" cy="${C}" r="${R}" fill="none" stroke="${s.color}" stroke-width="${STK}" stroke-dasharray="${dash}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${C} ${C})"/>`;
+    offset+=len;return el;
+  }).join(''):`<circle cx="${C}" cy="${C}" r="${R}" fill="none" stroke="var(--border)" stroke-width="${STK}"/>`;
+  return`<svg width="${C*2}" height="${C*2}" viewBox="0 0 ${C*2} ${C*2}">${arcs}
+    <text x="${C}" y="${C-3}" text-anchor="middle" font-family="Montserrat,sans-serif" font-weight="800" font-size="22" fill="var(--dark)">${centerLabel}</text>
+    <text x="${C}" y="${C+16}" text-anchor="middle" font-family="Poppins,sans-serif" font-size="10" fill="var(--brown)">${centerSub}</text>
+  </svg>`;
+}
+function kpiSearchChanged(v){kpiSearchTerm=v.trim().toLowerCase();renderKpiList();}
+
+
+// % Đạt KPI = KPI đạt được / KPI mục tiêu (đúng công thức trong file gốc). Nếu mục tiêu=0 mà đã Hoàn thành → coi như 100%.
+function kpiPct(t){
+  const target=+t.target||0,achieved=+t.achieved||0;
+  if(!target)return t.status==='Hoàn thành'?1:null;
+  return achieved/target;
+}
+// Đỏ (<70%) · Cam (70-99%) · Xanh (≥100%) — đúng quy ước màu trong file gốc
+function kpiPctColor(pct){
+  if(pct==null)return{bg:'var(--bg)',fg:'var(--brown)'};
+  if(pct<0.7)return{bg:'var(--red-bg)',fg:'var(--red-fg)'};
+  if(pct<1)return{bg:'var(--org-bg)',fg:'var(--org-fg)'};
+  return{bg:'var(--grn-bg)',fg:'var(--grn-fg)'};
+}
+function kpiStatusColor(s){
+  if(s==='Hoàn thành')return{bg:'var(--grn-bg)',fg:'var(--grn-fg)'};
+  if(s==='Đang thực hiện')return{bg:'var(--blue-bg)',fg:'var(--blue-fg)'};
+  if(s==='Có rủi ro')return{bg:'var(--org-bg)',fg:'var(--org-fg)'};
+  if(s==='Trễ hạn')return{bg:'var(--red-bg)',fg:'var(--red-fg)'};
+  return{bg:'var(--bg)',fg:'var(--brown)'}; // Chưa bắt đầu
+}
+function kpiPrioColor(p){
+  if(p==='Cao')return{bg:'var(--red-bg)',fg:'var(--red-fg)'};
+  if(p==='Trung bình')return{bg:'var(--org-bg)',fg:'var(--org-fg)'};
+  return{bg:'var(--bg)',fg:'var(--brown)'};
+}
+// danh sách mã tuần đang có, mới nhất trước (sắp theo số trong "W31" chứ không phải theo chữ)
+function kpiWeeks(){
+  const s=new Set(KPI_TASKS.map(t=>t.week).filter(Boolean));
+  return[...s].sort((a,b)=>{
+    const na=parseInt((a.match(/\d+/)||['0'])[0],10),nb=parseInt((b.match(/\d+/)||['0'])[0],10);
+    return nb-na||b.localeCompare(a);
+  });
+}
+function kpiTab(t){
+  kpiSubTab=t;
+  document.getElementById('kt-list').style.background=t==='list'?'var(--dark)':'var(--card)';
+  document.getElementById('kt-list').style.color=t==='list'?'var(--cream)':'var(--brown)';
+  document.getElementById('kt-dash').style.background=t==='dash'?'var(--dark)':'var(--card)';
+  document.getElementById('kt-dash').style.color=t==='dash'?'var(--cream)':'var(--brown)';
+  document.getElementById('kview-list').style.display=t==='list'?'':'none';
+  document.getElementById('kview-dash').style.display=t==='dash'?'':'none';
+  if(t==='list')renderKpiList();else renderKpiDash();
+}
+// đổ danh sách tuần vào 2 select (lọc ở tab Phân công + chọn tuần ở Dashboard), giữ đúng lựa chọn hiện tại nếu còn hợp lệ
+function kpiRenderWeekSelects(){
+  const weeks=kpiWeeks();
+  if(!kpiListWeekInited&&weeks.length){kpiFilterWeek=weeks[0];kpiListWeekInited=true;} // lần đầu vào trang → tự chọn tuần gần nhất, đỡ phải bấm
+  const listSel=document.getElementById('kpiListWeek');
+  if(listSel){
+    listSel.innerHTML='<option value="">— Tất cả tuần —</option>'+weeks.map(w=>`<option value="${escapeHtml(w)}">${escapeHtml(w)}</option>`).join('');
+    listSel.value=weeks.includes(kpiFilterWeek)?kpiFilterWeek:'';
+    kpiFilterWeek=listSel.value;
+  }
+  const dashSel=document.getElementById('kpiDashWeek');
+  if(dashSel){
+    dashSel.innerHTML=weeks.length?weeks.map(w=>`<option value="${escapeHtml(w)}">${escapeHtml(w)}</option>`).join(''):'<option value="">—</option>';
+    dashSel.value=weeks.includes(kpiDashWeek)?kpiDashWeek:(weeks[0]||'');
+    kpiDashWeek=dashSel.value;
+  }
+}
+function kpiFilterWeekChanged(v){kpiFilterWeek=v;renderKpiList();}
+function initKpiPage(){kpiRenderWeekSelects();kpiTab(kpiSubTab);}
+
+/* ── TAB "PHÂN CÔNG & THEO DÕI" ── */
+function kpiTaskCardHtml(t){
+  const pct=kpiPct(t),pc=kpiPctColor(pct),pr=kpiPrioColor(t.priority),dl=kpiDeadlineInfo(t);
+  const pctShown=pct==null?0:Math.min(100,Math.round(pct*100));
+  return`<div class="card" style="margin-bottom:9px;padding:12px 13px;border-left:3px solid ${pr.bg==='var(--bg)'?'var(--border)':pr.fg}">
+    <div style="display:flex;gap:8px;align-items:flex-start">
+      ${kpiAvatarHtml(t.doer)}
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13.5px;font-weight:700;line-height:1.3">${escapeHtml(t.task||'(chưa đặt tên việc)')}</div>
+        <div style="font-size:11px;color:var(--brown);margin-top:2px">${escapeHtml(t.doer||'—')}${t.giver?' · giao bởi '+escapeHtml(t.giver):''}</div>
+      </div>
+      <span class="pill" style="background:${pr.bg};color:${pr.fg};flex-shrink:0">${escapeHtml(t.priority||'—')}</span>
+    </div>
+    ${t.desc?`<div style="font-size:11.5px;color:var(--brown);margin:7px 0 0">${escapeHtml(t.desc)}</div>`:''}
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:9px">
+      <span style="font-size:10.5px;color:var(--brown)">${escapeHtml(t.unit||'KPI')} <b style="color:var(--dark)">${t.achieved||0}/${t.target||0}</b></span>
+      <span style="font-size:10.5px;font-weight:800;color:${pc.fg}">${pct==null?'—':pctShown+'%'}</span>
+    </div>
+    <div class="kpi-pbar"><i style="width:${pctShown}%;background:${pc.fg}"></i></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:9px;flex-wrap:wrap">
+      <span class="pill" style="background:var(--honey);color:var(--dark)">${escapeHtml(t.week||'—')}</span>
+      ${dl?`<span class="pill" style="background:${dl.bg};color:${dl.fg}">${dl.text}</span>`:''}
+    </div>
+    ${t.reason?`<div style="font-size:11px;color:var(--red-fg);margin-top:8px">⚠️ ${escapeHtml(t.reason)}</div>`:''}
+    ${t.note?`<div style="font-size:11px;color:var(--brown);margin-top:3px">📝 ${escapeHtml(t.note)}</div>`:''}
+    <div style="display:flex;gap:6px;margin-top:9px">
+      <button class="btn btn-sm" style="flex:1" onclick="openKpiTaskModal('${jsq(t.id)}')">✏️ Sửa</button>
+      <button class="btn btn-sm btn-red" onclick="deleteKpiTask('${jsq(t.id)}')">🗑</button>
+    </div>
+  </div>`;
+}
+function renderKpiList(){
+  const box=document.getElementById('kpiTaskList'),metBox=document.getElementById('kpiListMetrics');
+  if(!box)return;
+  const w=kpiFilterWeek,q=kpiSearchTerm;
+  let list=KPI_TASKS.filter(t=>w?t.week===w:true);
+  if(q)list=list.filter(t=>(t.task||'').toLowerCase().includes(q)||(t.doer||'').toLowerCase().includes(q)||(t.giver||'').toLowerCase().includes(q));
+  // số liệu tổng quan nhanh cho đúng phạm vi đang xem (giúp thấy bức tranh chung trước khi lướt từng thẻ)
+  if(metBox){
+    const total=list.length,done=list.filter(t=>t.status==='Hoàn thành').length;
+    const flagged=list.filter(t=>t.status==='Trễ hạn'||t.status==='Có rủi ro').length;
+    const overdue=list.filter(t=>{const d=kpiDeadlineInfo(t);return d&&d.fg==='var(--red-fg)';}).length;
+    const pv=list.map(kpiPct).filter(p=>p!=null);
+    const avg=pv.length?Math.round(pv.reduce((s,p)=>s+p,0)/pv.length*100):0;
+    const metric=(label,val,cls)=>`<div class="metric${cls?' '+cls:''}"><div class="metric-v">${val}</div><div class="metric-l">${label}</div></div>`;
+    metBox.innerHTML=total?`${metric('Tổng đầu việc',total)}${metric('Đã hoàn thành',done,'honey')}${metric('Trễ hạn / Rủi ro',flagged)}${metric('Trễ / đến hạn hôm nay',overdue)}${metric('% Đạt KPI TB',avg+'%','pink')}`:'';
+  }
+  if(!list.length){box.innerHTML=`<div class="card dim" style="text-align:center">Chưa có đầu việc nào${w?' trong tuần '+escapeHtml(w):''}${q?' khớp tìm kiếm':''}. Bấm "＋ Thêm đầu việc" để bắt đầu.</div>`;return;}
+  // Kanban theo trạng thái — Có rủi ro/Trễ hạn lên đầu để đập vào mắt trước, trong mỗi cột ưu tiên Cao lên trước, gần hạn lên trước
+  const prRank={'Cao':0,'Trung bình':1,'Thấp':2};
+  const byStatus={};KPI_STATUS_ORDER.forEach(s=>byStatus[s]=[]);
+  list.forEach(t=>{const s=KPI_STATUS_ORDER.includes(t.status)?t.status:'Chưa bắt đầu';byStatus[s].push(t);});
+  Object.values(byStatus).forEach(arr=>arr.sort((a,b)=>(prRank[a.priority]??3)-(prRank[b.priority]??3)||(a.dueDate||'9999').localeCompare(b.dueDate||'9999')));
+  box.innerHTML=`<div class="kpi-board">${KPI_STATUS_ORDER.map(s=>{
+    const arr=byStatus[s];
+    return`<div class="kpi-col">
+      <div class="kpi-col-hd"><span class="kpi-col-dot" style="background:${KPI_STATUS_DOT[s]}"></span>${escapeHtml(s)}<span class="kpi-col-n">${arr.length}</span></div>
+      ${arr.length?arr.map(kpiTaskCardHtml).join(''):'<div class="dim" style="text-align:center;font-size:11.5px;padding:14px 4px">— trống —</div>'}
+    </div>`;
+  }).join('')}</div>`;
+}
+function openKpiTaskModal(id){
+  const editing=!!id;
+  const t=editing?KPI_TASKS.find(x=>x.id===id):{week:kpiFilterWeek||'',giver:'',doer:'',task:'',desc:'',priority:'Trung bình',startDate:todayStr(),dueDate:'',unit:'',target:'',achieved:'',status:'Chưa bắt đầu',reason:'',note:''};
+  if(editing&&!t){toast('Không tìm thấy đầu việc',true);return;}
+  m_title(editing?'✏️ Sửa đầu việc':'＋ Thêm đầu việc mới');
+  const names=[...new Set([...S_STAFF.map(e=>e.name),...KPI_TASKS.map(x=>x.doer),...KPI_TASKS.map(x=>x.giver)].filter(Boolean))];
+  const weeks=kpiWeeks();
+  document.getElementById('m-body').innerHTML=`
+    <datalist id="kpi-names">${names.map(n=>`<option value="${escapeHtml(n)}">`).join('')}</datalist>
+    <datalist id="kpi-weeks-dl">${weeks.map(w=>`<option value="${escapeHtml(w)}">`).join('')}</datalist>
+    <div class="grid2">
+      <label class="fld"><span>Tuần (vd: W31)</span><input id="k-week" list="kpi-weeks-dl" value="${escapeHtml(t.week)}" placeholder="W31"></label>
+      <label class="fld"><span>Ưu tiên</span><select id="k-prio">${KPI_PRIORITIES.map(p=>`<option ${t.priority===p?'selected':''}>${p}</option>`).join('')}</select></label>
+    </div>
+    <div class="grid2">
+      <label class="fld"><span>Người giao việc</span><input id="k-giver" list="kpi-names" value="${escapeHtml(t.giver)}" placeholder="VD: Chị / Linh"></label>
+      <label class="fld"><span>Người thực hiện</span><input id="k-doer" list="kpi-names" value="${escapeHtml(t.doer)}" placeholder="VD: Linh / Hân"></label>
+    </div>
+    <label class="fld"><span>Đầu việc / Task</span><input id="k-task" value="${escapeHtml(t.task)}" placeholder="VD: Đăng bài sản phẩm mới lên Shopee"></label>
+    <label class="fld"><span>Mô tả chi tiết / Yêu cầu cụ thể</span><textarea id="k-desc" rows="2" placeholder="Số lượng, chất lượng, kênh...">${escapeHtml(t.desc)}</textarea></label>
+    <div class="grid2">
+      <label class="fld"><span>Ngày bắt đầu</span><input id="k-start" type="date" value="${t.startDate||''}"></label>
+      <label class="fld"><span>Hạn hoàn thành</span><input id="k-due" type="date" value="${t.dueDate||''}"></label>
+    </div>
+    <div class="grid2">
+      <label class="fld"><span>Đơn vị KPI</span><input id="k-unit" value="${escapeHtml(t.unit)}" placeholder="VD: sản phẩm, đơn hàng, % SLA..."></label>
+      <label class="fld"><span>Trạng thái</span><select id="k-status">${KPI_STATUSES.map(s=>`<option ${t.status===s?'selected':''}>${s}</option>`).join('')}</select></label>
+    </div>
+    <div class="grid2">
+      <label class="fld"><span>KPI mục tiêu</span><input id="k-target" type="number" min="0" value="${t.target===''||t.target==null?'':t.target}"></label>
+      <label class="fld"><span>KPI đạt được</span><input id="k-achieved" type="number" min="0" value="${t.achieved===''||t.achieved==null?'':t.achieved}"></label>
+    </div>
+    <label class="fld"><span>Lý do trễ / Rủi ro <span style="color:var(--red-fg)">(bắt buộc nếu Trễ hạn / Có rủi ro)</span></span><textarea id="k-reason" rows="2">${escapeHtml(t.reason)}</textarea></label>
+    <label class="fld"><span>Ghi chú của quản lý</span><textarea id="k-note" rows="2">${escapeHtml(t.note)}</textarea></label>`;
+  m_foot(`${editing?`<button class="btn btn-red" onclick="deleteKpiTask('${jsq(t.id)}')">🗑 Xoá</button>`:''}<button class="btn" onclick="closeModal()">Huỷ</button><button class="btn btn-dark" onclick="saveKpiTask(${editing?`'${jsq(t.id)}'`:'null'})">✓ Lưu</button>`);
+  openModal();
+}
+function saveKpiTask(id){
+  const week=document.getElementById('k-week').value.trim();
+  const doer=document.getElementById('k-doer').value.trim();
+  const task=document.getElementById('k-task').value.trim();
+  if(!week||!doer||!task){toast('Nhập đủ Tuần / Người thực hiện / Đầu việc nhé',true);return;}
+  const status=document.getElementById('k-status').value;
+  const reason=document.getElementById('k-reason').value.trim();
+  if((status==='Trễ hạn'||status==='Có rủi ro')&&!reason){toast(`Trạng thái "${status}" cần điền Lý do trễ/rủi ro`,true);return;}
+  const rec={
+    id:id||_sUid('K'),week,giver:document.getElementById('k-giver').value.trim(),doer,task,
+    desc:document.getElementById('k-desc').value.trim(),
+    priority:document.getElementById('k-prio').value,
+    startDate:document.getElementById('k-start').value,
+    dueDate:document.getElementById('k-due').value,
+    unit:document.getElementById('k-unit').value.trim(),
+    target:intv(document.getElementById('k-target').value,0),
+    achieved:intv(document.getElementById('k-achieved').value,0),
+    status,reason,note:document.getElementById('k-note').value.trim(),
+    updatedTs:Date.now()
+  };
+  if(id){const i=KPI_TASKS.findIndex(x=>x.id===id);if(i>-1)KPI_TASKS[i]=Object.assign({},KPI_TASKS[i],rec);}
+  else{rec.createdTs=Date.now();KPI_TASKS.push(rec);}
+  kpiSave();closeModal();kpiFilterWeek=week; // sau khi lưu, tự nhảy đúng tuần vừa nhập để thấy ngay việc mới
+  kpiRenderWeekSelects();renderKpiList();
+  toast(id?'✓ Đã cập nhật đầu việc':'✓ Đã thêm đầu việc mới');
+}
+function deleteKpiTask(id){
+  if(!confirm('Xoá đầu việc này? Không thể hoàn tác.'))return;
+  KPI_TASKS=KPI_TASKS.filter(x=>x.id!==id);
+  kpiSave();closeModal();kpiRenderWeekSelects();renderKpiList();
+  toast('✓ Đã xoá đầu việc');
+}
+
+/* ── TAB "DASHBOARD KPI TUẦN" — y hệt sheet Dashboard: chọn 1 mã tuần → tổng quan + theo người + cần báo cáo lý do,
+   nâng cấp thêm: donut chart trạng thái, bảng xếp hạng theo người dạng thanh tiến độ, so sánh xu hướng với tuần liền trước ── */
+function kpiWeekStats(tasks){
+  const total=tasks.length;
+  const done=tasks.filter(t=>t.status==='Hoàn thành').length;
+  const doneRate=total?Math.round(done/total*100):0;
+  const pv=tasks.map(kpiPct).filter(p=>p!=null);
+  const avgPct=pv.length?Math.round(pv.reduce((s,p)=>s+p,0)/pv.length*100):0;
+  return{total,done,doneRate,avgPct};
+}
+function kpiDeltaBadge(cur,prev,suffix){
+  if(prev==null)return'';
+  const d=cur-prev;if(d===0)return`<span style="font-size:11px;color:var(--brown)">· bằng tuần trước</span>`;
+  const up=d>0;
+  return`<span style="font-size:11px;font-weight:700;color:${up?'var(--grn-fg)':'var(--red-fg)'}">${up?'▲':'▼'} ${Math.abs(d)}${suffix||''} so tuần trước</span>`;
+}
+function renderKpiDash(){
+  const sel=document.getElementById('kpiDashWeek');
+  const w=sel?sel.value:kpiDashWeek;kpiDashWeek=w;
+  const body=document.getElementById('kpiDashBody');if(!body)return;
+  const tasks=KPI_TASKS.filter(t=>t.week===w);
+  if(!w||!tasks.length){body.innerHTML=`<div class="card dim" style="text-align:center">Chưa có dữ liệu cho tuần này. Vào tab "📋 Phân công & Theo dõi" để thêm đầu việc trước.</div>`;return;}
+  const total=tasks.length;
+  const done=tasks.filter(t=>t.status==='Hoàn thành').length;
+  const doing=tasks.filter(t=>t.status==='Đang thực hiện').length;
+  const late=tasks.filter(t=>t.status==='Trễ hạn').length;
+  const risk=tasks.filter(t=>t.status==='Có rủi ro').length;
+  const notstart=tasks.filter(t=>t.status==='Chưa bắt đầu').length;
+  const stat=kpiWeekStats(tasks);
+  const prevW=kpiPrevWeek(w);
+  const prevStat=prevW?kpiWeekStats(KPI_TASKS.filter(t=>t.week===prevW)):null;
+  const metric=(label,val,cls)=>`<div class="metric${cls?' '+cls:''}"><div class="metric-v">${val}</div><div class="metric-l">${label}</div></div>`;
+  const byPerson={};
+  tasks.forEach(t=>{
+    const k=t.doer||'—';(byPerson[k]=byPerson[k]||{total:0,done:0,laterisk:0,pcts:[]});
+    byPerson[k].total++;
+    if(t.status==='Hoàn thành')byPerson[k].done++;
+    if(t.status==='Trễ hạn'||t.status==='Có rủi ro')byPerson[k].laterisk++;
+    const p=kpiPct(t);if(p!=null)byPerson[k].pcts.push(p);
+  });
+  // bảng xếp hạng theo % Đạt KPI TB giảm dần — ai đang tốt nhất/cần hỗ trợ nhất lộ ra ngay, không cần đọc từng dòng bảng
+  const personArr=Object.entries(byPerson).map(([name,d])=>({
+    name,total:d.total,done:d.done,laterisk:d.laterisk,
+    doneRate:d.total?Math.round(d.done/d.total*100):0,
+    avg:d.pcts.length?Math.round(d.pcts.reduce((s,p)=>s+p,0)/d.pcts.length*100):0
+  })).sort((a,b)=>b.avg-a.avg);
+  const leaderboard=personArr.map(p=>{
+    const c=kpiPctColor(p.avg/100);
+    return`<div style="padding:10px 0;border-top:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:9px">
+        ${kpiAvatarHtml(p.name)}
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;justify-content:space-between;gap:8px"><b style="font-size:13px">${escapeHtml(p.name)}</b><span style="font-size:12px;font-weight:800;color:${c.fg}">${p.avg}%</span></div>
+          <div style="font-size:10.5px;color:var(--brown);margin-top:1px">${p.total} việc · ${p.done} hoàn thành${p.laterisk?` · <span style="color:var(--red-fg)">${p.laterisk} trễ/rủi ro</span>`:''}</div>
+        </div>
+      </div>
+      <div class="kpi-pbar" style="margin-top:7px"><i style="width:${Math.min(100,p.avg)}%;background:${c.fg}"></i></div>
+    </div>`;
+  }).join('');
+  const donut=kpiDonutSvg([
+    {value:done,color:KPI_STATUS_DOT['Hoàn thành']},{value:doing,color:KPI_STATUS_DOT['Đang thực hiện']},
+    {value:risk,color:KPI_STATUS_DOT['Có rủi ro']},{value:late,color:KPI_STATUS_DOT['Trễ hạn']},
+    {value:notstart,color:KPI_STATUS_DOT['Chưa bắt đầu']}
+  ],total,'việc');
+  const legend=[['Hoàn thành',done],['Đang thực hiện',doing],['Có rủi ro',risk],['Trễ hạn',late],['Chưa bắt đầu',notstart]]
+    .map(([s,n])=>`<div style="display:flex;align-items:center;gap:6px;font-size:11.5px;margin-top:5px"><span class="kpi-col-dot" style="background:${KPI_STATUS_DOT[s]}"></span>${s}<b style="margin-left:auto">${n}</b></div>`).join('');
+  const flagged=tasks.filter(t=>t.status==='Trễ hạn'||t.status==='Có rủi ro');
+  body.innerHTML=`
+    <div style="font-size:13px;font-weight:700;color:var(--brown);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">1. Tổng quan tiến độ tuần ${escapeHtml(w)}</div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:22px">
+      <div class="card" style="display:flex;align-items:center;gap:18px;flex:0 0 auto;padding:16px 22px">
+        ${donut}
+        <div>${legend}</div>
+      </div>
+      <div class="metrics" style="flex:1;min-width:260px;align-content:flex-start;margin-bottom:0">
+        ${metric('Tổng công việc',total)}${metric('Đã hoàn thành',done,'honey')}${metric('Trễ hạn',late)}${metric('Có rủi ro',risk)}
+        <div class="metric pink"><div class="metric-v">${stat.doneRate}%</div><div class="metric-l">Tỷ lệ hoàn thành</div>${kpiDeltaBadge(stat.doneRate,prevStat?.doneRate,'đ')}</div>
+        <div class="metric pink"><div class="metric-v">${stat.avgPct}%</div><div class="metric-l">% Đạt KPI TB</div>${kpiDeltaBadge(stat.avgPct,prevStat?.avgPct,'đ')}</div>
+      </div>
+    </div>
+    <div style="font-size:13px;font-weight:700;color:var(--brown);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">2. Bảng xếp hạng theo người phụ trách</div>
+    <div class="card" style="margin-bottom:22px">${leaderboard||'<div class="dim" style="text-align:center;padding:10px">Chưa có dữ liệu</div>'}</div>
+    <div style="font-size:13px;font-weight:700;color:var(--brown);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">3. Cần báo cáo lý do (Trễ hạn / Có rủi ro trong tuần ${escapeHtml(w)})</div>
+    ${flagged.length?flagged.map(t=>{
+      const dl=kpiDeadlineInfo(t);
+      return`<div class="card" style="margin-bottom:8px;padding:12px 14px;border-left:3px solid var(--red-fg)">
+        <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">
+          <div style="display:flex;align-items:center;gap:8px">${kpiAvatarHtml(t.doer)}<div><b>${escapeHtml(t.task)}</b><div style="font-size:11px;color:var(--brown)">${escapeHtml(t.doer||'—')}</div></div></div>
+          <div style="display:flex;gap:6px;align-items:center">${dl?`<span class="pill" style="background:${dl.bg};color:${dl.fg}">${dl.text}</span>`:''}<span class="pill" style="background:${kpiStatusColor(t.status).bg};color:${kpiStatusColor(t.status).fg}">${escapeHtml(t.status)}</span></div>
+        </div>
+        <div style="font-size:12.5px;color:var(--red-fg);margin-top:7px">⚠️ ${escapeHtml(t.reason||'(chưa điền lý do)')}</div>
+      </div>`;
+    }).join(''):'<div class="card dim" style="text-align:center">Không có việc nào Trễ hạn / Có rủi ro trong tuần này 🎉</div>'}`;
 }
 
 addLine();ddInit();
