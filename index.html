@@ -575,7 +575,7 @@ tr:last-child td{border-bottom:none}
 
     <section class="pg" id="pg-staff">
       <div class="pg-t">👩‍💼 Nhân viên & Lương</div>
-      <div style="font-size:12px;color:var(--brown);margin-bottom:14px">Quản lý phép năm · tính lương · lịch sử · lưu trên máy này (localStorage)</div>
+      <div style="font-size:12px;color:var(--brown);margin-bottom:14px">Quản lý phép năm · tính lương · lịch sử · đồng bộ Supabase (giống nhau trên mọi máy)</div>
       <div style="display:flex;gap:6px;margin-bottom:16px">
         <div id="stab-leave" onclick="staffTab('leave')" style="flex:1;text-align:center;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--dark);color:var(--cream);cursor:pointer;font-weight:600;font-size:14px">📅 Phép năm & Ngày nghỉ</div>
         <div id="stab-salary" onclick="staffTab('salary')" style="flex:1;text-align:center;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--brown);cursor:pointer;font-weight:600;font-size:14px">💰 Tính lương</div>
@@ -674,6 +674,10 @@ const GET=p=>sb(p);
 const POST=(p,b)=>sb(p,{method:'POST',body:JSON.stringify(sbClean(b))});
 const PATCH=(p,b)=>sb(p,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify(sbClean(b))});
 const DEL=(p)=>sb(p,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
+// UPSERT: ghi đè theo khoá xung đột (on_conflict) — dùng để đồng bộ "Nhân viên & Lương" + "KPI Nhân viên" lên
+// Supabase, thay cho localStorage cũ (chỉ lưu trên 1 máy). Không báo lỗi ra UI nếu bảng chưa tồn tại — nơi gọi
+// hàm này tự bắt lỗi & vẫn giữ bản nháp trên máy để không mất dữ liệu đang gõ dở.
+const UPSERT=(p,b,conflict)=>sb(`${p}${conflict?`?on_conflict=${conflict}`:''}`,{method:'POST',headers:{...H,'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(sbClean(b))});
 // LƯU Ý: cố tình KHÔNG có hàm DELETE. Sửa/huỷ = ghi bút toán đảo.
 // [FIX] Supabase/PostgREST giới hạn "Max Rows" ở cấp dự án (mặc định 1000 dòng/request) — áp dụng
 // BẤT KỂ URL có ghi limit=100000 hay không, và KHÔNG báo lỗi, chỉ âm thầm cắt bớt kết quả. Vì kho được
@@ -803,6 +807,7 @@ async function loadAll(){
     allAccProducts=pr.filter(p=>(p.category||'apparel')==='accessory');
     allTx=tx;allOrders=or.filter(o=>o.status!=='Đã xoá');deletedOrders=or.filter(o=>o.status==='Đã xoá');
     try{kolPosts=await sbAll('kol_posts?order=created_at.desc');}catch(e){kolPosts=[];}
+    await loadStaffAndKpi(); // "Nhân viên & Lương" + "KPI Nhân viên" — Supabase thay cho localStorage, đồng bộ mọi máy
     setConn(true,'Đã kết nối Supabase');
     document.getElementById('setup-note').innerHTML='';
     renderAll();
@@ -813,6 +818,40 @@ async function loadAll(){
   }
   showLoad(false);
 }
+// [ĐỒNG BỘ NHÂN VIÊN + KPI] Trước đây 2 phần này lưu bằng localStorage → chỉ thấy trên đúng 1 máy.
+// Giờ chuyển sang bảng Supabase `staff` và `kpi_tasks`. Lần đầu chạy trên 1 máy đã có dữ liệu cũ (localStorage
+// còn mà bảng Supabase đang trống), tự động đẩy dữ liệu cũ đó lên Supabase 1 lần để không bị mất; các máy khác
+// (chưa có gì trong localStorage) sẽ chỉ đọc từ Supabase — nhờ vậy tất cả các máy thấy giống nhau.
+async function loadStaffAndKpi(){
+  let remoteStaff=[],remoteKpi=[];
+  try{remoteStaff=await sbAll('staff?select=id,data');}catch(_){remoteStaff=null;}
+  try{remoteKpi=await sbAll('kpi_tasks?select=*');}catch(_){remoteKpi=null;}
+  // di dời "Nhân viên & Lương"
+  if(remoteStaff&&!remoteStaff.length){
+    let local=null;try{const s=JSON.parse(localStorage.getItem(S_STAFF_KEY));if(Array.isArray(s)&&s.length)local=s;}catch(_){}
+    if(local){
+      try{await UPSERT('staff',local.map(e=>{const{id,...rest}=e;return{id:id||_sUid('nv'),data:rest};}),'id');remoteStaff=await sbAll('staff?select=id,data');}catch(_){}
+    }
+  }
+  S_STAFF=(remoteStaff&&remoteStaff.length)?remoteStaff.map(r=>Object.assign({id:r.id},r.data||{},{leaves:(r.data&&r.data.leaves)||{}})):
+    (remoteStaff?JSON.parse(JSON.stringify(SCFG.SEED)):(function(){try{const s=JSON.parse(localStorage.getItem(S_STAFF_KEY));if(Array.isArray(s)&&s.length)return s.map(x=>Object.assign({leaves:{}},x));}catch(_){}return JSON.parse(JSON.stringify(SCFG.SEED));})());
+  // di dời "KPI Nhân viên"
+  if(remoteKpi&&!remoteKpi.length){
+    let local=null;try{const a=JSON.parse(localStorage.getItem(KPI_STORE_KEY));if(Array.isArray(a)&&a.length)local=a;}catch(_){}
+    if(local){
+      try{await UPSERT('kpi_tasks',local.map(kpiToRow),'id');remoteKpi=await sbAll('kpi_tasks?select=*');}catch(_){}
+    }
+  }
+  KPI_TASKS=(remoteKpi&&remoteKpi.length)?remoteKpi.map(rowToKpi):
+    (remoteKpi?[]:(function(){try{const a=JSON.parse(localStorage.getItem(KPI_STORE_KEY));if(Array.isArray(a))return a;}catch(_){}return [];})());
+  renderStaffIfVisible();renderKpiIfVisible();
+}
+function renderStaffIfVisible(){
+  if(!document.getElementById('pg-staff')?.classList.contains('on'))return;
+  const onLeave=document.getElementById('sview-leave')?.style.display!=='none';
+  staffTab(onLeave?'leave':'salary');
+}
+function renderKpiIfVisible(){if(document.getElementById('pg-kpi')?.classList.contains('on')){kpiRenderWeekSelects();renderKpiList();}}
 function escapeHtml(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 // escape chuỗi để nhét vào JS-string bên trong onclick="...('${jsq(x)}')" — an toàn cả khi tên có dấu ' hoặc "
 function jsq(s){return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
@@ -5115,11 +5154,15 @@ const SCFG = {
 };
 
 const S_STAFF_KEY = SCFG.STORE_KEY;
-let S_STAFF = (function(){
-  try{const s=JSON.parse(localStorage.getItem(S_STAFF_KEY));if(Array.isArray(s)&&s.length)return s.map(x=>Object.assign({leaves:{}},x));}catch(_){}
-  return JSON.parse(JSON.stringify(SCFG.SEED));
-})();
-function sSaveStaff(){try{localStorage.setItem(S_STAFF_KEY,JSON.stringify(S_STAFF));}catch(_){}}
+// [ĐỒNG BỘ] S_STAFF giờ được nạp từ Supabase (bảng `staff`) trong loadStaffAndKpi() lúc mở app — KHÔNG còn
+// đọc thẳng localStorage ở đây nữa (chỉ dùng localStorage làm bản nháp dự phòng nếu Supabase lỗi/mất mạng).
+// Để trống ban đầu, tránh nháy dữ liệu cũ của máy này trước khi Supabase trả lời.
+let S_STAFF = [];
+function sSaveStaff(){
+  try{localStorage.setItem(S_STAFF_KEY,JSON.stringify(S_STAFF));}catch(_){} // bản nháp tạm trên máy, phòng mất mạng
+  UPSERT('staff',S_STAFF.map(e=>{const{id,...rest}=e;return{id:id||_sUid('nv'),data:rest};}),'id')
+    .catch(err=>toast('⚠️ Chưa đồng bộ được lên máy chủ (đã lưu tạm trên máy này) — '+err.message,true));
+}
 
 /* helpers */
 function _sPd(iso){const a=(iso||'').split('-').map(Number);return{y:a[0],m:a[1],d:a[2]};}
@@ -5274,7 +5317,13 @@ function sEditStaff(i){
   const baseIn=prompt('Số ngày phép/năm gốc:',e.base);const base=(baseIn===null?e.base:(parseInt(baseIn,10)||0));
   e.name=name;e.start=iso;e.base=base;sSaveStaff();renderStaffLeave();
 }
-function sDelStaff(i){if(confirm('Xoá nhân viên "'+S_STAFF[i].name+'"?')){S_STAFF.splice(i,1);sSaveStaff();renderStaffLeave();}}
+function sDelStaff(i){
+  if(confirm('Xoá nhân viên "'+S_STAFF[i].name+'"?')){
+    const delId=S_STAFF[i].id;
+    S_STAFF.splice(i,1);sSaveStaff();renderStaffLeave();
+    DEL(`staff?id=eq.${encodeURIComponent(delId)}`).catch(()=>{}); // xoá hẳn khỏi Supabase, không để sSaveStaff() vô tình khôi phục lại
+  }
+}
 
 /* render lương */
 function sSalRec(e,y,m){
@@ -5392,15 +5441,34 @@ function initStaffPage(){
    KPI NHÂN VIÊN — theo đúng logic file "LaSilk_Phan_cong_theo_doi_KPI.xlsx":
    Sheet "Phân công & Theo dõi" (từng đầu việc/tuần, tự tính % Đạt KPI) +
    Sheet "Dashboard KPI tuần" (chọn 1 tuần → tổng quan tiến độ + theo người phụ trách +
-   danh sách việc Trễ hạn/Có rủi ro cần đọc lý do). Lưu trên máy này (localStorage),
-   giống hệt cách trang "Nhân viên & Lương" đang lưu, không cần bảng Supabase mới.
+   danh sách việc Trễ hạn/Có rủi ro cần đọc lý do). Đồng bộ qua Supabase (bảng `kpi_tasks`),
+   giống hệt cách trang "Nhân viên & Lương" đang lưu — để thấy giống nhau trên mọi máy.
    ══════════════════════════════════════════════════════════════════ */
 const KPI_STORE_KEY='lasilk_kpi_tasks_v1';
-let KPI_TASKS=(function(){
-  try{const a=JSON.parse(localStorage.getItem(KPI_STORE_KEY));if(Array.isArray(a))return a;}catch(_){}
-  return [];
-})();
-function kpiSave(){try{localStorage.setItem(KPI_STORE_KEY,JSON.stringify(KPI_TASKS));}catch(_){}}
+// [ĐỒNG BỘ] KPI_TASKS được nạp từ Supabase trong loadStaffAndKpi() lúc mở app — để trống ban đầu.
+let KPI_TASKS=[];
+// Đổi qua lại giữa hình dạng object dùng trong app (t.desc, t.startDate...) và hàng trong bảng kpi_tasks
+// (task_desc, start_date... — tránh đụng từ khoá SQL và giữ tên cột rõ nghĩa).
+function kpiToRow(t){
+  return{id:t.id,week:t.week||'',giver:t.giver||'',doer:t.doer||'',task:t.task||'',
+    task_desc:t.desc||'',priority:t.priority||'',start_date:t.startDate||'',due_date:t.dueDate||'',
+    unit:t.unit||'',target:(t.target===''||t.target==null)?null:+t.target,
+    achieved:(t.achieved===''||t.achieved==null)?null:+t.achieved,
+    status:t.status||'',reason:t.reason||'',note:t.note||'',
+    created_ts:t.createdTs||Date.now(),updated_ts:t.updatedTs||Date.now()};
+}
+function rowToKpi(r){
+  return{id:r.id,week:r.week||'',giver:r.giver||'',doer:r.doer||'',task:r.task||'',
+    desc:r.task_desc||'',priority:r.priority||'Trung bình',startDate:r.start_date||'',dueDate:r.due_date||'',
+    unit:r.unit||'',target:r.target==null?'':r.target,achieved:r.achieved==null?'':r.achieved,
+    status:r.status||'Chưa bắt đầu',reason:r.reason||'',note:r.note||'',
+    createdTs:r.created_ts||Date.now(),updatedTs:r.updated_ts||Date.now()};
+}
+function kpiSave(){
+  try{localStorage.setItem(KPI_STORE_KEY,JSON.stringify(KPI_TASKS));}catch(_){} // bản nháp tạm trên máy, phòng mất mạng
+  UPSERT('kpi_tasks',KPI_TASKS.map(kpiToRow),'id')
+    .catch(err=>toast('⚠️ Chưa đồng bộ được lên máy chủ (đã lưu tạm trên máy này) — '+err.message,true));
+}
 const KPI_PRIORITIES=['Cao','Trung bình','Thấp'];
 const KPI_STATUSES=['Chưa bắt đầu','Đang thực hiện','Hoàn thành','Trễ hạn','Có rủi ro'];
 let kpiSubTab='list',kpiFilterWeek='',kpiDashWeek='',kpiSearchTerm='',kpiListWeekInited=false;
@@ -5697,6 +5765,7 @@ function deleteKpiTask(id){
   if(!confirm('Xoá đầu việc này? Không thể hoàn tác.'))return;
   KPI_TASKS=KPI_TASKS.filter(x=>x.id!==id);
   kpiSave();closeModal();kpiRenderWeekSelects();renderKpiList();
+  DEL(`kpi_tasks?id=eq.${encodeURIComponent(id)}`).catch(()=>{}); // xoá hẳn khỏi Supabase, không để kpiSave() vô tình khôi phục lại
   toast('✓ Đã xoá đầu việc');
 }
 
