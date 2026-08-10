@@ -822,28 +822,32 @@ async function loadAll(){
 // Giờ chuyển sang bảng Supabase `staff` và `kpi_tasks`. Lần đầu chạy trên 1 máy đã có dữ liệu cũ (localStorage
 // còn mà bảng Supabase đang trống), tự động đẩy dữ liệu cũ đó lên Supabase 1 lần để không bị mất; các máy khác
 // (chưa có gì trong localStorage) sẽ chỉ đọc từ Supabase — nhờ vậy tất cả các máy thấy giống nhau.
+// QUAN TRỌNG: nếu bảng Supabase chưa tồn tại / lệnh đẩy dữ liệu lên bị lỗi (mạng, chưa tạo bảng, schema cache
+// chưa cập nhật...), KHÔNG được để trắng dữ liệu — phải vẫn hiện đúng dữ liệu đang có trên máy này, và báo
+// cho biết là chưa đồng bộ được, để tránh tưởng nhầm là "mất dữ liệu".
 async function loadStaffAndKpi(){
-  let remoteStaff=[],remoteKpi=[];
+  let remoteStaff=null,remoteKpi=null,syncFailMsg='';
   try{remoteStaff=await sbAll('staff?select=id,data');}catch(_){remoteStaff=null;}
   try{remoteKpi=await sbAll('kpi_tasks?select=*');}catch(_){remoteKpi=null;}
-  // di dời "Nhân viên & Lương"
-  if(remoteStaff&&!remoteStaff.length){
-    let local=null;try{const s=JSON.parse(localStorage.getItem(S_STAFF_KEY));if(Array.isArray(s)&&s.length)local=s;}catch(_){}
-    if(local){
-      try{await UPSERT('staff',local.map(e=>{const{id,...rest}=e;return{id:id||_sUid('nv'),data:rest};}),'id');remoteStaff=await sbAll('staff?select=id,data');}catch(_){}
-    }
+  const localStaff=(function(){try{const s=JSON.parse(localStorage.getItem(S_STAFF_KEY));return(Array.isArray(s)&&s.length)?s:null;}catch(_){return null;}})();
+  const localKpi=(function(){try{const a=JSON.parse(localStorage.getItem(KPI_STORE_KEY));return(Array.isArray(a)&&a.length)?a:null;}catch(_){return null;}})();
+  // di dời "Nhân viên & Lương" — chỉ thử đẩy lên khi bảng đọc được (không phải lỗi 404/mất mạng) và đang trống, mà máy này còn dữ liệu cũ
+  if(remoteStaff&&!remoteStaff.length&&localStaff){
+    try{await UPSERT('staff',localStaff.map(e=>{const{id,...rest}=e;return{id:id||_sUid('nv'),data:rest};}),'id');remoteStaff=await sbAll('staff?select=id,data');}
+    catch(e){syncFailMsg=e.message||String(e);}
   }
-  S_STAFF=(remoteStaff&&remoteStaff.length)?remoteStaff.map(r=>Object.assign({id:r.id},r.data||{},{leaves:(r.data&&r.data.leaves)||{}})):
-    (remoteStaff?JSON.parse(JSON.stringify(SCFG.SEED)):(function(){try{const s=JSON.parse(localStorage.getItem(S_STAFF_KEY));if(Array.isArray(s)&&s.length)return s.map(x=>Object.assign({leaves:{}},x));}catch(_){}return JSON.parse(JSON.stringify(SCFG.SEED));})());
+  if(remoteStaff&&remoteStaff.length)S_STAFF=remoteStaff.map(r=>Object.assign({id:r.id},r.data||{},{leaves:(r.data&&r.data.leaves)||{}}));
+  else if(localStaff)S_STAFF=localStaff.map(x=>Object.assign({leaves:{}},x)); // Supabase trống/lỗi nhưng máy này còn dữ liệu → GIỮ NGUYÊN, không xoá trắng
+  else S_STAFF=(remoteStaff===null)?[]:JSON.parse(JSON.stringify(SCFG.SEED)); // thật sự chưa có gì ở đâu cả
   // di dời "KPI Nhân viên"
-  if(remoteKpi&&!remoteKpi.length){
-    let local=null;try{const a=JSON.parse(localStorage.getItem(KPI_STORE_KEY));if(Array.isArray(a)&&a.length)local=a;}catch(_){}
-    if(local){
-      try{await UPSERT('kpi_tasks',local.map(kpiToRow),'id');remoteKpi=await sbAll('kpi_tasks?select=*');}catch(_){}
-    }
+  if(remoteKpi&&!remoteKpi.length&&localKpi){
+    try{await UPSERT('kpi_tasks',localKpi.map(kpiToRow),'id');remoteKpi=await sbAll('kpi_tasks?select=*');}
+    catch(e){syncFailMsg=syncFailMsg||e.message||String(e);}
   }
-  KPI_TASKS=(remoteKpi&&remoteKpi.length)?remoteKpi.map(rowToKpi):
-    (remoteKpi?[]:(function(){try{const a=JSON.parse(localStorage.getItem(KPI_STORE_KEY));if(Array.isArray(a))return a;}catch(_){}return [];})());
+  if(remoteKpi&&remoteKpi.length)KPI_TASKS=remoteKpi.map(rowToKpi);
+  else if(localKpi)KPI_TASKS=localKpi; // Supabase trống/lỗi nhưng máy này còn dữ liệu → GIỮ NGUYÊN, không xoá trắng
+  else KPI_TASKS=[];
+  if(syncFailMsg)toast('⚠️ Chưa đẩy được Nhân viên/KPI lên Supabase — '+syncFailMsg+'. Đang hiện tạm dữ liệu trên máy.',true);
   renderStaffIfVisible();renderKpiIfVisible();
 }
 function renderStaffIfVisible(){
