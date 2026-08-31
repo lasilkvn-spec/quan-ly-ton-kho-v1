@@ -376,7 +376,7 @@ tr:last-child td{border-bottom:none}
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
         <div>
           <div class="pg-t">Quản lý kho</div>
-          <div class="pg-s">Một kho duy nhất — xưởng về thẳng nhà. Tồn = sổ cái · Khả dụng = tồn − đơn đã hứa chưa gửi · Đang về = đã đặt xưởng, chưa nhận.</div>
+          <div class="pg-s">Một kho duy nhất — xưởng về thẳng nhà. Tồn = sổ cái · Đang về = đã đặt xưởng, chưa nhận · Nợ đơn khách = SL đang ở tab "Nợ hàng" · mục "Cần gửi" (Quản lý đơn) — đã hứa khách nhưng chưa xử lý & chưa trừ kho · Khả dụng = Tồn kho + Đang về − Nợ đơn khách.</div>
         </div>
         <button class="btn" style="background:#B5715C;color:#fff;border-color:#B5715C" onclick="loadAll().then(loadSupplier)">↻ Tính lại</button>
       </div>
@@ -455,9 +455,10 @@ tr:last-child td{border-bottom:none}
                 <label class="fld"><span>Sản phẩm</span><select id="o-prod" onchange="renderOGrid()"></select></label>
                 <label class="fld"><span>Ngày order</span><input id="o-ord" type="date"></label>
               </div>
-              <div style="display:grid;grid-template-columns:160px 1fr;gap:12px">
+              <div style="display:grid;grid-template-columns:160px 1fr 1fr;gap:12px">
                 <label class="fld"><span>Ngày về dự kiến</span><input id="o-date" type="date"></label>
-                <label class="fld"><span>Ghi chú NCC</span><input id="o-note" placeholder="VD: Xưởng Tân Bình"></label>
+                <label class="fld"><span>🏭 Tên NCC</span><input id="o-supplier" placeholder="VD: Xưởng Tân Bình"></label>
+                <label class="fld"><span>Ghi chú</span><input id="o-note" placeholder="Ghi chú thêm (nếu có)"></label>
               </div>
               <div style="font-size:11px;font-weight:700;color:var(--brown);letter-spacing:.05em;text-transform:uppercase;margin:6px 0 8px">Số lượng đặt hàng (chia theo từng màu)</div>
               <div id="o-grid" style="overflow:auto"></div>
@@ -477,6 +478,7 @@ tr:last-child td{border-bottom:none}
             <div class="tab on" id="los-dangve" onclick="setOrderLotStatus('dangve')">🚚 Đang về</div>
             <div class="tab" id="los-daave" onclick="setOrderLotStatus('daave')">✅ Đã về</div>
           </div>
+          <div class="tabs" id="lo-ncc-tabs" style="margin-top:6px"></div>
           <div id="o-list"></div>
         </div>
       </div>
@@ -2319,7 +2321,45 @@ function soldIn(code,days){const f=daysAgo(days-1),t=todayStr();
 // Đang về = đã đặt xưởng, chưa về kho (chỉ để tham khảo — CHƯA tính vào tồn)
 function comingQty(){const m={};supplierRows.forEach(r=>{const remain=(r.qty||0)-(r.received||0);
   if(remain>0)m[r.product_code]=(m[r.product_code]||0)+remain;});return m;}
+// [MỚI] Nợ đơn khách = tổng SL các đơn đang ở trạng thái "Nợ hàng" VÀ còn ở mục nội bộ "Cần gửi" (chưa local_sent) —
+// khớp đúng với số hiển thị ở badge tab "Nợ hàng" và panel "Chia theo sản phẩm" bên Quản lý đơn.
+// Đây là những đơn đã hứa với khách nhưng CHƯA trừ kho thật và CHƯA được xử lý gì thêm. Đơn đã đánh dấu
+// "Đã gửi" nội bộ (local_sent=true) coi như nhân viên đã xử lý xong phần đó (tự trừ kho thủ công riêng khi
+// hàng thật rời kho) nên KHÔNG tính vào đây nữa — tránh trừ trùng 2 lần khỏi Khả dụng.
+function noDonKhachMap(){const m={};allOrders.forEach(o=>{if(o.status==='Nợ hàng'&&!o.local_sent)m[o.product_code]=(m[o.product_code]||0)+(o.quantity||0);});return m;}
 function fmtN(n){return n===0?'—':n.toLocaleString('vi-VN');}
+
+// ===== Mức muốn giữ TỰ ĐỘNG theo tốc độ bán 7 ngày gần nhất (tính RIÊNG cho từng màu của 1 mã) =====
+// Quy tắc (dựa vào tổng SL bán được trong 7 ngày gần nhất của ĐÚNG màu đó, cộng mọi size):
+//  - Bán được < 3 cái / 7 ngày   → Mức muốn giữ = 0  + cảnh báo "🚫 Cắt mã" (bán quá chậm, không nên ôm tồn)
+//  - Tốc độ bán > 5 cái / ngày   → Mức muốn giữ = 200
+//  - Tốc độ bán > 2 cái / ngày   → Mức muốn giữ = 100
+//  - Tốc độ bán ≤ 2 cái / ngày   → Mức muốn giữ = 50
+// (Tốc độ bán/ngày = tổng bán 7 ngày ÷ 7 — dùng khung 7 ngày gần nhất thay vì 30 ngày để bắt kịp xu hướng mới nhất,
+// đồng bộ với cách tính Dự báo/Deadline bên dưới.)
+function autoTargetForColor(d7Total){
+  const daily=d7Total/7;
+  if(d7Total<3)return{target:0,cut:true,daily};
+  if(daily>5)return{target:200,cut:false,daily};
+  if(daily>2)return{target:100,cut:false,daily};
+  return{target:50,cut:false,daily};
+}
+// Đồng bộ ngầm "Mức muốn giữ" tự động xuống bảng products (cột threshold) — chỉ ghi những mã có số tính ra KHÁC
+// số đang lưu, để không spam PATCH mỗi lần render lại trang. Các trang khác đọc threshold (VD Order hàng dự báo)
+// sẽ tự thấy số mới ở lần render kế tiếp. Chạy nền, lỗi 1 mã không chặn các mã còn lại.
+let khoAutoSyncBusy=false;
+async function syncKhoAutoTargets(pending){
+  if(!pending.length||khoAutoSyncBusy)return;
+  khoAutoSyncBusy=true;
+  try{
+    for(const it of pending){
+      try{
+        await PATCH(`products?code=eq.${encodeURIComponent(it.code)}`,{threshold:it.target});
+        const p=allProducts.find(x=>x.code===it.code);if(p)p.threshold=it.target;
+      }catch(e){/* bỏ qua lỗi từng mã lẻ */}
+    }
+  }finally{khoAutoSyncBusy=false;}
+}
 
 function renderKho(){
   renderPhuKienIfVisible(); // kho apparel đổi thường đi kèm đơn đổi → tiện đồng bộ luôn trang phụ kiện nếu đang mở
@@ -2332,18 +2372,27 @@ function renderKho(){
     `<div class="tab ${k===khoTab?'on':''}" onclick="khoTab='${jsq(k)}';renderKho()">${k==='ALL'?'Tất cả':escapeHtml(k)}</div>`).join('');
   if(khoMode==='kk'){renderKiemKhoMode(names,groups);return;}
 
-  const stock=computeStock(),coming=comingQty(),committed=committedQty();
+  const stock=computeStock(),coming=comingQty(),committed=committedQty(),noDonKhach=noDonKhachMap();
   const show=khoTab==='ALL'?names:[khoTab];let html='';
+  const autoPending=[]; // gom các mã cần đồng bộ lại threshold (Mức muốn giữ tự động) — ghi 1 lượt ở cuối, không spam PATCH khi đang gõ/lọc
   show.forEach(nm=>{
     const prods=(groups[nm]||[]);
     const colorGroups=colorGroupsOf(prods);
-    const target=+(prods[0]?.threshold||0);
     const focus=khoColorFocus[nm]||null;
+    // [MỚI] Mức muốn giữ giờ TỰ ĐỘNG tính riêng cho từng MÀU (không còn 1 số chung cho cả sản phẩm, không còn sửa tay) —
+    // xem quy tắc ở autoTargetForColor(). Tính trước cho mọi màu (kể cả màu đang bị ẩn do bộ lọc) để nút lọc màu vẫn hiện đúng badge.
+    const colorAutoMap={};
+    colorGroups.forEach(cg=>{
+      const cD7=cg.items.reduce((s,p)=>s+soldIn(p.code,7),0);
+      const auto=autoTargetForColor(cD7);
+      colorAutoMap[cg.key]=auto;
+      cg.items.forEach(p=>{if((+p.threshold||0)!==auto.target)autoPending.push({code:p.code,target:auto.target});});
+    });
     // [SỬA] Trước đây sTon/sAvail/sComing/7D/30D/60D cộng theo TOÀN BỘ màu (prods), còn sFc/sHut lại chỉ cộng
     // theo màu đang lọc (focus) — 2 nhóm số liệu lệch phạm vi nhau nên dòng TỔNG sai bất kể lúc nào bật bộ lọc màu
     // (kể cả sau khi Đếm kho, vì Đếm kho hay được mở ngay lúc đang lọc 1 màu để dễ nhìn). Giờ cộng tất cả TRONG
     // CÙNG 1 vòng lặp đã áp bộ lọc màu, nên dòng TỔNG luôn khớp đúng với các dòng đang hiển thị bên trên.
-    let sTon=0,sAvail=0,sComing=0,s7=0,s30=0,s60=0,sFc=0,sHut=0;
+    let sTon=0,sAvail=0,sComing=0,sNodk=0,s7=0,s30=0,s60=0,sFc=0,sHut=0;
     let rows='';
     colorGroups.forEach(cg=>{
       if(focus&&focus!==cg.color)return; // [VẤN ĐỀ 1] nút lọc theo màu — chỉ hiện màu đang chọn để dễ xem
@@ -2353,21 +2402,27 @@ function renderKho(){
       // các size trong 1 màu sẽ cộng lại đúng 100%.
       const cLineD30=cg.items.reduce((s,p)=>s+soldIn(p.code,30),0);
       sizes.forEach((p,si)=>{
-        const ton=stock[p.code]||0, av=ton-(committed[p.code]||0), cm=coming[p.code]||0;
+        const ton=stock[p.code]||0, cm=coming[p.code]||0, nodk=noDonKhach[p.code]||0;
+        // [MỚI] Khả dụng = Tồn kho + Đang về − Nợ đơn khách (Nợ đơn khách lấy từ trang "Nợ hàng" ở Quản lý đơn)
+        const av=ton+cm-nodk;
         const d7=soldIn(p.code,7),d30=soldIn(p.code,30),d60=soldIn(p.code,60);
-        const daily=d30/30,fc20=Math.round(daily*20);
+        // [SỬA] Dự báo/Deadline giờ bắt tốc độ bán theo 7 NGÀY gần nhất (thay vì 30 ngày) để bắt kịp xu hướng mới nhất.
+        const daily=d7/7,fc20=Math.round(daily*20);
         const hut=Math.max(0,fc20-ton-cm);            // thiếu so với nhu cầu 20 ngày (kể cả hàng đang về)
-        const dl=daily>0?Math.round(ton/daily):null;  // còn đủ mấy ngày (tính hàng THẬT trong kho)
+        const dl=daily>0?Math.round((ton+cm)/daily):null;  // còn đủ mấy ngày (Tồn kho THẬT + Đang về — đồng bộ với cách tính Hụt)
         const pct=cLineD30?(d30/cLineD30*100):0;
-        sTon+=ton;sAvail+=av;sComing+=cm;s7+=d7;s30+=d30;s60+=d60;sFc+=fc20;sHut+=hut;
+        sTon+=ton;sAvail+=av;sComing+=cm;sNodk+=nodk;s7+=d7;s30+=d30;s60+=d60;sFc+=fc20;sHut+=hut;
         const bad=ton<0||av<0;
         const dupOthers=dupCodesOf(p);
+        // [MỚI] Nút xanh/đỏ "Cần order" giờ xét riêng cho TỪNG SIZE (dựa vào Hụt của đúng size đó), không còn 1 nút chung cho cả sản phẩm ở đầu thẻ.
+        const sizeOk=hut<=0;
         rows+=`<tr style="${bad?'background:var(--red-bg)':''}">
           ${si===0?`<td rowspan="${sizes.length}" style="background:${colorBg(c)};color:#fff;font-weight:700;font-size:10px;letter-spacing:.1em;writing-mode:vertical-rl;transform:rotate(180deg);text-align:center;padding:6px 2px;width:26px">${escapeHtml(c)}</td>`:''}
           <td class="l" style="font-weight:600;padding-left:12px">${p.size||'—'}${dupOthers.length?` <span class="warnbadge" title="Đang trùng với mã: ${escapeHtml(dupOthers.join(', '))} — tồn 2 mã KHÔNG tự cộng, cần gộp thủ công ở Danh mục sản phẩm">⚠ trùng ${p.code}</span>`:''}</td>
           <td style="font-weight:800;background:var(--bg);color:${ton<0?'var(--red-fg)':'inherit'}">${ton===0?'—':ton}</td>
           <td style="color:${av<0?'var(--red-fg)':'var(--brown)'};font-weight:${av<0?800:500}">${av===0?'—':av}</td>
           <td style="color:#C2681E;font-weight:700">${fmtN(cm)}</td>
+          <td style="color:${nodk>0?'#993556':'var(--brown)'};font-weight:${nodk>0?700:400}">${fmtN(nodk)}</td>
           <td class="dim">${fmtN(d7)}</td>
           <td style="font-weight:600">${fmtN(d30)} <span onclick="openSuaSoBan('${jsq(p.code)}')" title="Sửa số đã bán 7D/30D/60D cho đúng thực tế" style="cursor:pointer;font-size:10px;opacity:.55">✏️</span></td>
           <td class="dim">${fmtN(d60)}</td>
@@ -2375,44 +2430,43 @@ function renderKho(){
           <td style="color:${hut>0?'var(--red-fg)':'inherit'};font-weight:${hut>0?800:400}">${hut>0?hut:'—'}</td>
           <td style="font-size:11px;color:${dl!==null&&dl<=7?'var(--red-fg)':'var(--brown)'}">${dl===null?'—':dl<=0?'Hết!':'Còn '+dl+'ng'}</td>
           <td style="font-size:11px">${pct?pct.toFixed(1)+'%':'—'}</td>
+          <td><span class="pill" style="background:${sizeOk?'#DFF3E0':'#FFE0E0'};color:${sizeOk?'#1B5E20':'#791F1F'}">${sizeOk?'🟢 Ổn':'🔴 Cần order'}</span></td>
         </tr>`;
       });
     });
-    const ok=sHut<=0; // [SỬA] trước so sTon>=target (target mặc định=0 nên luôn ra "Ổn" dù hết hàng thật) — giờ dựa đúng vào Hụt (dự báo 20 ngày, đã trừ hàng đang về)
+    const cutColors=colorGroups.filter(cg=>colorAutoMap[cg.key].cut).map(cg=>cg.color);
     html+=`<div class="card" style="padding:0;margin-bottom:16px;overflow:hidden;border:none">
       <div style="display:flex;justify-content:space-between;align-items:center;background:#B5715C;color:#fff;padding:10px 16px">
         <div style="font-family:var(--f-head);font-weight:800;font-size:12.5px;letter-spacing:.12em;text-transform:uppercase">● ${escapeHtml(nm)}</div>
-        <div style="background:${ok?'#DFF3E0':'#FFE0E0'};color:${ok?'#1B5E20':'#791F1F'};padding:3px 12px;border-radius:6px;font-size:11px;font-weight:700">${ok?'🟢 Ổn':'🔴 Cần order'}</div>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;padding:9px 16px 0;background:var(--dark)">
-        ${colorGroupsOf(prods).map(cg=>`<button class="btn btn-sm" style="background:${focus===cg.color?colorBg(cg.color):'rgba(255,255,255,.08)'};color:#fff;border-color:${colorBg(cg.color)}" onclick="khoColorFocus['${jsq(nm)}']=khoColorFocus['${jsq(nm)}']==='${jsq(cg.color)}'?null:'${jsq(cg.color)}';renderKho()">${escapeHtml(cg.color)}</button>`).join('')}
+        ${colorGroups.map(cg=>{const auto=colorAutoMap[cg.key];const badge=auto.cut?'🚫 Cắt (0c)':`🎯${auto.target}c`;
+          return `<button class="btn btn-sm" style="background:${focus===cg.color?colorBg(cg.color):'rgba(255,255,255,.08)'};color:#fff;border-color:${auto.cut?'#E7A5A4':colorBg(cg.color)}" onclick="khoColorFocus['${jsq(nm)}']=khoColorFocus['${jsq(nm)}']==='${jsq(cg.color)}'?null:'${jsq(cg.color)}';renderKho()">${escapeHtml(cg.color)} <span style="opacity:.85">· ${badge}</span></button>`;}).join('')}
         ${focus?`<button class="btn btn-sm" style="background:transparent;color:var(--honey);border-color:rgba(255,255,255,.3)" onclick="khoColorFocus['${jsq(nm)}']=null;renderKho()">✕ Xem tất cả màu</button>`:''}
       </div>
+      ${cutColors.length?`<div style="background:var(--red-bg);color:var(--red-fg);padding:7px 16px;font-size:11.5px;font-weight:700">🚫 Cắt mã: ${cutColors.map(x=>escapeHtml(x)).join(', ')} — bán dưới 3 cái/7 ngày gần nhất, Mức muốn giữ đã tự chuyển về 0.</div>`:''}
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:var(--dark);color:#fff;padding:9px 16px;font-size:11.5px">
         <div style="display:flex;gap:16px;flex-wrap:wrap">
           <span>Tồn kho: <b style="color:var(--honey)">${fmtN(sTon)}c</b></span>
           <span>Khả dụng: <b style="color:var(--pink)">${fmtN(sAvail)}c</b></span>
           <span>Đang về: <b style="color:#F0A868">${fmtN(sComing)}c</b></span>
-          <span>Mục tiêu: <b>${target||0}c</b></span>
+          <span>Nợ đơn khách: <b style="color:#F09595">${fmtN(sNodk)}c</b></span>
         </div>
-        <div style="display:flex;align-items:center;gap:7px">
-          <span style="opacity:.7">Mức muốn luôn giữ:</span>
-          <input type="number" id="tg-${nm.replace(/\W/g,'_')}" value="${target||0}" style="width:74px;padding:3px 7px;font-size:12px;text-align:center;background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.2);color:#fff">
-          <button class="btn btn-sm" style="background:transparent;color:var(--honey);border-color:rgba(255,255,255,.25)" onclick="saveTarget('${jsq(nm)}')">Lưu</button>
-        </div>
+        <span style="opacity:.7">🎯 Mức muốn giữ: tự động theo tốc độ bán 7 ngày gần nhất — xem badge từng màu ở trên</span>
       </div>
       <div style="overflow:auto"><table>
         <thead><tr>
           <th style="width:26px"></th><th class="l" style="padding-left:12px">Size</th>
-          <th style="background:var(--dark);color:var(--honey)">Tồn kho</th><th>Khả dụng</th><th>Đang về</th>
-          <th>7D</th><th>30D</th><th>60D</th><th>Dự báo 20ng</th><th>Hụt</th><th>Deadline</th><th>%Bán</th>
+          <th style="background:var(--dark);color:var(--honey)">Tồn kho</th><th>Khả dụng</th><th>Đang về</th><th>Nợ đơn khách</th>
+          <th>7D</th><th>30D</th><th>60D</th><th>Dự báo 20ng</th><th>Hụt</th><th>Deadline</th><th>%Bán</th><th>Trạng thái</th>
         </tr></thead>
         <tbody>${rows}
           <tr style="background:#B5715C;color:#fff;font-weight:800">
             <td colspan="2" class="l" style="padding-left:12px">TỔNG${focus?' (đang lọc màu)':''}</td>
-            <td>${fmtN(sTon)}</td><td>${fmtN(sAvail)}</td><td>${fmtN(sComing)}</td>
+            <td>${fmtN(sTon)}</td><td>${fmtN(sAvail)}</td><td>${fmtN(sComing)}</td><td>${fmtN(sNodk)}</td>
             <td>${fmtN(s7)}</td><td>${fmtN(s30)}</td><td>${fmtN(s60)}</td>
             <td>${fmtN(sFc)}</td><td>${sHut>0?sHut:'—'}</td><td>—</td><td>100%</td>
+            <td>${sHut>0?'🔴 Cần order':'🟢 Ổn'}</td>
           </tr>
         </tbody></table></div>
       <div style="background:var(--dark);padding:9px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
@@ -2422,6 +2476,7 @@ function renderKho(){
     </div>`;
   });
   document.getElementById('kho-content').innerHTML=html||'<div class="card dim" style="text-align:center">Chưa có sản phẩm. Kiểm tra bảng products.</div>';
+  syncKhoAutoTargets(autoPending); // đồng bộ ngầm threshold theo mức tự động — chạy nền, không chặn UI
 }
 // [VẤN ĐỀ 1] Panel cảnh báo trực quan: mã nào đã hết (0) / sắp hết (còn đúng 1) — click 1 mã để nhảy thẳng tới đúng SP + màu đó.
 function renderKhoAlerts(){
@@ -2856,98 +2911,113 @@ function setNccSubTab(t){
 }
 
 /* ── SUB-TAB: ORDER HÀNG (lập kế hoạch nhập) ──
-   Y hệt bố cục Quản Lý Kho, chia theo từng sản phẩm, thêm cột Dự báo 20 ngày / Deadline / Cần nhập / Chia nhập.
-   Mục tiêu riêng của từng mã (màu·size) = "Mức muốn luôn giữ" (chung cả dòng SP) × %Bán của mã đó.
-   - Hụt   = thiếu bao nhiêu so với Mục tiêu nếu 20 ngày tới không có hàng về (Tồn kho − Dự báo 20ng so với Mục tiêu).
-   - Deadline = còn mấy ngày tới khi tồn tụt xuống dưới Mục tiêu (theo tốc độ bán hiện tại). Đang thiếu sẵn → "Đã trễ".
-   - Cần nhập  = đặt thêm bao nhiêu để mã đó lên đúng Mục tiêu (dùng khi muốn giữ kho ở 1 mức cố định).
-   - Chia nhập = chia "Số lượng muốn nhập" (nhập tay, theo cả dòng SP) cho từng mã theo %Bán & tồn hiện tại —
-     mã đang thiếu so với tỉ lệ bán được ưu tiên nhập nhiều hơn, mã dư nhập ít/bỏ qua (dùng khi đã chốt tổng số muốn nhập đợt này).
+   Y hệt bố cục Quản Lý Kho, chia theo từng sản phẩm, thêm cột Dự báo 20 ngày / Trạng thái / Due day / SL order.
+   Mục tiêu riêng của từng mã (màu·size) = "Mức muốn luôn giữ" (chung cả màu) × %Bán của mã đó.
+   [SỬA] Mọi công thức bên dưới giờ dùng KHẢ DỤNG (= Tồn kho + Đang về − Nợ đơn khách) thay cho (Tồn kho + Đang về)
+   như trước — y hệt cách trang Kho hàng tính "Khả dụng", để không tính dư hàng đã hứa bán cho khách vào phần còn order được.
+   - Hụt      = thiếu bao nhiêu so với Mục tiêu nếu 20 ngày tới không có hàng về (Khả dụng − Dự báo 20ng so với Mục tiêu).
+   - Due day  = Khả dụng ÷ (Target sale mong muốn của cả màu × %Bán của mã đó) — số ngày lượng hàng hiện có cầm cự
+     được NẾU bán đúng theo tốc độ mong muốn (Target sale, nhập tay theo từng màu). Dưới 20 ngày → cảnh báo đỏ.
+   (Cần nhập/Chia nhập cũ đã bỏ khỏi bảng hiển thị theo yêu cầu — nút "Tạo đơn Order" vẫn dùng ngầm mức Cần nhập
+   tính theo "Mức muốn giữ" để gợi ý số lượng đặt, không hiển thị thành cột riêng nữa.)
 */
 let opTab='ALL';
-let opWant={}; // tên SP -> số lượng muốn nhập đợt này (chỉ tạm trên UI, dùng để tính "Chia nhập")
+let opTargetSale={}; // tên SP‖màu -> Target sale mong muốn (SL bán/ngày mong muốn cho cả màu) — dùng để tính Due day
+let opWantOrder={}; // tên SP‖màu -> tổng "SL muốn order" nhập tay (VD 50c) — dùng để chia ra từng size ở cột "SL order"
 function pctBanOf(prods,code){
   const lineD30=prods.reduce((s,p)=>s+soldIn(p.code,30),0);
   const d30=soldIn(code,30);
   return lineD30>0?d30/lineD30:(prods.length?1/prods.length:0);
 }
-// phân bổ "wantQty" cho từng mã theo %Bán, ưu tiên mã đang thiếu (deficit) so với tỉ lệ mục tiêu sau khi nhập —
-// dùng phương pháp "largest remainder" để tổng các mã luôn khớp đúng wantQty.
-// Chia nhập mỗi mã (màu·size) dựa trên công thức deficit = (SL muốn nhập + tổng tồn kho cả màu) × %Bán mã đó
-// − tồn kho mã đó (mã nào đã dư so với tỉ lệ bán thì deficit về 0, không âm). Sau đó CO GIÃN LẠI theo tỉ lệ
-// (và làm tròn kiểu "largest remainder") để tổng các mã LUÔN KHỚP ĐÚNG số "SL muốn nhập" đã gõ — nếu không co
-// giãn, mã nào đang dư (deficit=0) sẽ làm tổng bị lệch dư ra so với số muốn nhập ban đầu.
-function allocateChiaNhap(prods,wantQty,stock){
-  const total=Math.max(0,Math.round(wantQty||0));
+function opRowCalc(p,prods,stock,target,coming,targetSale,noDonKhach){
+  const ton=stock[p.code]||0;
+  const cm=(coming&&coming[p.code])||0;
+  const nodk=(noDonKhach&&noDonKhach[p.code])||0;
+  const av=ton+cm-nodk; // [MỚI] Khả dụng = Tồn kho + Đang về − Nợ đơn khách — dùng thay (ton+cm) trong mọi công thức bên dưới
+  const d30=soldIn(p.code,30),d7=soldIn(p.code,7);
+  const pct=pctBanOf(prods,p.code);
+  const daily=d30/30,fc20=Math.round(daily*20);
+  const mucTieu=target*pct;
+  const hut=Math.max(0,Math.round(mucTieu-av-fc20)); // [SỬA] Hụt = Mục tiêu riêng − Khả dụng − Dự báo 20 ngày
+  const canNhap=target>0?Math.max(0,Math.round(mucTieu-av)):0; // dùng ngầm cho "Tạo đơn Order"
+  // [MỚI] Due day = Khả dụng ÷ (Target sale của cả màu × %Bán mã này) — mã nào chưa có %Bán (chưa bán được ngày nào)
+  // hoặc chưa nhập Target sale thì để trống, không tính ra số ảo.
+  const sizeTargetSale=targetSale*pct;
+  const dueDay=(targetSale>0&&sizeTargetSale>0)?av/sizeTargetSale:null;
+  return{ton,cm,nodk,av,d7,d30,pct,fc20,mucTieu,hut,canNhap,dueDay,sizeTargetSale};
+}
+// [MỚI] Chia "SL muốn order" (tổng nhập tay theo cả màu, VD 50c) ra từng size theo mức đang thiếu so với
+// mốc 20 ngày ở tốc độ Target sale (size nào Due day càng thấp/thiếu càng nhiều thì được ưu tiên nhận nhiều hơn),
+// tính trên KHẢ DỤNG (Tồn kho + Đang về − Nợ đơn khách) thay vì chỉ Tồn+Đang về.
+// Nếu chưa nhập Target sale (không tính được thiếu hụt) thì chia đều theo %Bán, y như cách chia cũ.
+// Dùng "largest remainder" để tổng các size luôn khớp đúng số đã nhập.
+function allocateOrderQty(items,totalWant,stock,coming,targetSale,noDonKhach){
+  const total=Math.max(0,Math.round(totalWant||0));
   if(!total)return{};
-  const items=prods.map(p=>({code:p.code,cur:stock[p.code]||0,pct:pctBanOf(prods,p.code)}));
-  const curTotal=items.reduce((s,x)=>s+x.cur,0);
-  const idealTotal=curTotal+total;
-  items.forEach(x=>{x.ideal=idealTotal*x.pct;x.deficit=Math.max(0,x.ideal-x.cur);});
-  const sumDef=items.reduce((s,x)=>s+x.deficit,0);
+  const rows=items.map(p=>{
+    const pct=pctBanOf(items,p.code);
+    const ton=stock[p.code]||0,cm=(coming&&coming[p.code])||0,nodk=(noDonKhach&&noDonKhach[p.code])||0;
+    const av=ton+cm-nodk;
+    const sizeTargetSale=targetSale*pct;
+    const ideal=20*sizeTargetSale; // muốn giữ đủ 20 ngày bán theo Target sale
+    const deficit=Math.max(0,ideal-av);
+    return{code:p.code,pct,deficit};
+  });
+  const sumDef=rows.reduce((s,x)=>s+x.deficit,0);
   let raws;
-  if(sumDef<=0){raws=items.map(x=>({code:x.code,v:total*x.pct}));}
-  else if(sumDef>=total){const k=total/sumDef;raws=items.map(x=>({code:x.code,v:x.deficit*k}));}
-  else{const leftover=total-sumDef;raws=items.map(x=>({code:x.code,v:x.deficit+leftover*x.pct}));}
+  if(sumDef<=0){raws=rows.map(x=>({code:x.code,v:total*x.pct}));}
+  else if(sumDef>=total){const k=total/sumDef;raws=rows.map(x=>({code:x.code,v:x.deficit*k}));}
+  else{const leftover=total-sumDef;raws=rows.map(x=>({code:x.code,v:x.deficit+leftover*x.pct}));}
   const floors=raws.map(r=>({code:r.code,f:Math.floor(r.v),rem:r.v-Math.floor(r.v)}));
   let assigned=floors.reduce((s,x)=>s+x.f,0),remain=total-assigned;
   floors.sort((a,b)=>b.rem-a.rem);
   for(let i=0;i<floors.length&&remain>0;i++){floors[i].f+=1;remain--;}
   const out={};floors.forEach(x=>out[x.code]=x.f);return out;
 }
-function opRowCalc(p,prods,stock,target,coming){
-  const ton=stock[p.code]||0;
-  const cm=(coming&&coming[p.code])||0;
-  const d30=soldIn(p.code,30),d7=soldIn(p.code,7);
-  const pct=pctBanOf(prods,p.code);
-  const daily=d30/30,fc20=Math.round(daily*20);
-  const mucTieu=target*pct;
-  const hut=Math.max(0,Math.round(mucTieu-(ton+cm-fc20))); // [SỬA] giống logic trang Kho: trừ luôn hàng đang về
-  let deadline,late=false;
-  if(daily<=0)deadline='—';
-  else{const remainDays=(ton+cm-mucTieu)/daily;if(remainDays<=0){deadline='Đã trễ';late=true;}else deadline='Còn '+Math.floor(remainDays)+'ng';}
-  const canNhap=target>0?Math.max(0,Math.round(mucTieu-ton-cm)):0; // trừ hàng đang về để khỏi order dư
-  return{ton,cm,d7,d30,pct,fc20,mucTieu,hut,deadline,late,canNhap};
-}
 function renderOrderPlan(){
   const groups=groupByName();const names=Object.keys(groups);
   document.getElementById('op-tabs').innerHTML=['ALL',...names].map(k=>
     `<div class="tab ${k===opTab?'on':''}" onclick="opTab='${jsq(k)}';renderOrderPlan()">${k==='ALL'?'Tất cả':escapeHtml(k)}</div>`).join('');
-  const stock=computeStock(),coming=comingQty();
+  const stock=computeStock(),coming=comingQty(),noDonKhach=noDonKhachMap();
   const show=opTab==='ALL'?names:[opTab];
   let html='';
   show.forEach(nm=>{
     const prods=sortPS(groups[nm]||[]);
     const colorGroups=colorGroupsOf(prods);
-    let sTon=0,sCm=0,sD7=0,sD30=0,sFc=0,sHut=0,sCan=0,sChia=0;
-    // [SỬA] Mức muốn giữ / SL muốn nhập / Tồn kho / Đang về / Dự báo 20ng / Hụt giờ tính & lưu RIÊNG cho từng màu
+    let sTon=0,sAvail=0,sCm=0,sNodk=0,sD7=0,sD30=0,sFc=0,sHut=0,sCan=0;
+    // [SỬA] Mức muốn giữ / Target sale / Tồn kho / Đang về / Nợ đơn / Khả dụng / Dự báo 20ng / Hụt giờ tính & lưu RIÊNG cho từng màu
     // (trước đây dùng chung 1 giá trị cho cả sản phẩm, %Bán chia theo mọi màu — giờ %Bán chỉ tính trong phạm vi màu đó).
     let colorBlocks='';
     colorGroups.forEach(cg=>{
       const c=cg.color;
       const wantKey=nm+'‖'+c;
       const target=+(cg.items[0]?.threshold||0);
-      const wantQty=opWant[wantKey]||0;
-      const chia=allocateChiaNhap(cg.items,wantQty,stock);
+      const targetSale=+opTargetSale[wantKey]||0;
+      const wantOrderQty=+opWantOrder[wantKey]||0;
+      const orderAlloc=allocateOrderQty(cg.items,wantOrderQty,stock,coming,targetSale,noDonKhach);
       const sizes=cg.items.slice().sort((a,b)=>sizeRank(a.size)-sizeRank(b.size));
-      let cTon=0,cCm=0,cD7=0,cD30=0,cFc=0,cHut=0,cCan=0,cChia=0,rows='';
+      let cTon=0,cAvail=0,cCm=0,cNodk=0,cD7=0,cD30=0,cFc=0,cHut=0,cCan=0,cOrder=0,rows='';
       sizes.forEach(p=>{
-        const r=opRowCalc(p,cg.items,stock,target,coming);
-        const chiaNhap=chia[p.code]||0;
-        sTon+=r.ton;sCm+=r.cm;sD7+=r.d7;sD30+=r.d30;sFc+=r.fc20;sHut+=r.hut;sCan+=r.canNhap;sChia+=chiaNhap;
-        cTon+=r.ton;cCm+=r.cm;cD7+=r.d7;cD30+=r.d30;cFc+=r.fc20;cHut+=r.hut;cCan+=r.canNhap;cChia+=chiaNhap;
+        const r=opRowCalc(p,cg.items,stock,target,coming,targetSale,noDonKhach);
+        const orderQty=orderAlloc[p.code]||0;
+        sTon+=r.ton;sAvail+=r.av;sCm+=r.cm;sNodk+=r.nodk;sD7+=r.d7;sD30+=r.d30;sFc+=r.fc20;sHut+=r.hut;sCan+=r.canNhap;
+        cTon+=r.ton;cAvail+=r.av;cCm+=r.cm;cNodk+=r.nodk;cD7+=r.d7;cD30+=r.d30;cFc+=r.fc20;cHut+=r.hut;cCan+=r.canNhap;cOrder+=orderQty;
+        const sizeOk=r.hut<=0; // [MỚI] Nút xanh/đỏ "Cần order" xét riêng cho từng size — giờ nằm ở cột Trạng thái (thay chỗ Deadline cũ)
+        const dueLow=r.dueDay!==null&&r.dueDay<20; // [MỚI] Due day < 20 ngày → cảnh báo đỏ
         rows+=`<tr style="${r.hut>0?'background:var(--red-bg)':''}">
           <td class="l" style="font-weight:600;padding-left:12px">${p.size||'—'}</td>
           <td style="font-weight:800;background:var(--bg);color:${r.ton<0?'var(--red-fg)':'inherit'}">${fmtN(r.ton)}</td>
+          <td style="color:${r.av<0?'var(--red-fg)':'var(--brown)'};font-weight:${r.av<0?800:500}">${fmtN(r.av)}</td>
           <td style="color:#C2681E;font-weight:700">${fmtN(r.cm)}</td>
+          <td style="color:${r.nodk>0?'#993556':'var(--brown)'};font-weight:${r.nodk>0?700:400}">${fmtN(r.nodk)}</td>
           <td class="dim">${fmtN(r.d7)}</td>
           <td style="font-weight:600">${fmtN(r.d30)}</td>
           <td>${fmtN(r.fc20)}</td>
           <td style="color:${r.hut>0?'var(--red-fg)':'inherit'};font-weight:${r.hut>0?800:400}">${r.hut>0?r.hut:'—'}</td>
-          <td style="font-size:11px;color:${r.late?'var(--red-fg)':'var(--brown)'};font-weight:${r.late?800:400}">${r.deadline}</td>
+          <td><span class="pill" style="background:${sizeOk?'#DFF3E0':'#FFE0E0'};color:${sizeOk?'#1B5E20':'#791F1F'}">${sizeOk?'🟢 Ổn':'🔴 Cần order'}</span></td>
           <td style="font-size:11px">${r.pct?(r.pct*100).toFixed(1)+'%':'—'}</td>
-          <td style="font-weight:700;color:#C2681E">${r.canNhap>0?r.canNhap:'—'}</td>
-          <td style="font-weight:700;color:var(--blue-fg)">${chiaNhap>0?chiaNhap:'—'}</td>
+          <td style="font-weight:${dueLow?800:600};color:${dueLow?'var(--red-fg)':'inherit'};background:${dueLow?'var(--red-bg)':'transparent'}">${r.dueDay===null?'—':r.dueDay.toFixed(1)+'ng'}</td>
+          <td style="font-weight:700;color:var(--blue-fg)">${orderQty>0?orderQty:'—'}</td>
         </tr>`;
       });
       const cid=nm.replace(/\W/g,'_')+'__'+c.replace(/\W/g,'_');
@@ -2958,24 +3028,28 @@ function renderOrderPlan(){
             <span style="opacity:.8">Mức muốn giữ:</span>
             <input type="number" id="opg-${cid}" value="${target||0}" style="width:64px;padding:2px 6px;font-size:11.5px;text-align:center;background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);color:#fff">
             <button class="btn btn-sm" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.35);padding:3px 8px" onclick="saveTargetOP('${jsq(nm)}','${jsq(c)}')">Lưu</button>
-            <span style="opacity:.8;margin-left:6px">SL muốn nhập:</span>
-            <input type="number" min="0" id="opw-${cid}" value="${wantQty||''}" placeholder="0" style="width:64px;padding:2px 6px;font-size:11.5px;text-align:center;background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);color:#fff" onchange="opWant['${jsq(wantKey)}']=+this.value||0;renderOrderPlan()">
+            <span style="opacity:.8;margin-left:6px">Target sale:</span>
+            <input type="number" min="0" id="opts-${cid}" value="${targetSale||''}" placeholder="0" style="width:64px;padding:2px 6px;font-size:11.5px;text-align:center;background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);color:#fff" onchange="opTargetSale['${jsq(wantKey)}']=+this.value||0;renderOrderPlan()">
+            <span style="opacity:.8;margin-left:6px">SL muốn order:</span>
+            <input type="number" min="0" id="opwo-${cid}" value="${wantOrderQty||''}" placeholder="0" style="width:64px;padding:2px 6px;font-size:11.5px;text-align:center;background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);color:#fff" onchange="opWantOrder['${jsq(wantKey)}']=+this.value||0;renderOrderPlan()">
             <button class="btn btn-sm" style="background:var(--honey);color:var(--dark);border-color:var(--honey);font-weight:700;margin-left:6px" onclick="openTaoOrderFromPlan('${jsq(nm)}','${jsq(c)}')">🛒 Tạo đơn order</button>
           </div>
         </div>
         <div style="overflow:auto"><table>
           <thead><tr>
             <th class="l" style="padding-left:12px">Size</th>
-            <th style="background:var(--dark);color:var(--honey)">Tồn kho</th><th>Đang về</th><th>7D</th><th>30D</th>
-            <th>Dự báo 20ng</th><th>Hụt</th><th>Deadline</th><th>%Bán</th>
-            <th style="background:var(--org-bg);color:var(--org-fg)">Cần nhập</th>
-            <th style="background:var(--blue-bg);color:var(--blue-fg)">Chia nhập</th>
+            <th style="background:var(--dark);color:var(--honey)">Tồn kho</th><th>Khả dụng</th><th>Đang về</th><th>Nợ đơn</th><th>7D</th><th>30D</th>
+            <th>Dự báo 20ng</th><th>Hụt</th><th>Trạng thái</th><th>%Bán</th>
+            <th style="background:var(--org-bg);color:var(--org-fg)">Due day</th>
+            <th style="background:var(--blue-bg);color:var(--blue-fg)">SL order</th>
           </tr></thead>
           <tbody>${rows}
             <tr class="tot"><td class="l" style="padding-left:12px">Cộng ${escapeHtml(c)}</td>
-              <td>${fmtN(cTon)}</td><td>${fmtN(cCm)}</td><td>${fmtN(cD7)}</td><td>${fmtN(cD30)}</td>
-              <td>${fmtN(cFc)}</td><td>${cHut>0?cHut:'—'}</td><td>—</td><td>100%</td>
-              <td>${cCan>0?cCan:'—'}</td><td>${cChia>0?cChia:'—'}</td>
+              <td>${fmtN(cTon)}</td><td>${fmtN(cAvail)}</td><td>${fmtN(cCm)}</td><td>${fmtN(cNodk)}</td><td>${fmtN(cD7)}</td><td>${fmtN(cD30)}</td>
+              <td>${fmtN(cFc)}</td><td>${cHut>0?cHut:'—'}</td>
+              <td>${cHut>0?'🔴 Cần order':'🟢 Ổn'}</td><td>100%</td>
+              <td>—</td>
+              <td>${cOrder>0?cOrder:'—'}</td>
             </tr>
           </tbody></table></div>
       </div>`;
@@ -2983,16 +3057,15 @@ function renderOrderPlan(){
     html+=`<div class="card" style="padding:0;margin-bottom:16px;overflow:hidden;border:none">
       <div style="display:flex;justify-content:space-between;align-items:center;background:#B5715C;color:#fff;padding:10px 16px">
         <div style="font-family:var(--f-head);font-weight:800;font-size:12.5px;letter-spacing:.12em;text-transform:uppercase">● ${escapeHtml(nm)}</div>
-        <div style="background:${sHut>0?'#FFE0E0':'#DFF3E0'};color:${sHut>0?'#791F1F':'#1B5E20'};padding:3px 12px;border-radius:6px;font-size:11px;font-weight:700">${sHut>0?'🔴 Cần order':'🟢 Ổn'}</div>
       </div>
       <div style="padding:10px">${colorBlocks}</div>
       <div style="background:#B5715C;color:#fff;font-weight:800;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;padding:8px 16px;font-size:12px;margin:0 10px 10px;border-radius:8px">
         <span>TỔNG CẢ SẢN PHẨM (mọi màu)</span>
-        <span>Tồn ${fmtN(sTon)} · Đang về ${fmtN(sCm)} · 7D ${fmtN(sD7)} · 30D ${fmtN(sD30)} · Dự báo 20ng ${fmtN(sFc)} · Hụt ${sHut>0?sHut:0} · Cần nhập ${sCan>0?sCan:0} · Chia nhập ${sChia>0?sChia:0}</span>
+        <span>Tồn ${fmtN(sTon)} · Khả dụng ${fmtN(sAvail)} · Đang về ${fmtN(sCm)} · Nợ đơn ${fmtN(sNodk)} · 7D ${fmtN(sD7)} · 30D ${fmtN(sD30)} · Dự báo 20ng ${fmtN(sFc)} · Hụt ${sHut>0?sHut:0}</span>
       </div>
       <div style="background:var(--dark);padding:9px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <button class="btn btn-honey btn-sm" onclick="openTaoOrderFromPlan('${jsq(nm)}')">✓ Tạo đơn Order</button>
-        <span style="font-size:11px;color:rgba(255,255,255,.5)">Cần nhập tổng ${sCan} · Chia nhập tổng ${sChia}</span>
+        <span style="font-size:11px;color:rgba(255,255,255,.5)">Cần nhập tổng (theo Mức muốn giữ) ${sCan}</span>
       </div>
     </div>`;
   });
@@ -3025,34 +3098,26 @@ function nextLotNumber(prefix){
   supplierRows.forEach(r=>{const m=(r.name||'').trim().match(re);if(m){const n=+m[1];if(n>max)max=n;}});
   return max;
 }
-// modal "Tạo đơn Order" từ trang lập kế hoạch — chọn nguồn số lượng (Cần nhập / Chia nhập), tên lô, chia mấy lô
+// modal "Tạo đơn Order" từ trang lập kế hoạch — số lượng lấy theo "Cần nhập" (giữ đúng Mức muốn giữ), chọn tên lô, chia mấy lô
 function openTaoOrderFromPlan(nm,color){
   const prods=sortPS(groupByName()[nm]||[]);
-  const stock=computeStock(),coming=comingQty();
+  const stock=computeStock(),coming=comingQty(),noDonKhach=noDonKhachMap();
   let colorGroups=colorGroupsOf(prods);
   if(color)colorGroups=colorGroups.filter(cg=>cg.color===color);
   const rowsData=[];
-  let wantTotal=0;
   colorGroups.forEach(cg=>{
     const target=+(cg.items[0]?.threshold||0);
-    const wantQty=opWant[nm+'‖'+cg.color]||0;
-    wantTotal+=wantQty;
-    const chia=allocateChiaNhap(cg.items,wantQty,stock);
+    const targetSale=+opTargetSale[nm+'‖'+cg.color]||0;
     cg.items.forEach(p=>{
-      const r=opRowCalc(p,cg.items,stock,target,coming);
-      rowsData.push({code:p.code,name:pname(p),canNhap:r.canNhap,chiaNhap:chia[p.code]||0});
+      const r=opRowCalc(p,cg.items,stock,target,coming,targetSale,noDonKhach);
+      rowsData.push({code:p.code,name:pname(p),canNhap:r.canNhap});
     });
   });
   const initials=(nm.split(/\s+/).map(w=>w[0]).filter(Boolean).join('').toUpperCase().slice(0,4)||'LO')+(color?color.split(/\s+/).map(w=>w[0]).filter(Boolean).join('').toUpperCase().slice(0,2):'');
   window._tpRows=rowsData;window._tpNm=nm+(color?' · '+color:'');
   m_title('✓ Tạo đơn Order — '+nm+(color?' · '+color:''));
   document.getElementById('m-body').innerHTML=`
-    <div style="font-size:12px;color:var(--brown);margin-bottom:10px">Chọn nguồn số lượng, tên lô & số lô muốn chia. Mỗi mã sẽ được chia đều cho các lô (dư thì lô đầu nhận nhiều hơn).</div>
-    <label class="fld"><span>Nguồn số lượng</span>
-      <select id="tp-src" onchange="tpPreview()">
-        <option value="chia" selected>Chia nhập (theo SL muốn nhập mỗi màu, tổng = ${wantTotal})</option>
-        <option value="can">Cần nhập (giữ đúng mức tồn mục tiêu)</option>
-      </select></label>
+    <div style="font-size:12px;color:var(--brown);margin-bottom:10px">Số lượng lấy theo "Cần nhập" (đặt thêm để về đúng Mức muốn giữ). Chọn tên lô & số lô muốn chia — mỗi mã sẽ được chia đều cho các lô (dư thì lô đầu nhận nhiều hơn).</div>
     <div class="grid2">
       <label class="fld"><span>Tên lô hàng (viết tắt, sẽ tự tăng số)</span><input id="tp-prefix" value="${escapeHtml(initials)}" oninput="tpPreview()"></label>
       <label class="fld"><span>Chia mấy lô</span><input id="tp-lots" type="number" min="1" value="1" oninput="tpPreview()"></label>
@@ -3065,17 +3130,16 @@ function openTaoOrderFromPlan(nm,color){
 }
 function tpPreview(){
   const rowsData=window._tpRows||[];
-  const src=document.getElementById('tp-src').value;
   const prefix=(document.getElementById('tp-prefix').value||'LO').trim();
   const lots=Math.max(1,intv(document.getElementById('tp-lots').value,1));
   const startN=nextLotNumber(prefix);
   const names=[];for(let i=1;i<=lots;i++)names.push(prefix+(startN+i));
-  const total=rowsData.reduce((s,r)=>s+(src==='can'?r.canNhap:r.chiaNhap),0);
+  const total=rowsData.reduce((s,r)=>s+r.canNhap,0);
   document.getElementById('tp-preview').innerHTML=`
     <div class="setup">Tổng đặt: <b>${total}</b> · Tên lô sẽ tạo: ${names.map(escapeHtml).join(', ')}</div>
     <table><thead><tr><th class="l">Sản phẩm</th><th>Tổng đặt</th><th class="l">Chia mỗi lô</th></tr></thead><tbody>
-    ${rowsData.filter(r=>(src==='can'?r.canNhap:r.chiaNhap)>0).map(r=>{
-      const q=src==='can'?r.canNhap:r.chiaNhap;
+    ${rowsData.filter(r=>r.canNhap>0).map(r=>{
+      const q=r.canNhap;
       const per=splitEven(q,lots);
       return `<tr><td class="l" style="font-size:12px">${escapeHtml(r.name)}</td><td style="font-weight:700">${q}</td><td class="l" style="font-size:11px">${per.join(' + ')}</td></tr>`;
     }).join('')||'<tr><td colspan="3" class="dim" style="padding:12px">Không có mã nào cần đặt.</td></tr>'}
@@ -3083,12 +3147,11 @@ function tpPreview(){
 }
 async function confirmTaoOrderFromPlan(){
   const rowsData=window._tpRows||[];const nm=window._tpNm||'';
-  const src=document.getElementById('tp-src').value;
   const prefix=(document.getElementById('tp-prefix').value||'LO').trim();
   const lots=Math.max(1,intv(document.getElementById('tp-lots').value,1));
   const arrD=document.getElementById('tp-arr').value;
   const startN=nextLotNumber(prefix);
-  const items=rowsData.map(r=>({code:r.code,name:r.name,qty:src==='can'?r.canNhap:r.chiaNhap})).filter(x=>x.qty>0);
+  const items=rowsData.map(r=>({code:r.code,name:r.name,qty:r.canNhap})).filter(x=>x.qty>0);
   if(!items.length){toast('Không có số lượng nào để đặt',true);return;}
   showLoad(true);
   try{
@@ -3166,6 +3229,7 @@ async function saveSupplierOrder(){
   const nm=document.getElementById('o-prod').value;
   const ordD=document.getElementById('o-ord').value;
   const arrD=document.getElementById('o-date').value;
+  const supplier_name=document.getElementById('o-supplier').value.trim();
   const note=document.getElementById('o-note').value.trim();
   if(!name){toast('Nhập tên đơn order',true);return;}
   const items=[...document.querySelectorAll('.og-inp')].map(i=>({code:i.dataset.code,qty:intv(i.value,0)})).filter(x=>x.code&&x.qty>0);
@@ -3175,13 +3239,28 @@ async function saveSupplierOrder(){
   try{
     for(const it of items){
       const p=allProducts.find(x=>x.code===it.code);
-      await POST('supplier_orders',{po_code:code,name,arr_date:arrD||null,ord_date:ordD||todayStr(),note,
+      await POST('supplier_orders',{po_code:code,name,arr_date:arrD||null,ord_date:ordD||todayStr(),note,supplier_name,
         product_code:it.code,product_name:p?pname(p):'',qty:it.qty,received:0,status:'Chờ về'});
     }
     toast(`✓ Tạo đơn order "${name}"`);
-    document.getElementById('o-name').value='';document.getElementById('o-note').value='';
+    document.getElementById('o-name').value='';document.getElementById('o-note').value='';document.getElementById('o-supplier').value='';
     renderOGrid();loadSupplier();
   }catch(e){toast('Lỗi (bảng supplier_orders?): '+e.message,true);}
+  showLoad(false);
+}
+// [MỚI] Gán / sửa tên NCC cho 1 lô — áp dụng cho MỌI dòng sản phẩm cùng po_code (1 lô = 1 NCC).
+// Dùng để: (1) gắn tên NCC cho các lô cũ chưa có (tạo từ trang Order hàng dự báo, chưa từng nhập tên NCC),
+// (2) sửa lại nếu gõ nhầm. Sau khi lưu, "Theo lô hàng" sẽ tự nhóm lại đúng theo NCC.
+async function saveLotSupplier(po){
+  const inp=document.getElementById('sup-'+po);if(!inp)return;
+  const val=inp.value.trim();
+  showLoad(true);
+  try{
+    await PATCH(`supplier_orders?po_code=eq.${encodeURIComponent(po)}`,{supplier_name:val});
+    supplierRows.forEach(r=>{if(r.po_code===po)r.supplier_name=val;});
+    toast(val?`✓ Đã gắn NCC "${val}" cho lô`:'✓ Đã xoá tên NCC của lô');
+    renderOrderPage();
+  }catch(e){toast('Lỗi: '+e.message,true);}
   showLoad(false);
 }
 let supplierRows=[];
@@ -3221,7 +3300,8 @@ async function deleteSupplierOrderAsk(po){
 }
 let orderView='lo'; // 'lo' theo lô | 'sp' theo sản phẩm
 let orderLotStatus='dangve'; // 'dangve' | 'daave' — chỉ áp dụng khi orderView==='lo'
-function setOrderLotStatus(v){orderLotStatus=v;
+let orderNccFilter=null; // [MỚI] lọc "Theo lô hàng" theo 1 NCC cụ thể — null = xem tất cả NCC. '__NONE__' = riêng nhóm "Chưa gắn NCC".
+function setOrderLotStatus(v){orderLotStatus=v;orderNccFilter=null; // đổi tab Đang về/Đã về thì reset bộ lọc NCC (danh sách NCC khả dụng có thể khác nhau giữa 2 tab)
   document.getElementById('los-dangve').className='tab'+(v==='dangve'?' on':'');
   document.getElementById('los-daave').className='tab'+(v==='daave'?' on':'');
   renderOrderPage();
@@ -3258,8 +3338,10 @@ function setOrderView(v){orderView=v;
   document.getElementById('ov-lo').className='tab'+(v==='lo'?' on':'');
   document.getElementById('ov-sp').className='tab'+(v==='sp'?' on':'');
   document.getElementById('lo-status-tabs').style.display=(v==='lo')?'flex':'none';
+  const nccTabs=document.getElementById('lo-ncc-tabs');if(nccTabs)nccTabs.style.display=(v==='lo')?'flex':'none';
   renderOrderPage();
 }
+function setOrderNccFilter(v){orderNccFilter=(orderNccFilter===v?null:v);renderOrderByLot();}
 // 1 dòng sản phẩm trong 1 lô — thanh tiến trình đã về/đã đặt (%) + số còn lại + ô nhập số về đợt này
 function orderRowHtml(r,simple){
   const remain=r.qty-r.received,pct=r.qty?Math.round(r.received/r.qty*100):0,full=remain<=0;
@@ -3303,10 +3385,55 @@ function lotRoundHistory(po){
     const m=(t.ref_id||'').match(/-r(\d+)-/);if(!m)return;const rn=+m[1];
     const g=(rounds[rn]=rounds[rn]||{roundNo:rn,date:t.date,total:0,lines:[]});
     const tag=t.ref_type==='po_kol'?' (⭐KOL)':t.ref_type==='po_loi'?' (🚫Lỗi)':'';
-    g.total+=t.quantity||0;g.lines.push({name:(t.product_name||'')+tag,qty:t.quantity||0});
+    g.total+=t.quantity||0;g.lines.push({name:(t.product_name||'')+tag,code:t.product_code,tagTxt:tag,qty:t.quantity||0});
     if(!g.date||t.date<g.date)g.date=t.date;
   });
   return Object.values(rounds).sort((a,b)=>a.roundNo-b.roundNo);
+}
+// Lấy Màu/Size CHUẨN từ danh mục sản phẩm theo mã hàng (product_code) — đáng tin cậy hơn tách chữ từ product_name,
+// vì product_name của vài giao dịch cũ có thể không theo đúng khuôn "Tên · Màu · Size" (VD phụ kiện, hàng nhập tay...).
+// Nếu không tìm được mã trong danh mục (SP đã xoá...) thì mới rơi về tách chữ từ product_name như phương án dự phòng.
+function productColorSizeByCode(code,fallbackName){
+  const p=allProducts.find(x=>x.code===code)||allAccProducts.find(x=>x.code===code);
+  if(p)return{color:(p.color||'').trim(),size:(p.size||'').trim()};
+  const parts=(fallbackName||'').split(' · ').slice(1);
+  if(parts.length>=2)return{color:parts[0],size:parts.slice(1).join(' · ')};
+  if(parts.length===1)return{color:'',size:parts[0]};
+  return{color:'',size:''};
+}
+// Gộp các dòng của 1 đợt về hàng theo Màu → Size, trả về chuỗi "thẻ" màu để hiển thị mỗi màu — mỗi size bao nhiêu cái.
+function roundBreakdownHtml(h){
+  const groups={};const order=[];
+  h.lines.forEach(l=>{
+    const{color,size}=productColorSizeByCode(l.code,l.name);
+    const ck=(color||'—')+(l.tagTxt||'');
+    if(!groups[ck]){groups[ck]={color:color||'',tag:l.tagTxt||'',items:{},total:0};order.push(ck);}
+    const sk=size||'—';
+    groups[ck].items[sk]=(groups[ck].items[sk]||0)+l.qty;
+    groups[ck].total+=l.qty;
+  });
+  return order.map(ck=>{
+    const g=groups[ck];
+    const bg=g.color?colorBg(g.color):'#8a8a8a';
+    const sizesTxt=Object.entries(g.items).map(([sz,qty])=>`${escapeHtml(sz)}: ${qty}`).join(' · ');
+    const label=(g.color?escapeHtml(g.color):'Khác')+(g.tag?' '+g.tag:'');
+    return `<span style="display:inline-flex;align-items:center;gap:5px;background:${bg};color:#fff;padding:3px 9px;border-radius:14px;font-size:11px;font-weight:600;white-space:nowrap">${label}: ${sizesTxt} <b style="opacity:.85">(${g.total})</b></span>`;
+  }).join('');
+}
+// Render 1 khối "Lịch sử về hàng" đầy đủ (dùng chung cho trang Order hàng + trang Phụ kiện) — mỗi đợt hiện rõ
+// Tổng số cái, kèm breakdown từng màu/size bên dưới thay vì nhét chung 1 dòng khó đọc như trước.
+function orderHistBlockHtml(hist){
+  if(!hist.length)return'';
+  return `<div style="padding:10px 15px;border-top:1px solid var(--border)">
+    <div style="font-size:11px;font-weight:700;color:var(--brown);letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px">📜 Lịch sử về hàng (${hist.length} đợt)</div>
+    ${hist.map(h=>`<div style="padding:7px 0;border-top:1px dashed var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12.5px">
+        <span><b>Đợt ${h.roundNo}</b> · ${fmtDate(h.date)}</span>
+        <b style="white-space:nowrap;color:var(--grn-fg)">Tổng +${h.total} cái</b>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px">${roundBreakdownHtml(h)}</div>
+    </div>`).join('')}
+  </div>`;
 }
 function renderOrderPage(){
   if(orderView==='sp'){renderOrderBySP();return;}
@@ -3324,8 +3451,34 @@ function renderOrderByLot(){
   if(losDV)losDV.innerHTML=`🚚 Đang về${nDangVe?` <span class="c">${nDangVe}</span>`:''}`;
   if(losD)losD.innerHTML=`✅ Đã về${nDaVe?` <span class="c">${nDaVe}</span>`:''}`;
   const poArr=poArrAll.filter(([,rowsRaw])=>orderLotStatus==='daave'?isDone(rowsRaw):!isDone(rowsRaw));
+  // [MỚI] Danh sách chip NCC hàng ngang (tính riêng theo đúng tab Đang về/Đã về đang xem) — bấm 1 chip để chỉ xem
+  // các lô của đúng NCC đó, bấm lại (hoặc bấm "Tất cả") để xem lại hết.
+  const nccBox=document.getElementById('lo-ncc-tabs');
+  if(nccBox){
+    const NONE_KEY='__NONE__';
+    const nccCount={};
+    poArr.forEach(([,rowsRaw])=>{const sup=(rowsRaw[0].supplier_name||'').trim()||NONE_KEY;nccCount[sup]=(nccCount[sup]||0)+1;});
+    const nccKeys=Object.keys(nccCount).sort((a,b)=>a===NONE_KEY?-1:b===NONE_KEY?1:a.localeCompare(b,'vi'));
+    if(!nccKeys.length){nccBox.innerHTML='';}
+    else{
+      nccBox.innerHTML=`<div class="tab${orderNccFilter===null?' on':''}" onclick="setOrderNccFilter(null)">Tất cả NCC <span class="c">${poArr.length}</span></div>`+
+        nccKeys.map(k=>`<div class="tab${orderNccFilter===k?' on':''}" onclick="setOrderNccFilter('${jsq(k)}')">${k===NONE_KEY?'❔ Chưa gắn NCC':'🏭 '+escapeHtml(k)} <span class="c">${nccCount[k]}</span></div>`).join('');
+    }
+  }
   if(!poArr.length){box.innerHTML=`<div class="card dim" style="text-align:center">${poArrAll.length?(orderLotStatus==='daave'?'Chưa có lô nào đã về đủ.':'Không còn lô nào đang chờ về 🎉'):'Chưa có đơn đặt. (Cần bảng <code>supplier_orders</code> — xem SQL.)'}</div>`;return;}
-  box.innerHTML=poArr.map(([po,rowsRaw])=>{
+  // [MỚI] Gom các lô lại theo NCC (supplier_name) để dễ theo dõi lô nào của xưởng nào.
+  // Lô nào chưa có tên NCC (đơn cũ, hoặc tạo từ trang Order hàng dự báo) → xếp vào nhóm "❔ Chưa gắn NCC" lên ĐẦU
+  // danh sách, kèm ô trống ngay trong từng thẻ lô để điền/lưu tên NCC — không cần sửa từng dòng sản phẩm.
+  const NONE_KEY='__NONE__';
+  const bySupplier={};
+  poArr.forEach(([po,rowsRaw])=>{
+    const sup=(rowsRaw[0].supplier_name||'').trim()||NONE_KEY;
+    if(orderNccFilter!==null&&sup!==orderNccFilter)return; // đang lọc theo 1 NCC cụ thể → bỏ qua lô của NCC khác
+    (bySupplier[sup]=bySupplier[sup]||[]).push([po,rowsRaw]);
+  });
+  if(!Object.keys(bySupplier).length){box.innerHTML='<div class="card dim" style="text-align:center">Không có lô nào của NCC này.</div>';return;}
+  const supKeys=Object.keys(bySupplier).sort((a,b)=>a===NONE_KEY?-1:b===NONE_KEY?1:a.localeCompare(b,'vi'));
+  const lotCardHtml=([po,rowsRaw])=>{
     const gkey='po:'+po;
     const rowsAll=sortOrderRows(rowsRaw); // [MỚI] sắp đúng theo màu → size, thay vì giữ thứ tự thô từ CSDL
     const focus=ncColorFocusByGroup[gkey]||null;
@@ -3335,7 +3488,12 @@ function renderOrderByLot(){
     return `<div class="card" style="padding:0;overflow:hidden;margin-bottom:14px">
       <div style="background:var(--dark);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;border-radius:9px 9px 0 0">
         <div><b style="font-size:16px">${escapeHtml(o.name)}</b> <span class="mono" style="opacity:.6;font-size:12px">${escapeHtml(po)}</span>
-          <div style="font-size:12px;opacity:.75;margin-top:3px">Về dự kiến: ${fmtDate(o.arr_date)}</div></div>
+          <div style="font-size:12px;opacity:.75;margin-top:3px">Về dự kiến: ${fmtDate(o.arr_date)}</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:7px">
+            <input id="sup-${po}" value="${escapeHtml(o.supplier_name||'')}" placeholder="🏭 Nhập tên NCC..." style="padding:4px 9px;font-size:11.5px;border-radius:6px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;width:170px">
+            <button class="btn btn-sm" style="padding:3px 9px;font-size:11px;background:transparent;color:var(--honey);border-color:rgba(255,255,255,.3)" onclick="saveLotSupplier('${jsq(po)}')">💾 Lưu NCC</button>
+          </div>
+        </div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span style="background:${done?'var(--grn-bg)':'var(--honey)'};color:${done?'var(--grn-fg)':'var(--dark)'};padding:5px 14px;border-radius:7px;font-size:12px;font-weight:700">${done?'✓ Đã về đủ':'Đang về'}</span>
           <button class="btn btn-sm" style="background:var(--honey);color:var(--dark);border-color:var(--honey);font-weight:700" onclick="openGuiNCC('${jsq(po)}')">📤 Gửi đơn NCC</button>
@@ -3344,15 +3502,15 @@ function renderOrderByLot(){
       </div>
       ${ncColorChipsHtml(gkey,rowsAll)}
       <div>${rows.map(r=>orderRowHtml(r)).join('')||'<div class="dim" style="padding:16px;text-align:center;font-size:12.5px">Không có dòng nào khớp màu đang lọc.</div>'}</div>
-      ${hist.length?`<div style="padding:10px 15px;border-top:1px solid var(--border)">
-        <div style="font-size:11px;font-weight:700;color:var(--brown);letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px">📜 Lịch sử về hàng (${hist.length} đợt)</div>
-        ${hist.map(h=>`<div style="font-size:12px;padding:5px 0;border-top:1px dashed var(--border);display:flex;justify-content:space-between;gap:10px">
-          <span><b>Đợt ${h.roundNo}</b> · ${fmtDate(h.date)} · ${h.lines.map(l=>`${escapeHtml(l.name.split(' · ').slice(1).join(' · ')||l.name)} +${l.qty}`).join(', ')}</span>
-          <b style="white-space:nowrap;color:var(--grn-fg)">+${h.total}</b>
-        </div>`).join('')}
-      </div>`:''}
+      ${orderHistBlockHtml(hist)}
       ${!done?`<div style="padding:11px 15px;border-top:1px solid var(--border)"><button class="btn btn-honey" style="width:100%" onclick="confirmLot('${jsq(po)}')">✓ Xác nhận hàng về — cập nhật kho</button></div>`:''}
     </div>`;
+  };
+  box.innerHTML=supKeys.map((sup,i)=>{
+    const lots=bySupplier[sup];
+    const label=sup===NONE_KEY?'❔ Chưa gắn NCC':'🏭 '+escapeHtml(sup);
+    const head=`<div style="background:#B5715C;color:#fff;padding:9px 16px;border-radius:9px;font-family:var(--f-head);font-weight:800;font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;margin:${i===0?'0':'20px'} 0 10px">${label} · ${lots.length} lô</div>`;
+    return head+lots.map(lotCardHtml).join('');
   }).join('');
 }
 function renderOrderBySP(){
@@ -3713,13 +3871,7 @@ function renderPkNccList(){
         </div>
       </div>
       <div>${prows.map(r=>orderRowHtml(r,true)).join('')}</div>
-      ${hist.length?`<div style="padding:10px 15px;border-top:1px solid var(--border)">
-        <div style="font-size:11px;font-weight:700;color:var(--brown);letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px">📜 Lịch sử về hàng (${hist.length} đợt)</div>
-        ${hist.map(h=>`<div style="font-size:12px;padding:5px 0;border-top:1px dashed var(--border);display:flex;justify-content:space-between;gap:10px">
-          <span><b>Đợt ${h.roundNo}</b> · ${fmtDate(h.date)} · ${h.lines.map(l=>`${escapeHtml(l.name.split(' · ').slice(1).join(' · ')||l.name)} +${l.qty}`).join(', ')}</span>
-          <b style="white-space:nowrap;color:var(--grn-fg)">+${h.total}</b>
-        </div>`).join('')}
-      </div>`:''}
+      ${orderHistBlockHtml(hist)}
       ${!done?`<div style="padding:11px 15px;border-top:1px solid var(--border)"><button class="btn btn-honey" style="width:100%" onclick="confirmLot('${jsq(po)}')">✓ Xác nhận hàng về — cập nhật kho</button></div>`:''}
     </div>`;
   }).join('');
@@ -3749,10 +3901,11 @@ function renderPkKhoHang(type){
     const d7=soldIn(p.code,7),d30=soldIn(p.code,30),d60=soldIn(p.code,60);
     const daily=d30/30,fc20=Math.round(daily*20);
     const hut=Math.max(0,fc20-ton-cm);
-    const dl=daily>0?Math.round(ton/daily):null;
+    const dl=daily>0?Math.round((ton+cm)/daily):null;
     const pct=lineD30?(d30/lineD30*100):0;
     sTon+=ton;sAvail+=av;sComing+=cm;s7+=d7;s30+=d30;s60+=d60;sFc+=fc20;sHut+=hut;
     const bad=ton<0;
+    const sizeOk=hut<=0; // [MỚI] Nút xanh/đỏ "Cần order" xét riêng cho từng size, không còn 1 nút chung ở đầu thẻ
     rows+=`<tr style="${bad?'background:var(--red-bg)':''}">
       <td class="l" style="font-weight:600;padding-left:12px">${p.size||label}</td>
       <td style="font-weight:800;background:var(--bg);color:${ton<0?'var(--red-fg)':'inherit'}">${ton===0?'—':fmtN(ton)}</td>
@@ -3765,13 +3918,12 @@ function renderPkKhoHang(type){
       <td style="color:${hut>0?'var(--red-fg)':'inherit'};font-weight:${hut>0?800:400}">${hut>0?hut:'—'}</td>
       <td style="font-size:11px;color:${dl!==null&&dl<=7?'var(--red-fg)':'var(--brown)'}">${dl===null?'—':dl<=0?'Hết!':'Còn '+dl+'ng'}</td>
       <td style="font-size:11px">${pct?pct.toFixed(1)+'%':'—'}</td>
+      <td><span class="pill" style="background:${sizeOk?'#DFF3E0':'#FFE0E0'};color:${sizeOk?'#1B5E20':'#791F1F'}">${sizeOk?'🟢 Ổn':'🔴 Cần order'}</span></td>
     </tr>`;
   });
-  const ok=sHut<=0;
   box.innerHTML=virtualNote+`<div class="card" style="padding:0;margin-bottom:16px;overflow:hidden;border:none">
     <div style="display:flex;justify-content:space-between;align-items:center;background:#B5715C;color:#fff;padding:10px 16px">
       <div style="font-family:var(--f-head);font-weight:800;font-size:12.5px;letter-spacing:.12em;text-transform:uppercase">● ${escapeHtml(label)}</div>
-      <div style="background:${ok?'#DFF3E0':'#FFE0E0'};color:${ok?'#1B5E20':'#791F1F'};padding:3px 12px;border-radius:6px;font-size:11px;font-weight:700">${ok?'🟢 Ổn':'🔴 Cần order'}</div>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:var(--dark);color:#fff;padding:9px 16px;font-size:11.5px">
       <div style="display:flex;gap:16px;flex-wrap:wrap">
@@ -3790,7 +3942,7 @@ function renderPkKhoHang(type){
       <thead><tr>
         <th class="l" style="padding-left:12px">${pkHasSize(type)?'Size':'—'}</th>
         <th style="background:var(--dark);color:var(--honey)">Tồn kho</th><th>Khả dụng</th><th>Đang về</th>
-        <th>7D</th><th>30D</th><th>60D</th><th>Dự báo 20ng</th><th>Hụt</th><th>Deadline</th><th>%Dùng</th>
+        <th>7D</th><th>30D</th><th>60D</th><th>Dự báo 20ng</th><th>Hụt</th><th>Deadline</th><th>%Dùng</th><th>Trạng thái</th>
       </tr></thead>
       <tbody>${rows}
         <tr style="background:#B5715C;color:#fff;font-weight:800">
@@ -3798,6 +3950,7 @@ function renderPkKhoHang(type){
           <td>${fmtN(sTon)}</td><td>${fmtN(sAvail)}</td><td>${fmtN(sComing)}</td>
           <td>${fmtN(s7)}</td><td>${fmtN(s30)}</td><td>${fmtN(s60)}</td>
           <td>${fmtN(sFc)}</td><td>${sHut>0?sHut:'—'}</td><td>—</td><td>100%</td>
+          <td>${sHut>0?'🔴 Cần order':'🟢 Ổn'}</td>
         </tr>
       </tbody></table></div>
     <div style="background:var(--dark);padding:9px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
