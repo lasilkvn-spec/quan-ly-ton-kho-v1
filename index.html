@@ -710,6 +710,10 @@ let allProducts=[],allTx=[],allOrders=[],kolPosts=[];
 // đồng thời vẫn xem lại được ở tab "Đã xoá" trong Quản lý đơn.
 let deletedOrders=[];
 let allAccProducts=[]; // sản phẩm phụ kiện (category='accessory' trong bảng products) — tách riêng, KHÔNG lẫn vào allProducts
+// [MỚI] Ghi chú mỗi ĐỢT về hàng: Xưởng đã giao bao nhiêu / Trả về xưởng bao nhiêu (ghi tự do) + ảnh lỗi đính kèm.
+// Lưu ở bảng riêng lot_round_notes (không đụng transactions/supplier_orders) — Trả về xưởng CHỈ là ghi chú,
+// KHÔNG cộng vào kho, KHÔNG tính vào tiến độ đơn đặt (đơn vẫn coi là thiếu, chờ xưởng đền/giao lại).
+let lotRoundNotes=[];
 // Kênh KOL theo scheme của bản index (nguồn dữ liệu KOL thật)
 const KOL_VN_CH=['KOL_IG','KOL_TT'];
 const KOL_THAI_CH=['KOL_IG_THAI','KOL_TT_THAI','KOLThai'];
@@ -809,6 +813,7 @@ async function loadAll(){
     allAccProducts=pr.filter(p=>(p.category||'apparel')==='accessory');
     allTx=tx;allOrders=or.filter(o=>o.status!=='Đã xoá');deletedOrders=or.filter(o=>o.status==='Đã xoá');
     try{kolPosts=await sbAll('kol_posts?order=created_at.desc');}catch(e){kolPosts=[];}
+    try{lotRoundNotes=await sbAll('lot_round_notes?order=id.desc');}catch(e){lotRoundNotes=[];} // bảng chưa tạo thì để rỗng, không vỡ trang
     await loadStaffAndKpi(); // "Nhân viên & Lương" + "KPI Nhân viên" — Supabase thay cho localStorage, đồng bộ mọi máy
     setConn(true,'Đã kết nối Supabase');
     document.getElementById('setup-note').innerHTML='';
@@ -3422,7 +3427,8 @@ function roundBreakdownHtml(h){
 }
 // Render 1 khối "Lịch sử về hàng" đầy đủ (dùng chung cho trang Order hàng + trang Phụ kiện) — mỗi đợt hiện rõ
 // Tổng số cái, kèm breakdown từng màu/size bên dưới thay vì nhét chung 1 dòng khó đọc như trước.
-function orderHistBlockHtml(hist){
+// [MỚI] Mỗi đợt còn có ghi chú "Xưởng đã giao" / "Trả về xưởng" (tự do, không ràng buộc số) + ảnh lỗi đính kèm.
+function orderHistBlockHtml(hist,po){
   if(!hist.length)return'';
   return `<div style="padding:10px 15px;border-top:1px solid var(--border)">
     <div style="font-size:11px;font-weight:700;color:var(--brown);letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px">📜 Lịch sử về hàng (${hist.length} đợt)</div>
@@ -3432,7 +3438,22 @@ function orderHistBlockHtml(hist){
         <b style="white-space:nowrap;color:var(--grn-fg)">Tổng +${h.total} cái</b>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px">${roundBreakdownHtml(h)}</div>
+      ${roundNoteBlockHtml(po,h.roundNo)}
     </div>`).join('')}
+  </div>`;
+}
+// [MỚI] Khối ghi chú "Xưởng giao / Trả về xưởng" + ảnh lỗi của đúng 1 đợt (po + roundNo).
+// Trả về xưởng KHÔNG đụng kho/tiến độ đơn — chỉ là ghi chú lưu lại cho dễ tra soát với xưởng sau này.
+function roundNoteBlockHtml(po,roundNo){
+  const n=lotRoundNotes.find(x=>x.po_code===po&&x.round_no===roundNo);
+  const hasNote=n&&((n.note_giao||'').trim()||(n.note_tra||'').trim()||(n.images||[]).length);
+  return `<div style="margin-top:7px;padding:8px 10px;background:var(--bg);border-radius:8px">
+    ${hasNote?`
+      ${(n.note_giao||'').trim()?`<div style="font-size:11.5px;margin-bottom:4px"><b>🏭 Xưởng giao:</b> ${escapeHtml(n.note_giao)}</div>`:''}
+      ${(n.note_tra||'').trim()?`<div style="font-size:11.5px;margin-bottom:4px"><b>🔙 Trả về xưởng:</b> ${escapeHtml(n.note_tra)}</div>`:''}
+      ${(n.images||[]).length?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin:5px 0">${n.images.map(u=>`<img src="${escapeHtml(u)}" onclick="window.open('${jsq(u)}','_blank')" style="width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer">`).join('')}</div>`:''}
+    `:`<div style="font-size:11px;color:var(--brown)">Chưa có ghi chú giao/trả cho đợt này.</div>`}
+    <button class="btn btn-sm" style="margin-top:4px" onclick="openRoundNoteModal('${jsq(po)}',${roundNo})">${hasNote?'✏️ Sửa ghi chú / ảnh':'📝 Thêm ghi chú giao/trả + ảnh lỗi'}</button>
   </div>`;
 }
 function renderOrderPage(){
@@ -3502,7 +3523,7 @@ function renderOrderByLot(){
       </div>
       ${ncColorChipsHtml(gkey,rowsAll)}
       <div>${rows.map(r=>orderRowHtml(r)).join('')||'<div class="dim" style="padding:16px;text-align:center;font-size:12.5px">Không có dòng nào khớp màu đang lọc.</div>'}</div>
-      ${orderHistBlockHtml(hist)}
+      ${orderHistBlockHtml(hist,po)}
       ${!done?`<div style="padding:11px 15px;border-top:1px solid var(--border)"><button class="btn btn-honey" style="width:100%" onclick="confirmLot('${jsq(po)}')">✓ Xác nhận hàng về — cập nhật kho</button></div>`:''}
     </div>`;
   };
@@ -3530,12 +3551,27 @@ function renderOrderBySP(){
     const focus=ncColorFocusByGroup[gkey]||null;
     const rows=focus?rowsAll.filter(r=>colorKeyOf(rowColorSize(r).color)===focus):rowsAll;
     const tOrd=rowsAll.reduce((s,r)=>s+r.qty,0),tRec=rowsAll.reduce((s,r)=>s+r.received,0),tRem=tOrd-tRec;
-    return `<div class="card" style="padding:0;overflow:hidden;margin-bottom:14px">
-      <div style="background:var(--honey);padding:10px 15px;display:flex;justify-content:space-between;align-items:center;border-radius:9px 9px 0 0">
-        <b style="font-size:13.5px">${escapeHtml(name)}</b>
-        <span style="font-size:12px">còn về <b style="color:${tRem>0?'var(--red-fg)':'var(--grn-fg)'}">${tRem>0?tRem:0}</b> / ${tOrd}</span>
+    // [MỚI] Badge 🎯Mức nên giữ / 🚫Cắt cho từng màu — TÁI DÙNG đúng công thức bên trang Kho (dựa vào tốc độ bán
+    // 7 ngày gần nhất của ĐÚNG màu đó, cộng mọi size) để biết ngay màu nào đang bán chạy nên đặt thêm, màu nào
+    // đang ế nên cắt bớt/không đặt nữa — xem trực tiếp ngay lúc đang đặt hàng, không cần qua lại trang Kho.
+    const colorSeen=new Map();
+    rowsAll.forEach(r=>{const c=rowColorSize(r).color;const k=colorKeyOf(c);if(c&&c!=='—'&&!colorSeen.has(k))colorSeen.set(k,c);});
+    const matchProducts=allProducts.filter(p=>(nm[(p.name||'').trim().toLowerCase()]||p.name)===name);
+    const colorAutoMap={};
+    colorSeen.forEach((label,k)=>{
+      const codes=matchProducts.filter(p=>colorKeyOf(p.color)===k).map(p=>p.code);
+      colorAutoMap[k]=autoTargetForColor(codes.reduce((s,code)=>s+soldIn(code,7),0));
+    });
+    return `<div class="card" style="padding:0;overflow:hidden;margin-bottom:14px;border:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;background:#B5715C;color:#fff;padding:10px 16px">
+        <div style="font-family:var(--f-head);font-weight:800;font-size:12.5px;letter-spacing:.12em;text-transform:uppercase">● ${escapeHtml(name)}</div>
+        <span style="font-size:12px">còn về <b style="color:${tRem>0?'#FFD9D9':'#D9FFDD'}">${tRem>0?tRem:0}</b> / ${tOrd}</span>
       </div>
-      ${ncColorChipsHtml(gkey,rowsAll)}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;padding:9px 16px 0;background:var(--dark)">
+        ${[...colorSeen.entries()].map(([k,label])=>{const auto=colorAutoMap[k];const badge=auto.cut?'🚫 Cắt (0c)':`🎯${auto.target}c`;
+          return `<button class="btn btn-sm" style="background:${focus===k?colorBg(label):'rgba(255,255,255,.08)'};color:#fff;border-color:${auto.cut?'#E7A5A4':colorBg(label)}" onclick="setNcColorFocusFor('${jsq(gkey)}','${jsq(k)}')">${escapeHtml(label)} <span style="opacity:.85">· ${badge}</span></button>`;}).join('')}
+        ${focus?`<button class="btn btn-sm" style="background:transparent;color:var(--honey);border-color:rgba(255,255,255,.3)" onclick="setNcColorFocusFor('${jsq(gkey)}',null)">✕ Xem tất cả màu</button>`:''}
+      </div>
       ${rows.map(r=>{
         const rem=r.qty-r.received,rpct=r.qty?Math.round(r.received/r.qty*100):0;
         return `<div style="display:flex;align-items:center;gap:14px;padding:10px 15px;border-top:1px solid var(--border)">
@@ -3641,6 +3677,99 @@ async function confirmLot(po){
     toast(`✓ Đã ghi nhận Đợt ${roundNo} về hàng, cập nhật kho`);
     renderOrderPage();renderKho();renderLoiKho();
   }catch(e){toast('Lỗi: '+e.message,true);}
+  showLoad(false);
+}
+
+/* ══════════ GHI CHÚ ĐỢT HÀNG VỀ: Xưởng giao / Trả về xưởng + ảnh lỗi ══════════
+   [MỚI] Mỗi đợt về hàng (po + roundNo) có thể ghi chú TỰ DO — không ràng buộc theo dòng sản phẩm —
+   "Xưởng đã giao bao nhiêu cái/size/màu" và "Trả về xưởng bao nhiêu cái/size/màu + lý do", kèm ảnh chụp lỗi.
+   Lưu ở bảng RIÊNG lot_round_notes (po_code, round_no, note_giao, note_tra, images[]) — không đụng transactions/
+   supplier_orders nên "Trả về xưởng" KHÔNG cộng vào kho và KHÔNG tính vào tiến độ đơn (đơn vẫn coi là thiếu,
+   chờ xưởng đền/giao lại) — đây thuần là ghi chú lưu lại để đối chiếu với xưởng sau này.
+   Cần chạy 1 lần trong Supabase (SQL Editor):
+     create table if not exists lot_round_notes(
+       id bigint generated always as identity primary key,
+       po_code text not null, round_no int not null,
+       note_giao text default '', note_tra text default '', images text[] default '{}',
+       updated_at timestamptz default now(),
+       unique(po_code,round_no));
+     alter table lot_round_notes enable row level security;
+     create policy "public rw" on lot_round_notes for all using (true) with check (true);
+   Và tạo 1 Storage bucket tên "lo-hang-loi" (Storage → New bucket → đặt Public = ON) để lưu ảnh lỗi.
+*/
+let roundNoteDraft=null; // nháp đang sửa trong modal: {po,roundNo,note_giao,note_tra,images:[]}
+function openRoundNoteModal(po,roundNo){
+  const existing=lotRoundNotes.find(x=>x.po_code===po&&x.round_no===roundNo);
+  roundNoteDraft={po,roundNo,note_giao:existing?.note_giao||'',note_tra:existing?.note_tra||'',images:(existing?.images||[]).slice()};
+  m_title(`📝 Ghi chú Đợt ${roundNo}`);
+  renderRoundNoteModalBody();
+  m_foot(`<button class="btn" onclick="closeModal()">Huỷ</button><button class="btn btn-honey" onclick="saveRoundNote()">💾 Lưu ghi chú</button>`);
+  openModal();
+}
+function renderRoundNoteModalBody(){
+  const d=roundNoteDraft;
+  document.getElementById('m-body').innerHTML=`
+    <label class="fld"><span>🏭 Xưởng đã giao (số cái / size / màu)</span>
+      <textarea id="rn-giao" rows="3" placeholder="VD: Đỏ S:10 · M:15, Xanh S:5 — Tổng 30 cái">${escapeHtml(d.note_giao)}</textarea>
+    </label>
+    <label class="fld"><span>🔙 Trả về xưởng (số cái / size / màu + lý do) — chỉ ghi chú, không trừ/cộng kho</span>
+      <textarea id="rn-tra" rows="3" placeholder="VD: Đỏ S:2 lỗi đường may, Xanh M:1 lem màu — Tổng 3 cái">${escapeHtml(d.note_tra)}</textarea>
+    </label>
+    <label class="fld"><span>📷 Ảnh lỗi (chọn từ điện thoại/máy tính, có thể chọn nhiều ảnh)</span>
+      <input type="file" accept="image/*" multiple onchange="onRoundNoteFiles(this)">
+    </label>
+    <div id="rn-imgs" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">${roundNoteImagesHtml()}</div>
+    <div id="rn-uploading" class="dim" style="font-size:11px;margin-top:6px"></div>`;
+}
+function roundNoteImagesHtml(){
+  return (roundNoteDraft.images||[]).map((url,i)=>`
+    <div style="position:relative">
+      <img src="${escapeHtml(url)}" onclick="window.open('${jsq(url)}','_blank')" style="width:70px;height:70px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:pointer">
+      <span onclick="removeRoundNoteImage(${i})" title="Xoá ảnh" style="position:absolute;top:-6px;right:-6px;background:var(--red-fg);color:#fff;width:18px;height:18px;border-radius:50%;font-size:11px;line-height:18px;text-align:center;cursor:pointer">×</span>
+    </div>`).join('');
+}
+function removeRoundNoteImage(i){roundNoteDraft.images.splice(i,1);document.getElementById('rn-imgs').innerHTML=roundNoteImagesHtml();}
+// Chuyển tên po/tên file thành đoạn đường dẫn an toàn (không dấu, không ký tự lạ) khi lưu lên Storage.
+function safeSeg(s){return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9_-]+/g,'_');}
+async function uploadDefectPhoto(file,po,roundNo){
+  const bucket='lo-hang-loi';
+  const path=`${safeSeg(po)}/round-${roundNo}/${Date.now()}-${safeSeg(file.name)}`;
+  const res=await fetch(`${SB_URL}/storage/v1/object/${bucket}/${path}`,{
+    method:'POST',
+    headers:{'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`,'Content-Type':file.type||'application/octet-stream','x-upsert':'true'},
+    body:file
+  });
+  if(!res.ok)throw new Error(`${res.status} ${await res.text()}`);
+  return `${SB_URL}/storage/v1/object/public/${bucket}/${path}`;
+}
+async function onRoundNoteFiles(input){
+  const files=[...(input.files||[])];if(!files.length)return;
+  const status=document.getElementById('rn-uploading');
+  for(const f of files){
+    status.textContent=`⏳ Đang tải lên: ${f.name}...`;
+    try{
+      const url=await uploadDefectPhoto(f,roundNoteDraft.po,roundNoteDraft.roundNo);
+      roundNoteDraft.images.push(url);
+      document.getElementById('rn-imgs').innerHTML=roundNoteImagesHtml();
+    }catch(e){toast('Lỗi tải ảnh (đã tạo bucket "lo-hang-loi" ở Supabase Storage chưa?): '+e.message,true);}
+  }
+  status.textContent='';
+  input.value='';
+}
+async function saveRoundNote(){
+  const d=roundNoteDraft;
+  d.note_giao=document.getElementById('rn-giao').value.trim();
+  d.note_tra=document.getElementById('rn-tra').value.trim();
+  showLoad(true);
+  try{
+    const rec={po_code:d.po,round_no:d.roundNo,note_giao:d.note_giao,note_tra:d.note_tra,images:d.images};
+    await UPSERT('lot_round_notes',[rec],'po_code,round_no');
+    const idx=lotRoundNotes.findIndex(x=>x.po_code===d.po&&x.round_no===d.roundNo);
+    if(idx>=0)lotRoundNotes[idx]=rec;else lotRoundNotes.push(rec);
+    closeModal();toast('✓ Đã lưu ghi chú đợt hàng');
+    renderOrderPage();
+    if(document.getElementById('pkn-list'))renderPkNccList();
+  }catch(e){toast('Lỗi lưu ghi chú (đã tạo bảng "lot_round_notes" ở Supabase chưa?): '+e.message,true);}
   showLoad(false);
 }
 
@@ -3871,7 +4000,7 @@ function renderPkNccList(){
         </div>
       </div>
       <div>${prows.map(r=>orderRowHtml(r,true)).join('')}</div>
-      ${orderHistBlockHtml(hist)}
+      ${orderHistBlockHtml(hist,po)}
       ${!done?`<div style="padding:11px 15px;border-top:1px solid var(--border)"><button class="btn btn-honey" style="width:100%" onclick="confirmLot('${jsq(po)}')">✓ Xác nhận hàng về — cập nhật kho</button></div>`:''}
     </div>`;
   }).join('');
