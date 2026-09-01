@@ -1253,7 +1253,44 @@ function renderDonDateBar(){
   ${donDatePreset==='custom'?`<div class="row" style="align-items:center;gap:8px">
     <label class="fld" style="margin:0"><span>Từ</span><input type="date" value="${donDateFrom}" onchange="donSetCustomDate('from',this.value)"></label>
     <label class="fld" style="margin:0"><span>đến</span><input type="date" value="${donDateTo}" onchange="donSetCustomDate('to',this.value)"></label>
-  </div>`:''}`;
+  </div>`:''}
+  ${donFilter==='Đã gửi'?`<div class="row" style="margin-top:8px"><button class="btn btn-honey btn-sm" onclick="exportDonGuiExcel()">📊 Xuất Excel báo cáo</button></div>`:''}`;
+}
+/* ── [MỚI] Xuất Excel báo cáo tab "Đã gửi" (theo đúng khoảng ngày đang lọc + tìm kiếm/lọc SP hiện tại) ──
+   Gồm: Tên khách, SĐT, Mã vận đơn, Đơn vị vận chuyển, Tên sản phẩm, Có phải hàng đổi không, Sản phẩm lấy về (nếu có).
+   "Sản phẩm lấy về" lấy từ dòng "Chờ hàng về" cùng order_code (do luồng Đổi hàng GHN/SPX tạo — xem ngoaiConfirm). */
+function exportDonGuiExcel(){
+  const ff=DON_FILTERS.find(x=>x.k==='Đã gửi');
+  let list=allOrders.filter(ff.f);
+  const dr=donDateRange();
+  if(dr&&dr.from&&dr.to)list=list.filter(o=>{const d=orderDateOf(o);return d>=dr.from&&d<=dr.to;});
+  // áp thêm đúng ô tìm kiếm + lọc sản phẩm đang bật trên màn hình (nếu có), để file xuất ra khớp với những gì đang xem
+  const q=(document.getElementById('don-search')?.value||'').trim().toLowerCase();
+  if(q)list=list.filter(o=>[o.order_code,o.customer_name,o.phone,o.tracking_code].some(v=>String(v||'').toLowerCase().includes(q)));
+  if(donProd!=='ALL'){
+    const nameOf=o=>{const p=allProducts.find(x=>x.code===o.product_code);return p?p.name:(o.product_name||'');};
+    const codes=new Set(list.filter(o=>nameOf(o)===donProd).map(o=>o.order_code));
+    list=list.filter(o=>codes.has(o.order_code));
+  }
+  if(donVariantFilter)list=list.filter(o=>donVariantFilter.codes.has(o.order_code));
+  if(!list.length){toast('Không có đơn nào trong khoảng đang lọc',true);return;}
+  // gom sẵn "SP lấy về" theo order_code — chỉ có ở đơn Đổi hàng (dòng phụ status='Chờ hàng về', channel='Đổi hàng')
+  const retByCode={};
+  allOrders.forEach(o=>{
+    if(o.status==='Chờ hàng về'&&o.channel==='Đổi hàng')(retByCode[o.order_code]=retByCode[o.order_code]||[]).push(`${o.product_name} × ${o.quantity}`);
+  });
+  const HEAD=['Mã đơn','Tên khách','Số điện thoại','Mã vận đơn','Đơn vị vận chuyển','Tên sản phẩm','SL','Có phải hàng đổi?','Sản phẩm lấy về'];
+  const rows=[HEAD,...list.map(o=>{
+    const isDoi=o.channel==='Đổi hàng';
+    return [o.order_code,o.customer_name||'',o.phone||'',o.tracking_code||'',o.ship_method||'',o.product_name||'',o.quantity||'',
+      isDoi?'Có':'Không',isDoi?(retByCode[o.order_code]||[]).join(', '):''];
+  })];
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:14},{wch:20},{wch:13},{wch:16},{wch:14},{wch:26},{wch:6},{wch:12},{wch:26}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Đã gửi');
+  const label=dr&&dr.from&&dr.to?(dr.from===dr.to?dr.from:`${dr.from}_${dr.to}`):'tatca';
+  XLSX.writeFile(wb,`bao_cao_da_gui_${label}.xlsx`);
+  toast(`✅ Đã xuất ${list.length} dòng đơn`);
 }
 /* ── Đơn "Chờ xác nhận" (lên đơn nhưng nhân viên KHÔNG tích chọn xuất ngay) — chốt xong với khách rồi mới
    chọn sản phẩm để xuất thật (trừ kho lúc này, không phải lúc lên đơn). ── */
