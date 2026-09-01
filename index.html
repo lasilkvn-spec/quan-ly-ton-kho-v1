@@ -202,6 +202,13 @@ tr:last-child td{border-bottom:none}
   <nav class="sb" id="sb">
     <div class="sb-top"><div class="sb-logo">Là<span>Silk</span></div><div class="sb-tag">Đơn · Kho · Sổ cái</div></div>
     <div class="sb-conn"><span class="dot" id="cdot"></span><span id="clbl">Đang kết nối…</span></div>
+    <div style="margin:0 14px 10px;padding:8px 10px;background:rgba(255,255,255,.06);border-radius:8px">
+      <div style="font-size:8.5px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.12em;margin-bottom:5px">Nhân viên đang thao tác</div>
+      <select id="staffPickSel" onchange="setCurrentStaff(this.value)" style="width:100%;padding:6px 8px;font-size:11.5px;border-radius:6px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff">
+        <option value="">— Chọn nhân viên —</option>
+      </select>
+      <div id="staffPickBadge" style="font-size:9.5px;margin-top:5px;line-height:1.3"></div>
+    </div>
     <div class="nav">
       <div class="nav-grp">Đơn hàng</div>
       <div class="nav-i on" data-pg="tao"><span class="nav-ico">✍️</span><span class="nav-t">Lên đơn</span></div>
@@ -530,7 +537,13 @@ tr:last-child td{border-bottom:none}
     <!-- LỊCH SỬ -->
     <section class="pg" id="pg-log">
       <div class="pg-t">🔍 Kiểm kê & Lịch sử</div>
-      <div class="pg-s">Chỉ lưu lại lịch sử các lần kiểm kê: đếm ngày nào, số hệ thống lúc đó, số đếm thực tế, và chênh lệch so với thực tế. Không xoá, không sửa được.</div>
+      <div class="pg-s">Toàn bộ biến động cộng/trừ kho — đi đơn, order hàng về, hay chỉnh kho (kiểm kê/mở sổ/hàng lỗi/sửa số bán...) — mỗi dòng đều có nhãn nguồn gốc và tên nhân viên đã tạo. Không xoá, không sửa được.</div>
+      <div class="tabs" id="log-tabs"></div>
+      <div class="tabs" id="log-wh-tabs" style="margin-top:-6px"></div>
+      <div id="log-summary"></div>
+      <div class="row" style="margin-bottom:10px">
+        <input id="log-search" placeholder="🔎 Tìm theo mã SP, tên SP, nhân viên, ghi chú..." style="max-width:320px" oninput="renderLog()">
+      </div>
       <div class="card" style="padding:0;overflow:auto"><table id="log-tbl"></table></div>
     </section>
     <!-- QR CODE SẢN PHẨM -->
@@ -753,6 +766,68 @@ function stockOneAsOf(code,date){
 // nên Tồn kho đã tự phản ánh đúng — không cần giữ chỗ thêm nữa. Hàm giữ lại (trả về rỗng) để không phải sửa
 // các chỗ gọi committedQty() ở nơi khác, "Khả dụng" giờ sẽ luôn bằng "Tồn kho".
 function committedQty(){return {};}
+/* ══════════ NHÂN VIÊN ĐANG THAO TÁC ══════════
+   Chọn 1 lần ở ô trên sidebar — máy này nhớ luôn (localStorage) — từ đó MỌI bút toán kho
+   (postXuat/postNhap và các chỗ ghi thẳng transactions bên dưới) sẽ tự đính kèm staff_name,
+   để trang "Kiểm kê & Lịch sử" biết chính xác ai vừa tạo ra biến động đó.
+   [CẦN CHẠY SQL] bảng transactions cần thêm cột: staff_name text — xem ghi chú cuối file. */
+let currentStaffName=(function(){try{return localStorage.getItem('lasilk_staff_name')||'';}catch(_){return '';}})();
+function setCurrentStaff(v){
+  currentStaffName=v||'';
+  try{localStorage.setItem('lasilk_staff_name',currentStaffName);}catch(_){}
+  renderStaffPickerBadge();
+}
+function renderStaffPickerBadge(){
+  const b=document.getElementById('staffPickBadge');
+  if(b){
+    b.innerHTML=currentStaffName?`👤 Đang thao tác: <b>${escapeHtml(currentStaffName)}</b>`:'⚠️ Chưa chọn — biến động sẽ không rõ ai tạo';
+    b.style.color=currentStaffName?'rgba(255,255,255,.7)':'#F09595';
+  }
+  const sel=document.getElementById('staffPickSel');
+  if(sel&&sel.value!==currentStaffName)sel.value=currentStaffName;
+}
+function renderStaffPickerOptions(){
+  const sel=document.getElementById('staffPickSel');if(!sel)return;
+  const names=[...new Set((S_STAFF||[]).map(e=>e.name).filter(Boolean))];
+  sel.innerHTML='<option value="">— Chọn nhân viên —</option>'+names.map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+  sel.value=currentStaffName||'';
+  renderStaffPickerBadge();
+}
+// Phân loại 1 dòng sổ cái vào đúng 1 trong 3 nhóm biến động chủ shop muốn thấy ở "Kiểm kê & Lịch sử":
+// Đi đơn (khách/KOL/hoàn đơn) · Order hàng (về từ xưởng/NCC) · Chỉnh kho (kiểm kê/mở sổ/hàng lỗi/sửa số bán/tồn đầu kỳ).
+function txCategory(t){
+  const rt=t.ref_type||'';
+  if(['order','order-acc','order_del','order-acc-refund','return'].includes(rt))return{label:'Đi đơn',bg:'var(--blue-bg)',fg:'var(--blue-fg)'};
+  if(['po','po_kol','po_loi'].includes(rt))return{label:'Order hàng',bg:'var(--grn-bg)',fg:'var(--grn-fg)'};
+  if(['adjust','init','opening','sales_adjust','kol_out','loi_out'].includes(rt))return{label:'Chỉnh kho',bg:'var(--org-bg)',fg:'var(--org-fg)'};
+  return{label:'Khác',bg:'var(--bg)',fg:'var(--brown)'};
+}
+// Với các bút toán "Đi đơn", tìm ngược lại đúng đơn hàng đã sinh ra nó (ref_id luôn chứa order_code
+// của đơn, dù mỗi luồng tạo đơn — Lên đơn tay/Đơn Sàn/Ngoại sàn GHN-SPX/Grab... — đặt tiền tố khác nhau)
+// để lấy ĐÚNG đơn vị vận chuyển thật (ship_method: GHN/Shopee Express/Grab/Shopee/TikTok...), vì field
+// "channel" trên bút toán nhiều khi chỉ ghi chung chung (VD "Ngoại sàn", "KOL VN") chứ không nêu rõ đơn vị.
+function txOrderRef(t){
+  if(!['order','order-acc','order_del','order-acc-refund','return'].includes(t.ref_type))return null;
+  const rid=t.ref_id||'';if(!rid)return null;
+  return allOrders.find(o=>o.order_code&&rid.includes(o.order_code)&&o.product_code===t.product_code)
+      ||deletedOrders.find(o=>o.order_code&&rid.includes(o.order_code)&&o.product_code===t.product_code)||null;
+}
+// Nhãn "Kênh / Đơn vị" hiện ở cột riêng trong Lịch sử: ưu tiên đơn vị vận chuyển thật (ship_method) của
+// đúng đơn hàng, kèm kênh bán chung (channel) nếu 2 giá trị khác nhau — VD "Ngoại sàn · GHN", "KOL VN · Shopee Express".
+function txChannelLabel(t){
+  const o=txOrderRef(t);
+  const base=t.channel||(o&&o.channel)||'—';
+  const carrier=o&&o.ship_method?o.ship_method:'';
+  return(carrier&&carrier!==base)?`${base} · ${carrier}`:base;
+}
+// [MỚI] Mỗi bút toán thuộc về ĐÚNG 1 trong 3 "kho": Quản lý kho (SP thường) · Kho hàng lỗi (bucket KOL/lỗi,
+// isLoiKho() đã có sẵn ở trên) · Phụ kiện (SP category='accessory', nằm trong allAccProducts). Dùng để chia
+// trang "Kiểm kê & Lịch sử" thành trang con theo kho, dưới mỗi tab loại biến động (Tất cả/Đi đơn/Order hàng/Chỉnh kho/Khác).
+function txWarehouse(t){
+  if(isLoiKho(t))return'Kho hàng lỗi';
+  if(allAccProducts.some(p=>p.code===t.product_code))return'Phụ kiện';
+  return'Quản lý kho';
+}
 /* CỔNG TRỪ KHO DUY NHẤT — có chống trùng theo mã đơn */
 async function postXuat({product_code,quantity,channel,ref_type,ref_id,is_kol,note,date}){
   // 1) chặn trùng bằng snapshot cục bộ (nhanh)
@@ -769,7 +844,7 @@ async function postXuat({product_code,quantity,channel,ref_type,ref_id,is_kol,no
   let row;
   try{
     row=await POST('transactions',{date:date||todayStr(),type:'Xuất',product_code,quantity,channel,
-      ref_type,ref_id,is_kol:!!is_kol,note:note||''});
+      ref_type,ref_id,is_kol:!!is_kol,note:note||'',staff_name:currentStaffName||''});
   }catch(e){
     if(/23505|duplicate key|unique/i.test(e.message))return 'dup';
     throw e;
@@ -789,7 +864,7 @@ async function postNhap(o){
   }
   let row;
   try{
-    row=await POST('transactions',{date:o.date||todayStr(),type:'Nhập',...o});
+    row=await POST('transactions',{date:o.date||todayStr(),type:'Nhập',staff_name:currentStaffName||'',...o});
   }catch(e){
     if(/23505|duplicate key|unique/i.test(e.message))return 'dup';
     throw e;
@@ -855,6 +930,7 @@ async function loadStaffAndKpi(){
   else if(localKpi)KPI_TASKS=localKpi; // Supabase trống/lỗi nhưng máy này còn dữ liệu → GIỮ NGUYÊN, không xoá trắng
   else KPI_TASKS=[];
   if(syncFailMsg)toast('⚠️ Chưa đẩy được Nhân viên/KPI lên Supabase — '+syncFailMsg+'. Đang hiện tạm dữ liệu trên máy.',true);
+  renderStaffPickerOptions();
   renderStaffIfVisible();renderKpiIfVisible();
 }
 function renderStaffIfVisible(){
@@ -1667,7 +1743,9 @@ async function shipOrder(code,method){
 
 /* ── HUỶ / HOÀN / ĐỔI ── */
 function openReturn(code){
-  const rows=allOrders.filter(o=>o.order_code===code);
+  // [SỬA LỖI] đơn Đổi hàng giờ có 2 dòng chung order_code (SP đã gửi + SP chờ lấy về, 2 status khác nhau).
+  // Trước đây lọc theo mỗi order_code → dính luôn dòng "Chờ hàng về" chưa xử lý vào đây, xử lý nhầm.
+  const rows=allOrders.filter(o=>o.order_code===code&&['Đã gửi','Đã giao'].includes(o.status));
   m_title('Huỷ / Hoàn / Đổi — '+code);
   document.getElementById('m-body').innerHTML=`
     <div style="font-size:12px;color:var(--brown);margin-bottom:10px">Ghi <b>bút toán đảo</b>, không xoá đơn.</div>
@@ -1695,14 +1773,18 @@ async function doReturn(code){
   if(arrived==='no'){
     showLoad(true);
     try{
-      await PATCH(`orders?order_code=eq.${encodeURIComponent(code)}`,{status:'Chờ hàng về',note:'[CHỜ VỀ] '+reason});
-      allOrders.forEach(x=>{if(x.order_code===code){x.status='Chờ hàng về';x.note='[CHỜ VỀ] '+reason;}});
+      // [SỬA LỖI] chỉ đổi đúng các dòng đang "Đã gửi/Đã giao" — tránh đụng dòng "Chờ hàng về" khác (VD dòng
+      // SP lấy về của đơn Đổi hàng) đang tồn tại sẵn chung order_code.
+      await PATCH(`orders?order_code=eq.${encodeURIComponent(code)}&status=in.(Đã gửi,Đã giao)`,{status:'Chờ hàng về',note:'[CHỜ VỀ] '+reason});
+      allOrders.forEach(x=>{if(x.order_code===code&&['Đã gửi','Đã giao'].includes(x.status)){x.status='Chờ hàng về';x.note='[CHỜ VỀ] '+reason;}});
       toast('📦 Đã đưa vào "Hoàn chờ về" — chưa cộng kho');
       closeModal();renderDonTabs();renderDon();updateBadges();
     }catch(e){toast('Lỗi: '+e.message,true);}
     showLoad(false);return;
   }
-  const rows=allOrders.filter(o=>o.order_code===code);
+  // [SỬA LỖI] phải lọc GIỐNG HỆT lúc render checkbox ở openReturn(), nếu không data-i sẽ trỏ sai dòng
+  // khi đơn có thêm dòng khác status chung order_code (VD dòng "Chờ hàng về" của Đổi hàng).
+  const rows=allOrders.filter(o=>o.order_code===code&&['Đã gửi','Đã giao'].includes(o.status));
   const chks=[...document.querySelectorAll('.rt-chk')].filter(c=>c.checked).map(c=>rows[+c.dataset.i]);
   if(!chks.length){toast('Chọn ít nhất 1 món',true);return;}
   const resell=document.getElementById('rt-resell').value==='1';
@@ -1710,7 +1792,9 @@ async function doReturn(code){
 }
 // khi hàng hoàn thực sự về tay → nhân viên kiểm & cộng kho
 function openReturnArrived(code){
-  const rows=allOrders.filter(o=>o.order_code===code);const o=rows[0];
+  // [SỬA LỖI] cùng lý do như openReturn ở trên — chỉ lấy đúng dòng "Chờ hàng về" (SP lấy về), KHÔNG lấy
+  // luôn dòng SP đã gửi/đã trừ kho của cùng đơn Đổi hàng (khác status, không liên quan tới bước "hàng về" này).
+  const rows=allOrders.filter(o=>o.order_code===code&&o.status==='Chờ hàng về');const o=rows[0];
   const prev=(o.note||'').replace('[CHỜ VỀ] ','');
   m_title('📦 Hàng hoàn đã về — '+code);
   document.getElementById('m-body').innerHTML=`
@@ -1727,7 +1811,8 @@ function openReturnArrived(code){
   openModal();
 }
 async function doReturnArrived(code){
-  const rows=allOrders.filter(o=>o.order_code===code);
+  // [SỬA LỖI] lọc giống openReturnArrived() — tránh lệch index khi đơn có thêm dòng khác status chung order_code
+  const rows=allOrders.filter(o=>o.order_code===code&&o.status==='Chờ hàng về');
   const chks=[...document.querySelectorAll('.rt-chk')].filter(c=>c.checked).map(c=>rows[+c.dataset.i]);
   if(!chks.length){toast('Chọn ít nhất 1 món',true);return;}
   const resell=document.getElementById('rt-resell-arr').value==='1';
@@ -1747,7 +1832,7 @@ async function processReturn(code,chks,resell,reason){
         if(allTx.some(t=>t.ref_type==='return'&&t.ref_id===`${code}-LOI-IN-${rid}`))continue;
         // hàng hỏng: ghi vết, không cộng kho bán (bút toán Nhập rồi Xuất bù để trung tính, có dấu vết)
         await postNhap({product_code:r.product_code,quantity:r.quantity,channel:'Hàng lỗi',ref_type:'return',ref_id:`${code}-LOI-IN-${rid}`,note:`${NO_REVENUE_NOTE} Nhận lại hàng lỗi ${code}`});
-        await POST('transactions',{date:todayStr(),type:'Xuất',product_code:r.product_code,quantity:r.quantity,channel:'Hàng lỗi',ref_type:'return',ref_id:`${code}-LOI-OUT-${rid}`,note:`${NO_REVENUE_NOTE} Loại hàng lỗi ${code}: ${reason}`}).then(rw=>{if(rw&&rw[0])allTx.push(rw[0]);});
+        await POST('transactions',{date:todayStr(),type:'Xuất',product_code:r.product_code,quantity:r.quantity,channel:'Hàng lỗi',ref_type:'return',ref_id:`${code}-LOI-OUT-${rid}`,note:`${NO_REVENUE_NOTE} Loại hàng lỗi ${code}: ${reason}`,staff_name:currentStaffName||''}).then(rw=>{if(rw&&rw[0])allTx.push(rw[0]);});
       }
     }
     await refundAccessoryOnReturn(code,chks); // hoàn lại Tag + Mác (KHÔNG hoàn Tem/Túi) — xem chi tiết ở khối PHỤ KIỆN bên dưới
@@ -2288,7 +2373,7 @@ async function saveLoiKiemKe(nm){
       const row=await POST('transactions',{date:todayStr(),type:delta<0?'Xuất':'Nhập',product_code:code,
         product_name:p?pname(p):'',quantity:Math.abs(delta),channel:`Điều chỉnh · ${label}`,ref_type:refType,
         ref_id:'LOIKHO-KK-'+loiBucket+'-'+code+'-'+Date.now(),
-        system_qty:system,counted_qty:counted,reason,
+        system_qty:system,counted_qty:counted,reason,staff_name:currentStaffName||'',
         note:`[KIỂM KÊ KHO LỖI · ${label}] HT=${system}·Đếm=${counted}·Δ${delta>0?'+':''}${delta}·${reason}`});
       if(row&&row[0])allTx.push(row[0]);n++;
     }
@@ -2549,7 +2634,7 @@ async function saveSuaSoBan(code){
     const post=async(delta,dateStr,label)=>{
       if(!delta)return;
       await POST('transactions',{date:dateStr,type:delta>0?'Xuất':'Nhập',product_code:code,
-        product_name:p?pname(p):code,quantity:Math.abs(delta),channel:'Điều chỉnh bán',ref_type:'sales_adjust',
+        product_name:p?pname(p):code,quantity:Math.abs(delta),channel:'Điều chỉnh bán',ref_type:'sales_adjust',staff_name:currentStaffName||'',
         note:`[SỬA SỐ BÁN] ${label} · Δ${delta>0?'+':''}${delta}`}).then(rows=>{if(rows&&rows[0])allTx.push(rows[0]);});
     };
     await post(d7,todayStr(),'7D');
@@ -2676,7 +2761,7 @@ async function saveKiemKe(){
       const p=allProducts.find(x=>x.code===code);
       const row=await POST('transactions',{date:kkDate,type:delta<0?'Xuất':'Nhập',product_code:code,
         product_name:p?pname(p):'',quantity:Math.abs(delta),channel:'Điều chỉnh',ref_type:'adjust',
-        system_qty:system,counted_qty:counted,reason,
+        system_qty:system,counted_qty:counted,reason,staff_name:currentStaffName||'',
         note:`[KIỂM KÊ] Ngày đếm ${kkDate}·HT=${system}·Đếm=${counted}·Δ${delta>0?'+':''}${delta}·${reason}`});
       if(row&&row[0])allTx.push(row[0]);n++;
       results.push({code,name:p?pname(p):code,before:system,typed:counted,after:stockOne(code)});
@@ -2728,7 +2813,7 @@ async function saveMoSo(){
       const p=allProducts.find(x=>x.code===code);
       const row=await POST('transactions',{date:todayStr(),type:delta<0?'Xuất':'Nhập',product_code:code,
         product_name:p?pname(p):'',quantity:Math.abs(delta),channel:'Điều chỉnh',ref_type:'opening',
-        system_qty:system,counted_qty:counted,reason:'Mở sổ',
+        system_qty:system,counted_qty:counted,reason:'Mở sổ',staff_name:currentStaffName||'',
         note:`[KIỂM KÊ] MỞ SỔ · Đếm=${counted}`});
       if(row&&row[0])allTx.push(row[0]);
     }
@@ -4183,7 +4268,7 @@ async function savePkKiemKe(type){
       const p=allAccProducts.find(x=>x.code===code);
       const row=await POST('transactions',{date:kkDate,type:delta<0?'Xuất':'Nhập',product_code:code,
         product_name:p?pname(p):code,quantity:Math.abs(delta),channel:'Điều chỉnh',ref_type:'adjust',
-        system_qty:system,counted_qty:counted,reason,
+        system_qty:system,counted_qty:counted,reason,staff_name:currentStaffName||'',
         note:`[KIỂM KÊ] Ngày đếm ${kkDate}·HT=${system}·Đếm=${counted}·Δ${delta>0?'+':''}${delta}·${reason}`});
       if(row&&row[0])allTx.push(row[0]);n++;
       results.push({code,name:p?pname(p):code,before:system,typed:counted,after:stockOne(code)});
@@ -4196,24 +4281,110 @@ async function savePkKiemKe(type){
 
 /* ══════════ LỊCH SỬ ══════════ */
 
-// [VẤN ĐỀ 3] Trang "Kiểm kê & Lịch sử" giờ CHỈ ghi lại lịch sử các lần kiểm kê (đếm kho) — không còn
-// logic đối chiếu/tính toán gì khác. Mỗi dòng = 1 lần đếm 1 mã sản phẩm: số hệ thống lúc đó, số đếm
-// thực tế, chênh lệch, và lý do — để nhìn lại biết ngày đó đếm sai/đúng với thực tế bao nhiêu.
+// [ĐÃ ĐỔI] Trang "Kiểm kê & Lịch sử" giờ hiện TOÀN BỘ biến động cộng/trừ kho trong sổ cái (allTx),
+// không chỉ riêng các lần kiểm kê nữa. Mỗi dòng được gắn nhãn "Biến động từ" (Đi đơn / Order hàng /
+// Chỉnh kho — xem txCategory()) và tên nhân viên đã tạo ra bút toán đó (staff_name, xem currentStaffName
+// ở phần "CỔNG TRỪ KHO DUY NHẤT"). Có thể lọc theo nhóm bằng tab, hoặc gõ tìm theo mã/tên SP/nhân viên/ghi chú.
+// [MỚI] Dưới mỗi tab loại biến động, có thêm trang con theo KHO (Quản lý kho / Kho hàng lỗi / Phụ kiện —
+// xem txWarehouse()), và 1 khối tóm tắt Hôm nay/Hôm qua (đã đi bao nhiêu — Xuất, đã về bao nhiêu — Nhập)
+// tính đúng theo đúng phạm vi đang xem (loại biến động + kho đã chọn), kèm chia nhỏ theo từng loại khi đang xem "Tất cả".
+let logFilter='all';
+let logWhFilter='all';
+function logSetFilter(f){logFilter=f;renderLog();}
+function logSetWh(w){logWhFilter=w;renderLog();}
 function renderLog(){
-  const list=allTx.filter(isKK).slice().sort((a,b)=>String(b.created_at||b.date).localeCompare(String(a.created_at||a.date)));
-  document.getElementById('log-tbl').innerHTML=`<thead><tr><th class="l">Ngày</th><th class="l">Mã SP</th><th class="l">Sản phẩm</th><th>Số hệ thống</th><th>Số đếm thực tế</th><th>Chênh lệch</th><th class="l">Lý do</th></tr></thead><tbody>
+  const tabsEl=document.getElementById('log-tabs');
+  const cats=['all','Đi đơn','Order hàng','Chỉnh kho','Khác'];
+  if(tabsEl){
+    tabsEl.innerHTML=cats.map(k=>{
+      const n=k==='all'?allTx.length:allTx.filter(t=>txCategory(t).label===k).length;
+      return `<div class="tab${logFilter===k?' on':''}" onclick="logSetFilter('${k}')">${k==='all'?'Tất cả':k}<span class="c">${n}</span></div>`;
+    }).join('');
+  }
+  // lọc theo loại biến động trước — sub-tab kho bên dưới đếm SỐ TRONG ĐÚNG PHẠM VI này để luôn khớp bảng
+  const byCat=logFilter==='all'?allTx:allTx.filter(t=>txCategory(t).label===logFilter);
+  const whEl=document.getElementById('log-wh-tabs');
+  const whs=['all','Quản lý kho','Kho hàng lỗi','Phụ kiện'];
+  if(whEl){
+    whEl.innerHTML=whs.map(w=>{
+      const n=w==='all'?byCat.length:byCat.filter(t=>txWarehouse(t)===w).length;
+      return `<div class="tab${logWhFilter===w?' on':''}" onclick="logSetWh('${w}')" style="font-size:11px">${w==='all'?'Tất cả kho':w}<span class="c">${n}</span></div>`;
+    }).join('');
+  }
+  const q=(document.getElementById('log-search')?.value||'').trim().toLowerCase();
+  let list=logWhFilter==='all'?byCat.slice():byCat.filter(t=>txWarehouse(t)===logWhFilter);
+  renderLogSummary(list);
+  if(q)list=list.filter(t=>[t.product_code,t.product_name,t.staff_name,t.note,t.channel,t.reason,txChannelLabel(t)].some(v=>String(v||'').toLowerCase().includes(q)));
+  list=list.sort((a,b)=>String(b.created_at||b.date).localeCompare(String(a.created_at||a.date)));
+  document.getElementById('log-tbl').innerHTML=`<thead><tr><th class="l">Ngày</th><th class="l">Mã SP</th><th class="l">Sản phẩm</th><th>SL</th><th class="l">Biến động từ</th><th class="l">Kênh / Đơn vị</th><th class="l">Nhân viên</th><th class="l">Ghi chú</th></tr></thead><tbody>
   ${list.map(t=>{
-    const prod=allProducts.find(p=>p.code===t.product_code);
-    const delta=(t.type==='Nhập'?1:-1)*(t.quantity||0);
-    const isOpen=t.ref_type==='opening';
+    const prod=allProducts.find(p=>p.code===t.product_code)||allAccProducts.find(p=>p.code===t.product_code);
+    const cat=txCategory(t);
+    const isNhap=t.type==='Nhập';
+    const noteTxt=isKK(t)?`${t.ref_type==='opening'?'Mở sổ':(t.reason||'—')}${t.system_qty!=null?` · HT ${t.system_qty} → Đếm ${t.counted_qty}`:''}`:(t.note||'—');
     return `<tr><td class="l" style="font-size:11px">${fmtDateTime(t.created_at||t.date)}</td>
       <td class="l mono" style="font-size:11px">${t.product_code}</td>
       <td class="l">${escapeHtml(t.product_name||(prod?pname(prod):t.product_code))}</td>
-      <td>${t.system_qty??'—'}</td>
-      <td style="font-weight:700">${t.counted_qty??'—'}</td>
-      <td style="font-weight:800;color:${delta<0?'var(--red-fg)':delta>0?'var(--grn-fg)':'inherit'}">${delta>0?'+':''}${delta}</td>
-      <td class="l" style="font-size:11px;color:var(--brown)">${escapeHtml(isOpen?'Mở sổ':(t.reason||'—'))}</td></tr>`;
-  }).join('')||'<tr><td colspan="7" class="dim" style="padding:20px">Chưa có lần kiểm kê nào.</td></tr>'}</tbody>`;
+      <td><span class="pill" style="background:${isNhap?'var(--grn-bg)':'var(--red-bg)'};color:${isNhap?'var(--grn-fg)':'var(--red-fg)'}">${isNhap?'+':'−'}${t.quantity||0}</span></td>
+      <td class="l"><span class="pill" style="background:${cat.bg};color:${cat.fg}">${cat.label}</span></td>
+      <td class="l" style="font-size:11.5px">${escapeHtml(txChannelLabel(t))}</td>
+      <td class="l">${t.staff_name?escapeHtml(t.staff_name):'<span class="dim">— chưa ghi —</span>'}</td>
+      <td class="l" style="font-size:11px;color:var(--brown)">${escapeHtml(noteTxt)}</td></tr>`;
+  }).join('')||'<tr><td colspan="8" class="dim" style="padding:20px">Chưa có biến động nào.</td></tr>'}</tbody>`;
+}
+// Khối tóm tắt: mặc định xem "Hôm nay", có thể bấm sang "Hôm qua" hoặc "Tuỳ chỉnh" (chọn khoảng ngày bất kỳ).
+// Luôn tính trên đúng danh sách ĐÃ LỌC theo loại biến động + kho (trước khi lọc theo ô tìm kiếm, vì tìm
+// kiếm là để dò 1 dòng cụ thể chứ không phải để thu hẹp phạm vi tổng hợp). Khi đang xem "Tất cả" loại biến
+// động → chia nhỏ thêm theo từng loại (Đi đơn/Order hàng/Chỉnh kho/Khác) để biết rõ đã đi (Xuất)/về (Nhập)
+// bao nhiêu cái mỗi loại trong khoảng đang chọn, không cần cộng tay.
+let logSumPeriod='today'; // 'today' | 'yesterday' | 'custom'
+let logSumFrom=todayStr();
+let logSumTo=todayStr();
+function logSetSumPeriod(p){logSumPeriod=p;renderLog();}
+function logSumCustomApply(){
+  logSumFrom=document.getElementById('log-sum-from').value||todayStr();
+  logSumTo=document.getElementById('log-sum-to').value||todayStr();
+  if(logSumFrom>logSumTo){const tmp=logSumFrom;logSumFrom=logSumTo;logSumTo=tmp;}
+  renderLog();
+}
+function renderLogSummary(list){
+  const el=document.getElementById('log-summary');if(!el)return;
+  let from,to,label;
+  if(logSumPeriod==='today'){from=to=todayStr();label='Hôm nay';}
+  else if(logSumPeriod==='yesterday'){from=to=daysAgo(1);label='Hôm qua';}
+  else{from=logSumFrom;to=logSumTo;label=(from===to)?'Ngày đã chọn':'Khoảng ngày đã chọn';}
+  const dateLbl=from===to?fmtDate(from):`${fmtDate(from)} → ${fmtDate(to)}`;
+  const rows=list.filter(t=>t.date>=from&&t.date<=to);
+  const out=rows.filter(t=>t.type==='Xuất').reduce((s,t)=>s+(t.quantity||0),0);
+  const inn=rows.filter(t=>t.type==='Nhập').reduce((s,t)=>s+(t.quantity||0),0);
+  const byCat={};
+  rows.forEach(t=>{
+    const c=txCategory(t).label;byCat[c]=byCat[c]||{out:0,inn:0};
+    if(t.type==='Xuất')byCat[c].out+=(t.quantity||0);else byCat[c].inn+=(t.quantity||0);
+  });
+  const catOrder=['Đi đơn','Order hàng','Chỉnh kho','Khác'];
+  const showBreak=logFilter==='all';
+  const periodTabs=`<div class="tabs" style="margin-bottom:10px">
+    <div class="tab${logSumPeriod==='today'?' on':''}" onclick="logSetSumPeriod('today')">Hôm nay</div>
+    <div class="tab${logSumPeriod==='yesterday'?' on':''}" onclick="logSetSumPeriod('yesterday')">Hôm qua</div>
+    <div class="tab${logSumPeriod==='custom'?' on':''}" onclick="logSetSumPeriod('custom')">📅 Tuỳ chỉnh</div>
+  </div>`;
+  const customRow=logSumPeriod==='custom'?`<div class="row" style="align-items:center;gap:8px;margin-bottom:10px">
+    <input type="date" id="log-sum-from" value="${logSumFrom}" max="${todayStr()}" onchange="logSumCustomApply()" style="width:auto">
+    <span style="font-size:12.5px;color:var(--brown)">đến</span>
+    <input type="date" id="log-sum-to" value="${logSumTo}" max="${todayStr()}" onchange="logSumCustomApply()" style="width:auto">
+  </div>`:'';
+  el.innerHTML=`${periodTabs}${customRow}
+    <div class="card" style="max-width:420px">
+      <div style="font-size:11px;font-weight:700;color:var(--brown);text-transform:uppercase;letter-spacing:.03em;margin-bottom:10px">📅 ${label} · ${dateLbl}</div>
+      <div style="display:flex;gap:22px">
+        <div><div style="font-family:var(--f-head);font-size:22px;font-weight:800;color:var(--red-fg)">−${out}</div><div class="metric-l">Đã đi (Xuất)</div></div>
+        <div><div style="font-family:var(--f-head);font-size:22px;font-weight:800;color:var(--grn-fg)">+${inn}</div><div class="metric-l">Đã về (Nhập)</div></div>
+      </div>
+      ${showBreak?`<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:8px;display:grid;gap:5px">
+        ${catOrder.filter(c=>byCat[c]).map(c=>{const b=byCat[c];return `<div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--brown)"><span>${c}</span><span><span style="color:var(--red-fg);font-weight:700">−${b.out}</span> / <span style="color:var(--grn-fg);font-weight:700">+${b.inn}</span></span></div>`;}).join('')||'<div class="dim" style="font-size:11px">Không có biến động</div>'}
+      </div>`:(rows.length===0?'<div class="dim" style="font-size:11px;margin-top:8px">Không có biến động</div>':'')}
+    </div>`;
 }
 
 /* ══════════ BADGES + MODAL ══════════ */
@@ -4912,7 +5083,10 @@ async function ngoaiParse(type,input){
       g.items.forEach((it,idx)=>{
         const line={sn:g.order_code,buyer:g.name,phone:g.phone,addr:g.addr,tag:g.tag,carrier:type==='ghn'?'GHN':'SPX',
           prod:it.prod,variation:it.variation,qty:it.qty,price:idx===0?g.cod:0,
-          kind:(g.tag&&/đổi/i.test(g.tag))?'doi':'khach',khoSrc:'main'};
+          // [MỚI] retCode/retQty = sản phẩm + SL dự kiến LẤY VỀ (hàng cũ khách trả) — chỉ dùng khi kind='doi'.
+          // Trước đây đơn Đổi hàng chỉ ghi 1 sản phẩm (đọc từ tem = sản phẩm XUẤT đi cho khách), nên lúc
+          // "Hàng đã về — xử lý" hệ thống lại cộng kho NHẦM đúng sản phẩm vừa gửi đi thay vì sản phẩm lấy về.
+          kind:(g.tag&&/đổi/i.test(g.tag))?'doi':'khach',khoSrc:'main',retCode:'',retQty:it.qty};
         line.code=shMatch(line);
         ngLines[type].push(line);
       });
@@ -4934,8 +5108,8 @@ function renderNgoaiPreview(type){
   const bySn={};lines.forEach(l=>{(bySn[l.sn]=bySn[l.sn]||[]).push(l);});
   const opts=sortPS(allProducts).map(p=>`<option value="${p.code}">${escapeHtml(pname(p))}</option>`).join('');
   const codes=Object.keys(bySn);
-  sum.innerHTML=`<div class="setup" style="background:var(--grn-bg);color:var(--grn-fg);border-color:#97C459">Đọc được <b>${codes.length}</b> đơn (<b>${lines.length}</b> dòng sản phẩm). Kiểm tra loại đơn cho từng mã rồi bấm xác nhận. Bỏ tích "Xuất kho ngay?" nếu đơn chưa chốt xong với khách — đơn đó sẽ nhảy vào <b>Quản lý đơn ▸ Chờ xác nhận</b>.</div>`;
-  box.innerHTML=`<div class="card" style="padding:0;overflow:auto"><table><thead><tr><th class="l">Mã đơn</th><th class="l">Khách</th><th class="l">Sản phẩm</th><th>SL</th><th class="l">Khớp kho</th><th class="l">Loại đơn</th><th>Xuất kho ngay?</th></tr></thead><tbody>
+  sum.innerHTML=`<div class="setup" style="background:var(--grn-bg);color:var(--grn-fg);border-color:#97C459">Đọc được <b>${codes.length}</b> đơn (<b>${lines.length}</b> dòng sản phẩm). Kiểm tra loại đơn cho từng mã rồi bấm xác nhận. Bỏ tích "Xuất kho ngay?" nếu đơn chưa chốt xong với khách — đơn đó sẽ nhảy vào <b>Quản lý đơn ▸ Chờ xác nhận</b>. Với đơn <b>🔄 Đổi hàng</b>: cột "SP xuất kho" là sản phẩm mới gửi cho khách (đã trừ kho ngay), cột <b>"SP lấy về"</b> là sản phẩm cũ dự kiến nhận lại — bắt buộc chọn để hệ thống cộng kho ĐÚNG sản phẩm khi hàng thật sự về.</div>`;
+  box.innerHTML=`<div class="card" style="padding:0;overflow:auto"><table><thead><tr><th class="l">Mã đơn</th><th class="l">Khách</th><th class="l">SP xuất kho (gửi khách)</th><th>SL</th><th class="l">Khớp kho</th><th class="l">Loại đơn</th><th class="l">SP lấy về (đổi hàng)</th><th>Xuất kho ngay?</th></tr></thead><tbody>
   ${codes.map(sn=>{
     const already=usedTrack.has(sn);
     return bySn[sn].map((l,li)=>{
@@ -4945,7 +5119,7 @@ function renderNgoaiPreview(type){
         <td class="l" style="font-size:11px">${first?escapeHtml(l.buyer||'—')+(l.phone?'<br><span class="dim">'+escapeHtml(l.phone)+'</span>':''):''}</td>
         <td class="l" style="font-size:11px">${escapeHtml(l.prod)}${l.variation?' <span class="dim">('+escapeHtml(l.variation)+')</span>':''}</td>
         <td style="font-weight:700">${l.qty}</td>
-        <td class="l">${l.code?`<span class="pill" style="background:var(--grn-bg);color:var(--grn-fg)">${l.code}</span>`:`<select onchange="ngLines.${type}[${gi}].code=this.value" style="font-size:11px;padding:4px 6px"><option value="">— chưa khớp —</option>${opts}</select>`}</td>
+        <td class="l">${l.code?`<span class="pill" style="background:var(--grn-bg);color:var(--grn-fg)">${l.code}</span>`:`<select onchange="ngLines.${type}[${gi}].code=this.value;renderNgoaiPreview('${type}')" style="font-size:11px;padding:4px 6px"><option value="">— chưa khớp —</option>${opts}</select>`}</td>
         <td class="l">${first?`<select onchange="ngoaiSetKind('${type}','${sn}',this.value)" style="font-size:11px;padding:5px 8px">
           <option value="khach" ${l.kind==='khach'?'selected':''}>👤 Khách</option>
           <option value="kol" ${l.kind==='kol'?'selected':''}>⭐ KOL</option>
@@ -4954,7 +5128,11 @@ function renderNgoaiPreview(type){
           <option value="main" ${(l.khoSrc||'main')==='main'?'selected':''}>🗂 Trừ: Quản lý kho</option>
           <option value="loikho" ${l.khoSrc==='loikho'?'selected':''}>🚫 Trừ: Kho hàng lỗi</option>
         </select>`:''}`:''}</td>
-        <td>${first?(l.kind==='doi'?'<span class="dim" style="font-size:11px">không cần</span>':`<input type="checkbox" ${ngUnchecked[type].has(sn)?'':'checked'} onchange="ngoaiToggleUnchecked('${type}','${sn}',this.checked)">`):''}</td>
+        <td class="l">${first&&l.kind==='doi'?`<select onchange="ngoaiSetRet('${type}','${sn}','code',this.value)" style="font-size:11px;padding:4px 6px;${l.retCode?'':'border-color:#E08A8A'}">
+          <option value="">— chọn SP lấy về —</option>${sortPS(allProducts).map(p=>`<option value="${p.code}" ${l.retCode===p.code?'selected':''}>${escapeHtml(pname(p))}</option>`).join('')}
+          </select>
+          <input type="number" min="1" step="1" value="${l.retQty||l.qty}" oninput="ngoaiSetRet('${type}','${sn}','qty',this.value)" style="width:52px;margin-top:4px;font-size:11px;padding:4px 6px">`:(first?'<span class="dim" style="font-size:11px">—</span>':'')}</td>
+        <td>${first?(l.kind==='doi'?'<span class="dim" style="font-size:11px">luôn xuất ngay</span>':`<input type="checkbox" ${ngUnchecked[type].has(sn)?'':'checked'} onchange="ngoaiToggleUnchecked('${type}','${sn}',this.checked)">`):''}</td>
       </tr>`;
     }).join('');
   }).join('')}
@@ -4966,9 +5144,17 @@ function ngoaiToggleUnchecked(type,sn,checked){
   if(checked)ngUnchecked[type].delete(sn);else ngUnchecked[type].add(sn);
 }
 // [SỬA] chọn "Loại đơn" xong render lại preview, để riêng đơn KOL hiện thêm ô chọn trừ kho nào (Quản lý kho / Kho hàng lỗi)
-function ngoaiSetKind(type,sn,kind){ngLines[type].forEach(l=>{if(l.sn===sn){l.kind=kind;if(kind!=='kol')l.khoSrc='main';}});renderNgoaiPreview(type);}
+// [MỚI] khi chuyển sang "Đổi hàng" đảm bảo có sẵn retQty (mặc định = SL đã gửi) để nhân viên chỉ cần chọn đúng sản phẩm lấy về
+function ngoaiSetKind(type,sn,kind){ngLines[type].forEach(l=>{if(l.sn===sn){l.kind=kind;if(kind!=='kol')l.khoSrc='main';if(kind==='doi'&&!l.retQty)l.retQty=l.qty;}});renderNgoaiPreview(type);}
 // riêng đơn KOL: chọn trừ kho chính (Quản lý kho) hay Kho hàng lỗi (mục "Dành cho KOL")
 function ngoaiSetKhoSrc(type,sn,src){ngLines[type].forEach(l=>{if(l.sn===sn)l.khoSrc=src;});}
+// [MỚI] chọn sản phẩm + SL dự kiến LẤY VỀ cho đơn Đổi hàng (khác với sản phẩm đã xuất kho gửi khách)
+function ngoaiSetRet(type,sn,field,value){
+  ngLines[type].forEach(l=>{if(l.sn===sn){
+    if(field==='code')l.retCode=value;else l.retQty=intv(value,1);
+  }});
+  if(field==='code')renderNgoaiPreview(type); // chỉ cần vẽ lại khi đổi sản phẩm (để tô màu viền/đánh dấu selected đúng)
+}
 async function ngoaiConfirm(type){
   const lines=ngLines[type];
   const bySn={};lines.forEach(l=>{(bySn[l.sn]=bySn[l.sn]||[]).push(l);});
@@ -4976,42 +5162,62 @@ async function ngoaiConfirm(type){
   const codes=Object.keys(bySn).filter(sn=>!usedTrack.has(sn));
   const missing=codes.filter(sn=>bySn[sn].some(l=>!l.code));
   if(missing.length&&!confirm(`${missing.length} đơn có sản phẩm chưa khớp kho — dòng chưa khớp sẽ bị bỏ qua. Tiếp tục?`))return;
+  // [MỚI] Đơn "Đổi hàng" bắt buộc phải chọn SP lấy về (retCode) — nếu không, hệ thống không biết SAU NÀY khi
+  // hàng thật sự về tay thì phải cộng kho đúng sản phẩm nào (trước đây bug ở chỗ này: lại cộng nhầm đúng
+  // sản phẩm vừa gửi đi cho khách). Cảnh báo & bỏ qua các đơn Đổi hàng chưa chọn SP lấy về.
+  const missingRet=codes.filter(sn=>{const it=bySn[sn][0];return it.kind==='doi'&&!it.retCode;});
+  if(missingRet.length&&!confirm(`${missingRet.length} đơn "Đổi hàng" CHƯA chọn "SP lấy về" (${missingRet.slice(0,6).join(', ')}${missingRet.length>6?'…':''}) — các đơn này sẽ bị BỎ QUA để tránh cộng kho sai sản phẩm sau này. Chọn Huỷ để quay lại chọn, hay OK để tiếp tục bỏ qua chúng?`))return;
   showLoad(true);let doneKhach=0,doneKol=0,doneDoi=0,donePending=0;
   try{
     for(const sn of codes){
       const items=bySn[sn].filter(l=>l.code);
       if(!items.length)continue;
       const kind=items[0].kind;
+      if(kind==='doi'&&!items[0].retCode)continue; // bỏ qua đơn đổi hàng chưa chọn SP lấy về (đã cảnh báo ở trên)
       // [MỚI] Riêng đơn KOL: chọn trừ vào Quản lý kho (mặc định) hay Kho hàng lỗi (mục "Dành cho KOL")
       const khoSrc=kind==='kol'?(items[0].khoSrc||'main'):'main';
       const useLoiKho=kind==='kol'&&khoSrc==='loikho';
       const shipLabel=NG_LABEL[type];
       const channel=kind==='kol'?'KOL VN':(kind==='doi'?'Đổi hàng':'Ngoại sàn');
-      // [MỚI] đơn bị bỏ tích "Xuất kho ngay?" (chỉ áp dụng kind khách/KOL, đổi hàng vốn đã không trừ kho lúc tạo)
-      // → tạo với status "Chờ xác nhận", CHƯA trừ kho, chờ chọn SP để xuất ở Quản lý đơn > Chờ xác nhận.
+      // [MỚI] đơn bị bỏ tích "Xuất kho ngay?" (chỉ áp dụng kind khách/KOL, đổi hàng luôn xuất kho ngay vì hàng mới
+      // đã thật sự rời kho qua GHN) → tạo với status "Chờ xác nhận", CHƯA trừ kho, chờ chọn SP để xuất sau.
       const pending=kind!=='doi'&&ngUnchecked[type].has(sn);
-      const status=kind==='doi'?'Chờ hàng về':(pending?'Chờ xác nhận':'Đã gửi');
+      // [SỬA LỖI] Trước đây đơn "Đổi hàng" không hề trừ kho lúc tạo (dù hàng mới đã thật sự gửi đi qua GHN) →
+      // kho ảo bị đội lên sai. Giờ SP xuất kho (gửi khách) trừ kho & "Đã gửi" NGAY như đơn thường; riêng SP LẤY
+      // VỀ (retCode, khác sản phẩm gửi đi) mới đưa vào "Chờ hàng về", chỉ cộng kho khi bấm "Hàng đã về — xử lý".
+      const status=pending?'Chờ xác nhận':'Đã gửi';
       let li=0;
       for(const l of items){
         const p=allProducts.find(x=>x.code===l.code);
         const rows=await POST('orders',{order_code:sn,date:todayStr(),customer_name:l.buyer||'',phone:l.phone||'',address:l.addr||'',
           product_code:l.code,product_name:p?pname(p):l.prod,quantity:l.qty,channel,status,
-          tracking_code:sn,staff:'',note:kind==='doi'?'[CHỜ VỀ] Ngoại sàn - đổi hàng':'Ngoại sàn',
+          tracking_code:sn,staff:'',note:kind==='doi'?'Đổi hàng - đã gửi SP mới':'Ngoại sàn',
           amount_due:l.price||0,is_paid:kind!=='doi',shipping_fee:0,payment_method:'COD',ship_method:shipLabel,
-          sent_date:status==='Đã gửi'?todayStr():null}); // [VẤN ĐỀ 2] Ngoại sàn (Khách/KOL) nhảy thẳng "Đã gửi" lúc tạo — riêng "Đổi hàng"/"Chờ xác nhận" thì chưa
+          sent_date:status==='Đã gửi'?todayStr():null}); // [VẤN ĐỀ 2] Ngoại sàn (Khách/KOL/Đổi hàng) nhảy thẳng "Đã gửi" lúc tạo — riêng "Chờ xác nhận" thì chưa
         if(rows&&rows[0])allOrders.unshift(rows[0]);
-        if(kind!=='doi'&&!pending){
+        if(!pending){
           // useLoiKho=true → trừ vào Kho hàng lỗi (ref_type='kol_out', tách khỏi Quản lý kho chính, giống hệt logic trang Kho hàng lỗi)
           await postXuat({product_code:l.code,quantity:l.qty,channel:useLoiKho?'Dành cho KOL':channel,
             ref_type:useLoiKho?'kol_out':'order',ref_id:(useLoiKho?'NS-LOIKHO-':'NS-')+sn+'#'+(li++),
-            is_kol:kind==='kol',note:`${kind==='kol'?NO_REVENUE_NOTE+' ':''}Ngoại sàn ${kind==='kol'?'KOL':'Khách'} ${sn}${useLoiKho?' (trừ Kho hàng lỗi)':''}`,date:todayStr()});
+            is_kol:kind==='kol',note:`${kind==='kol'?NO_REVENUE_NOTE+' ':''}Ngoại sàn ${kind==='kol'?'KOL':(kind==='doi'?'Đổi hàng (SP gửi mới)':'Khách')} ${sn}${useLoiKho?' (trừ Kho hàng lỗi)':''}`,date:todayStr()});
         }
       }
-      if(kind!=='doi'&&!pending)await applyAccessoryOnShip(sn,items,{isKol:kind==='kol'});
+      if(!pending)await applyAccessoryOnShip(sn,items,{isKol:kind==='kol'});
+      // [MỚI] riêng "Đổi hàng": tạo THÊM 1 dòng đơn phụ ghi nhận đúng SẢN PHẨM CŨ dự kiến lấy về (retCode/retQty),
+      // trạng thái "Chờ hàng về", CHƯA cộng kho — chỉ cộng khi nhân viên bấm "Hàng đã về — xử lý" ở đơn này.
+      if(kind==='doi'){
+        const retCode=items[0].retCode, retQty=items[0].retQty||items[0].qty;
+        const rp=allProducts.find(x=>x.code===retCode);
+        const retRows=await POST('orders',{order_code:sn,date:todayStr(),customer_name:items[0].buyer||'',phone:items[0].phone||'',address:items[0].addr||'',
+          product_code:retCode,product_name:rp?pname(rp):retCode,quantity:retQty,channel:'Đổi hàng',status:'Chờ hàng về',
+          tracking_code:sn,staff:'',note:'[CHỜ VỀ] Đổi hàng - dự kiến lấy về SP cũ',
+          amount_due:0,is_paid:false,shipping_fee:0,payment_method:'COD',ship_method:shipLabel,sent_date:null});
+        if(retRows&&retRows[0])allOrders.unshift(retRows[0]);
+      }
       if(pending)donePending+=items.length;
       else if(kind==='kol')doneKol+=items.length;else if(kind==='doi')doneDoi+=items.length;else doneKhach+=items.length;
     }
-    const parts=[];if(doneKhach)parts.push(`${doneKhach} dòng Khách (trừ kho)`);if(doneKol)parts.push(`${doneKol} dòng KOL (trừ kho)`);if(doneDoi)parts.push(`${doneDoi} dòng Đổi hàng (chờ hàng về)`);if(donePending)parts.push(`${donePending} dòng chờ xác nhận (chưa trừ kho)`);
+    const parts=[];if(doneKhach)parts.push(`${doneKhach} dòng Khách (trừ kho)`);if(doneKol)parts.push(`${doneKol} dòng KOL (trừ kho)`);if(doneDoi)parts.push(`${doneDoi} dòng Đổi hàng (đã gửi SP mới, chờ lấy SP cũ về)`);if(donePending)parts.push(`${donePending} dòng chờ xác nhận (chưa trừ kho)`);
     toast('✅ '+(parts.join(' · ')||'Đã xử lý'));
     ngLines[type]=[];ngUnchecked[type]=new Set();document.getElementById('ng-'+type+'-file').value='';document.getElementById('ng-'+type+'-preview').innerHTML='';document.getElementById('ng-'+type+'-summary').innerHTML='';
     renderAll();
@@ -5473,6 +5679,7 @@ const S_STAFF_KEY = SCFG.STORE_KEY;
 let S_STAFF = [];
 function sSaveStaff(){
   try{localStorage.setItem(S_STAFF_KEY,JSON.stringify(S_STAFF));}catch(_){} // bản nháp tạm trên máy, phòng mất mạng
+  renderStaffPickerOptions(); // thêm/xoá/sửa tên nhân viên → cập nhật ngay ô "Nhân viên đang thao tác" ở sidebar
   UPSERT('staff',S_STAFF.map(e=>{const{id,...rest}=e;return{id:id||_sUid('nv'),data:rest};}),'id')
     .catch(err=>toast('⚠️ Chưa đồng bộ được lên máy chủ (đã lưu tạm trên máy này) — '+err.message,true));
 }
@@ -6180,6 +6387,7 @@ function renderKpiDash(){
 addLine();ddInit();
 document.getElementById('o-ord').value=todayStr();
 document.getElementById('o-date').value=daysAgo(-20);
+renderStaffPickerBadge();
 loadAll().then(loadSupplier);
 </script>
 </body>
