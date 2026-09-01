@@ -2929,6 +2929,7 @@ function setNccSubTab(t){
 let opTab='ALL';
 let opTargetSale={}; // tên SP‖màu -> Target sale mong muốn (SL bán/ngày mong muốn cho cả màu) — dùng để tính Due day
 let opWantOrder={}; // tên SP‖màu -> tổng "SL muốn order" nhập tay (VD 50c) — dùng để chia ra từng size ở cột "SL order"
+let opColorFocus={}; // [MỚI] tên SP -> màu đang lọc riêng để dễ xem (hoặc null = xem tất cả màu), y hệt bộ lọc màu bên trang Kho
 function pctBanOf(prods,code){
   const lineD30=prods.reduce((s,p)=>s+soldIn(p.code,30),0);
   const d30=soldIn(code,30);
@@ -2989,11 +2990,24 @@ function renderOrderPlan(){
   show.forEach(nm=>{
     const prods=sortPS(groups[nm]||[]);
     const colorGroups=colorGroupsOf(prods);
+    // [MỚI] Bộ lọc màu kiểu chip (giống hệt trang Kho) — hiện badge 🎯Mức muốn giữ / 🚫Cắt cho MỌI màu (kể cả màu
+    // đang bị ẩn do lọc, để chip vẫn hiện đủ và bấm qua lại được), bấm 1 màu để chỉ xem đúng màu đó cho gọn.
+    const focus=opColorFocus[nm]||null;
+    const colorChips=colorGroups.map(cg=>{
+      const t=+(cg.items[0]?.threshold||0);
+      const badge=t<=0?'🚫 Cắt (0c)':`🎯${t}c`;
+      return `<button class="btn btn-sm" style="background:${focus===cg.color?colorBg(cg.color):'rgba(255,255,255,.08)'};color:#fff;border-color:${t<=0?'#E7A5A4':colorBg(cg.color)}" onclick="opColorFocus['${jsq(nm)}']=opColorFocus['${jsq(nm)}']==='${jsq(cg.color)}'?null:'${jsq(cg.color)}';renderOrderPlan()">${escapeHtml(cg.color)} <span style="opacity:.85">· ${badge}</span></button>`;
+    }).join('');
+    const colorChipsHtml=`<div style="display:flex;gap:6px;flex-wrap:wrap;padding:9px 16px 0;background:var(--dark)">
+      ${colorChips}
+      ${focus?`<button class="btn btn-sm" style="background:transparent;color:var(--honey);border-color:rgba(255,255,255,.3)" onclick="opColorFocus['${jsq(nm)}']=null;renderOrderPlan()">✕ Xem tất cả màu</button>`:''}
+    </div>`;
     let sTon=0,sAvail=0,sCm=0,sNodk=0,sD7=0,sD30=0,sFc=0,sHut=0,sCan=0;
     // [SỬA] Mức muốn giữ / Target sale / Tồn kho / Đang về / Nợ đơn / Khả dụng / Dự báo 20ng / Hụt giờ tính & lưu RIÊNG cho từng màu
     // (trước đây dùng chung 1 giá trị cho cả sản phẩm, %Bán chia theo mọi màu — giờ %Bán chỉ tính trong phạm vi màu đó).
     let colorBlocks='';
     colorGroups.forEach(cg=>{
+      if(focus&&focus!==cg.color)return; // [MỚI] đang lọc 1 màu — chỉ hiện đúng màu đó, giống trang Kho
       const c=cg.color;
       const wantKey=nm+'‖'+c;
       const target=+(cg.items[0]?.threshold||0);
@@ -3063,6 +3077,7 @@ function renderOrderPlan(){
       <div style="display:flex;justify-content:space-between;align-items:center;background:#B5715C;color:#fff;padding:10px 16px">
         <div style="font-family:var(--f-head);font-weight:800;font-size:12.5px;letter-spacing:.12em;text-transform:uppercase">● ${escapeHtml(nm)}</div>
       </div>
+      ${colorChipsHtml}
       <div style="padding:10px">${colorBlocks}</div>
       <div style="background:#B5715C;color:#fff;font-weight:800;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;padding:8px 16px;font-size:12px;margin:0 10px 10px;border-radius:8px">
         <span>TỔNG CẢ SẢN PHẨM (mọi màu)</span>
@@ -3326,16 +3341,28 @@ function sortOrderRows(rows){
   });
 }
 // [MỚI] chip lọc màu cho ĐÚNG 1 lô/nhóm (gkey) — mỗi lô lọc độc lập, không ảnh hưởng các lô khác.
-// Chỉ hiện khi lô có từ 2 màu trở lên; dùng TOÀN BỘ dòng của lô (rowsAllInGroup) để bảng màu không co lại sau khi đã lọc.
+// Kiểu giống hệt bộ lọc màu bên trang Kho: nền tối + mỗi màu kèm badge 🎯Mức nên giữ / 🚫Cắt (tính theo tốc độ
+// bán 7 ngày gần nhất của ĐÚNG màu đó, cộng mọi size) — để biết ngay màu nào đang bán chạy nên đặt thêm/nhận đủ,
+// màu nào đang ế nên cắt bớt, ngay lúc đang xem lô hàng, không cần qua trang Kho.
 function ncColorChipsHtml(gkey,rowsAllInGroup){
-  const seen=new Map();
-  rowsAllInGroup.forEach(r=>{const c=rowColorSize(r).color;const k=colorKeyOf(c);if(c&&c!=='—'&&!seen.has(k))seen.set(k,c);});
-  if(seen.size<2)return'';
+  const seen=new Map(); // colorKey -> {label, codes:Set(mã SP thuộc đúng lô này có màu đó)}
+  rowsAllInGroup.forEach(r=>{
+    const c=rowColorSize(r).color;const k=colorKeyOf(c);
+    if(!c||c==='—')return;
+    if(!seen.has(k))seen.set(k,{label:c,codes:new Set()});
+    seen.get(k).codes.add(r.product_code);
+  });
+  if(!seen.size)return'';
   const focus=ncColorFocusByGroup[gkey]||null;
-  return `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:10px 15px 0">
-    <span style="font-size:11px;color:var(--brown);font-weight:700">🎨 Lọc màu:</span>
-    ${[...seen.entries()].map(([k,label])=>`<button class="btn btn-sm" style="background:${focus===k?colorBg(label):'var(--bg)'};color:${focus===k?'#fff':'var(--brown)'};border-color:${colorBg(label)}" onclick="setNcColorFocusFor('${jsq(gkey)}','${jsq(k)}')">${escapeHtml(label)}</button>`).join('')}
-    ${focus?`<button class="btn btn-sm" style="background:transparent;color:var(--brown);border-color:var(--border)" onclick="setNcColorFocusFor('${jsq(gkey)}',null)">✕ Xem tất cả màu</button>`:''}
+  return `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:10px 15px;background:var(--dark)">
+    <span style="font-size:11px;color:rgba(255,255,255,.55);font-weight:700">🎨 Lọc màu:</span>
+    ${[...seen.entries()].map(([k,g])=>{
+      const d7=[...g.codes].reduce((s,code)=>s+soldIn(code,7),0);
+      const auto=autoTargetForColor(d7);
+      const badge=auto.cut?'🚫 Cắt (0c)':`🎯${auto.target}c`;
+      return `<button class="btn btn-sm" style="background:${focus===k?colorBg(g.label):'rgba(255,255,255,.08)'};color:#fff;border-color:${auto.cut?'#E7A5A4':colorBg(g.label)}" onclick="setNcColorFocusFor('${jsq(gkey)}','${jsq(k)}')">${escapeHtml(g.label)} <span style="opacity:.85">· ${badge}</span></button>`;
+    }).join('')}
+    ${focus?`<button class="btn btn-sm" style="background:transparent;color:var(--honey);border-color:rgba(255,255,255,.3)" onclick="setNcColorFocusFor('${jsq(gkey)}',null)">✕ Xem tất cả màu</button>`:''}
   </div>`;
 }
 function setNcColorFocusFor(gkey,k){ncColorFocusByGroup[gkey]=(ncColorFocusByGroup[gkey]===k?null:k);renderOrderPage();}
