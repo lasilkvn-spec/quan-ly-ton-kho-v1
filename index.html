@@ -494,13 +494,13 @@ tr:last-child td{border-bottom:none}
     <!-- KIỂM KHO PHỤ KIỆN -->
     <section class="pg" id="pg-phukien">
       <div class="pg-t">🧵 Kiểm kho phụ kiện</div>
-      <div class="pg-s">Tem dán · Túi gói hàng · Tag · Mác — đếm theo <b>số đơn cần gửi mỗi ngày</b> (giống hệt logic trang Đi Đơn — Thống kê), tự trừ kho khi đơn thật sự xuất kho.</div>
+      <div class="pg-s">Tem dán · Túi gói hàng · Tag · Tag sườn — đếm theo <b>số đơn cần gửi mỗi ngày</b> (giống hệt logic trang Đi Đơn — Thống kê), tự trừ kho khi đơn thật sự xuất kho.</div>
       <div class="tabs" id="pk-types">
         <div class="tab on" id="pkt-tem" onclick="pkSetType('tem')">🏷️ Tem dán</div>
         <div class="tab" id="pkt-temty" onclick="pkSetType('temty')">💌 Tem thank you</div>
         <div class="tab" id="pkt-tui" onclick="pkSetType('tui')">👜 Túi gói hàng</div>
         <div class="tab" id="pkt-tag" onclick="pkSetType('tag')">📛 Tag</div>
-        <div class="tab" id="pkt-mac" onclick="pkSetType('mac')">🪡 Mác quần áo</div>
+        <div class="tab" id="pkt-mac" onclick="pkSetType('mac')">🪡 Tag sườn</div>
       </div>
       <div class="tabs" id="pk-subtabs" style="margin-top:6px">
         <div class="tab on" id="pks-khohang" onclick="pkSetSub('khohang')">📦 Kho hàng</div>
@@ -1547,6 +1547,7 @@ function orderCard(g,actions,emphTime){
       <div style="flex:1;min-width:200px">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
           <span class="mono">${code}</span>${statusPill(o.status)}
+          ${['Chờ hàng về','Đã hoàn','Đã đổi'].includes(o.status)?(kd=>`<span class="pill" style="background:${kd.bg};color:${kd.fg};font-weight:700">${kd.tag}</span>`)(rtKindOf(rtKindFromNote(o.note))):''}
           <span class="pill" style="background:var(--honey);color:var(--dark)">${o.channel}</span>
           ${o.ship_method?`<span class="pill" style="background:var(--blue-bg);color:var(--blue-fg)">${o.ship_method}</span>`:''}
           ${isKol?`<span class="pill" style="background:var(--pink);color:var(--dark)">không doanh số</span>`:''}
@@ -1779,6 +1780,17 @@ async function shipOrder(code,method){
 }
 
 /* ── HUỶ / HOÀN / ĐỔI ── */
+// [MỚI] Phân loại "Huỷ / Hoàn / Đổi" — trước đây không có, hệ thống chỉ biết mỗi trạng thái "Đã hoàn" chung chung
+// dù trong DON_FILTERS/màu badge đã có sẵn chỗ cho "Đã đổi" nhưng chưa bao giờ được gán. Giờ nhân viên chọn rõ
+// loại ngay khi xử lý, lưu kèm vào note (dạng [CHỜ VỀ - <TAG>] hoặc [<TAG>]) để tra lại/đọc lại đúng loại sau này.
+const RETURN_KINDS=[
+  {k:'doi',label:'🔄 Đổi hàng (khách muốn đổi mẫu/size khác)',tag:'ĐỔI HÀNG',status:'Đã đổi',bg:'var(--org-bg)',fg:'var(--org-fg)'},
+  {k:'tra',label:'💰 Trả hàng (khách hoàn, không mua nữa)',tag:'TRẢ HÀNG',status:'Đã hoàn',bg:'var(--red-bg)',fg:'var(--red-fg)'},
+  {k:'huy',label:'❌ Huỷ đơn (chưa/không giao được, khách bom hàng)',tag:'HUỶ ĐƠN',status:'Đã hoàn',bg:'var(--bg)',fg:'var(--brown)'},
+];
+function rtKindOpts(sel){return RETURN_KINDS.map(r=>`<option value="${r.k}" ${sel===r.k?'selected':''}>${r.label}</option>`).join('');}
+function rtKindOf(k){return RETURN_KINDS.find(r=>r.k===k)||RETURN_KINDS[1];}
+function rtKindFromNote(note){const m=/\[(?:CHỜ VỀ - )?([^\]]+)\]/.exec(note||'');if(!m)return 'tra';const found=RETURN_KINDS.find(r=>r.tag===m[1]);return found?found.k:'tra';}
 function openReturn(code){
   // [SỬA LỖI] đơn Đổi hàng giờ có 2 dòng chung order_code (SP đã gửi + SP chờ lấy về, 2 status khác nhau).
   // Trước đây lọc theo mỗi order_code → dính luôn dòng "Chờ hàng về" chưa xử lý vào đây, xử lý nhầm.
@@ -1786,6 +1798,8 @@ function openReturn(code){
   m_title('Huỷ / Hoàn / Đổi — '+code);
   document.getElementById('m-body').innerHTML=`
     <div style="font-size:12px;color:var(--brown);margin-bottom:10px">Ghi <b>bút toán đảo</b>, không xoá đơn.</div>
+    <label class="fld"><span>Đây là loại gì?</span>
+      <select id="rt-kind">${rtKindOpts('tra')}</select></label>
     <label class="fld"><span>Hàng đã về tay chưa?</span>
       <select id="rt-arrived" onchange="rtToggleArrived()">
         <option value="no">Chưa về — đưa vào danh sách CHỜ HÀNG VỀ (chưa cộng kho)</option>
@@ -1805,17 +1819,20 @@ function openReturn(code){
 }
 function rtToggleArrived(){const v=document.getElementById('rt-arrived').value;document.getElementById('rt-items').style.display=v==='yes'?'':'none';}
 async function doReturn(code){
+  const kind=document.getElementById('rt-kind').value;const kd=rtKindOf(kind);
   const arrived=document.getElementById('rt-arrived').value;
   const reason=document.getElementById('rt-reason').value.trim()||'Hoàn/huỷ';
   if(arrived==='no'){
     showLoad(true);
     try{
+      // [MỚI] gắn nhãn loại (ĐỔI HÀNG/TRẢ HÀNG/HUỶ ĐƠN) vào note để lúc "Hàng đã về — xử lý" đọc lại đúng loại
+      const note=`[CHỜ VỀ - ${kd.tag}] ${reason}`;
       // [SỬA LỖI] chỉ đổi đúng các dòng đang "Đã gửi/Đã giao" — tránh đụng dòng "Chờ hàng về" khác (VD dòng
       // SP lấy về của đơn Đổi hàng) đang tồn tại sẵn chung order_code.
-      await PATCH(`orders?order_code=eq.${encodeURIComponent(code)}&status=in.(Đã gửi,Đã giao)`,{status:'Chờ hàng về',note:'[CHỜ VỀ] '+reason});
-      allOrders.forEach(x=>{if(x.order_code===code&&['Đã gửi','Đã giao'].includes(x.status)){x.status='Chờ hàng về';x.note='[CHỜ VỀ] '+reason;}});
+      await PATCH(`orders?order_code=eq.${encodeURIComponent(code)}&status=in.(Đã gửi,Đã giao)`,{status:'Chờ hàng về',note});
+      allOrders.forEach(x=>{if(x.order_code===code&&['Đã gửi','Đã giao'].includes(x.status)){x.status='Chờ hàng về';x.note=note;}});
       toast('📦 Đã đưa vào "Hoàn chờ về" — chưa cộng kho');
-      closeModal();renderDonTabs();renderDon();updateBadges();
+      closeModal();donFilter='Đổi/trả';renderDonTabs();renderDon();updateBadges(); // [MỚI] tự nhảy qua tab Đổi/trả để thấy ngay
     }catch(e){toast('Lỗi: '+e.message,true);}
     showLoad(false);return;
   }
@@ -1825,18 +1842,21 @@ async function doReturn(code){
   const chks=[...document.querySelectorAll('.rt-chk')].filter(c=>c.checked).map(c=>rows[+c.dataset.i]);
   if(!chks.length){toast('Chọn ít nhất 1 món',true);return;}
   const resell=document.getElementById('rt-resell').value==='1';
-  await processReturn(code,chks,resell,reason);
+  await processReturn(code,chks,resell,reason,kind);
 }
 // khi hàng hoàn thực sự về tay → nhân viên kiểm & cộng kho
 function openReturnArrived(code){
   // [SỬA LỖI] cùng lý do như openReturn ở trên — chỉ lấy đúng dòng "Chờ hàng về" (SP lấy về), KHÔNG lấy
   // luôn dòng SP đã gửi/đã trừ kho của cùng đơn Đổi hàng (khác status, không liên quan tới bước "hàng về" này).
   const rows=allOrders.filter(o=>o.order_code===code&&o.status==='Chờ hàng về');const o=rows[0];
-  const prev=(o.note||'').replace('[CHỜ VỀ] ','');
+  const prevKind=rtKindFromNote(o.note); // [MỚI] đọc lại loại (Đổi/Trả/Huỷ) đã chọn lúc trước, cho sửa lại nếu cần
+  const prev=(o.note||'').replace(/\[CHỜ VỀ - [^\]]+\]\s*/,'').replace('[CHỜ VỀ] ','');
   m_title('📦 Hàng hoàn đã về — '+code);
   document.getElementById('m-body').innerHTML=`
     <div style="font-size:12px;color:var(--brown);margin-bottom:10px">Kiểm hàng thực nhận rồi xác nhận. <b>Chỉ giờ mới cộng kho.</b></div>
     <div style="font-weight:600;margin-bottom:4px">${escapeHtml(o.customer_name||'—')} <span class="dim">${escapeHtml(o.phone||'')}</span></div>
+    <label class="fld"><span>Đây là loại gì?</span>
+      <select id="rt-kind-arr">${rtKindOpts(prevKind)}</select></label>
     ${rows.map((r,i)=>`<label style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
       <input type="checkbox" class="rt-chk" data-i="${i}" style="width:auto" checked>
       <span style="flex:1">${escapeHtml(r.product_name)} × ${r.quantity}</span></label>`).join('')}
@@ -1854,9 +1874,12 @@ async function doReturnArrived(code){
   if(!chks.length){toast('Chọn ít nhất 1 món',true);return;}
   const resell=document.getElementById('rt-resell-arr').value==='1';
   const reason=document.getElementById('rt-reason-arr').value.trim()||'Hoàn/huỷ';
-  await processReturn(code,chks,resell,reason);
+  const kind=document.getElementById('rt-kind-arr').value;
+  await processReturn(code,chks,resell,reason,kind);
 }
-async function processReturn(code,chks,resell,reason){
+async function processReturn(code,chks,resell,reason,kind='tra'){
+  const kd=rtKindOf(kind); // [MỚI] Đổi hàng -> status 'Đã đổi'; Trả hàng/Huỷ đơn -> 'Đã hoàn' (đã có sẵn màu/tab riêng)
+  const noteFinal=`[${kd.tag}] ${reason}`;
   showLoad(true);
   try{
     for(const r of chks){
@@ -1864,7 +1887,7 @@ async function processReturn(code,chks,resell,reason){
       if(resell){
         if(allTx.some(t=>t.ref_type==='return'&&t.ref_id===`${code}-HOAN-${rid}`))continue; // đã hoàn rồi — không cộng kho lần 2
         await postNhap({product_code:r.product_code,quantity:r.quantity,channel:'Hàng trả về',
-          ref_type:'return',ref_id:`${code}-HOAN-${rid}`,note:`${NO_REVENUE_NOTE} Hoàn ${code}: ${reason}`});
+          ref_type:'return',ref_id:`${code}-HOAN-${rid}`,note:`${NO_REVENUE_NOTE} ${kd.tag} ${code}: ${reason}`});
       }else{
         if(allTx.some(t=>t.ref_type==='return'&&t.ref_id===`${code}-LOI-IN-${rid}`))continue;
         // hàng hỏng: ghi vết, không cộng kho bán (bút toán Nhập rồi Xuất bù để trung tính, có dấu vết)
@@ -1878,16 +1901,16 @@ async function processReturn(code,chks,resell,reason){
     const allRows=allOrders.filter(o=>o.order_code===code);
     const partial=ids.length && ids.length<allRows.length;
     if(ids.length){
-      await PATCH(`orders?id=in.(${ids.join(',')})`,{status:'Đã hoàn',note:reason});
+      await PATCH(`orders?id=in.(${ids.join(',')})`,{status:kd.status,note:noteFinal});
       const idSet=new Set(ids);
-      allOrders.forEach(x=>{if(x.order_code===code&&idSet.has(x.id)){x.status='Đã hoàn';x.note=reason;}});
+      allOrders.forEach(x=>{if(x.order_code===code&&idSet.has(x.id)){x.status=kd.status;x.note=noteFinal;}});
     }else{
       // không xác định được id (dữ liệu cũ) -> fallback đánh cả đơn
-      await PATCH(`orders?order_code=eq.${encodeURIComponent(code)}`,{status:'Đã hoàn',note:reason});
-      allOrders.forEach(x=>{if(x.order_code===code)x.status='Đã hoàn';});
+      await PATCH(`orders?order_code=eq.${encodeURIComponent(code)}`,{status:kd.status,note:noteFinal});
+      allOrders.forEach(x=>{if(x.order_code===code)x.status=kd.status;});
     }
-    toast('✓ Đã hoàn '+(partial?`${ids.length} món của `:'')+code+(resell?' · cộng lại kho':' · hàng lỗi không cộng'));
-    closeModal();renderDonTabs();renderDon();renderKho();updateBadges();renderLog();
+    toast(`✓ ${kd.status} `+(partial?`${ids.length} món của `:'')+code+(resell?' · cộng lại kho':' · hàng lỗi không cộng'));
+    closeModal();donFilter='Đổi/trả';renderDonTabs();renderDon();renderKho();updateBadges();renderLog(); // [MỚI] tự nhảy qua tab Đổi/trả để thấy ngay
   }catch(e){toast('Lỗi: '+e.message,true);}
   showLoad(false);
 }
@@ -3939,7 +3962,7 @@ const ACC_TYPES=[
   {k:'temty',label:'Tem thank you',hasSize:false},
   {k:'tui',label:'Túi gói hàng',hasSize:false},
   {k:'tag',label:'Tag',hasSize:true},
-  {k:'mac',label:'Mác quần áo',hasSize:false},
+  {k:'mac',label:'Tag sườn',hasSize:false},
 ];
 const ACC_CODES={tem:['ACC-TEM'],temty:['ACC-TEMTY'],tui:['ACC-TUI'],mac:['ACC-MAC'],tag:['ACC-TAG-S','ACC-TAG-M','ACC-TAG-L','ACC-TAG-XL']};
 const ACC_ALL_CODES=new Set(Object.values(ACC_CODES).flat());
@@ -5247,7 +5270,7 @@ async function ngoaiConfirm(type){
         const rp=allProducts.find(x=>x.code===retCode);
         const retRows=await POST('orders',{order_code:sn,date:todayStr(),customer_name:items[0].buyer||'',phone:items[0].phone||'',address:items[0].addr||'',
           product_code:retCode,product_name:rp?pname(rp):retCode,quantity:retQty,channel:'Đổi hàng',status:'Chờ hàng về',
-          tracking_code:sn,staff:'',note:'[CHỜ VỀ] Đổi hàng - dự kiến lấy về SP cũ',
+          tracking_code:sn,staff:'',note:'[CHỜ VỀ - ĐỔI HÀNG] Đổi hàng (Ngoại sàn) - dự kiến lấy về SP cũ',
           amount_due:0,is_paid:false,shipping_fee:0,payment_method:'COD',ship_method:shipLabel,sent_date:null});
         if(retRows&&retRows[0])allOrders.unshift(retRows[0]);
       }
