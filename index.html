@@ -3430,36 +3430,64 @@ async function saveLotSupplier(po){
 }
 let supplierRows=[];
 async function loadSupplier(){try{supplierRows=await sbAll('supplier_orders?order=po_code.desc');}catch(e){supplierRows=[];}renderOrderPage();renderKho();renderLoiKho();renderOrderPlan();}
-// Xoá 1 lô đơn order NCC — chỉ cho xoá an toàn khi CHƯA có đợt hàng nào về (received=0 ở mọi dòng),
-// vì nếu đã về hàng thì kho đã được cộng qua postNhap (ref_type='po') — xoá thẳng sẽ làm lệch sổ kho.
+// [MỚI] gom toàn bộ bút toán Nhập (đợt hàng về) đã cộng kho của ĐÚNG 1 đơn order NCC (po) — cả 3 loại:
+// 'po' (Quản lý kho chính), 'po_kol' (Kho hàng lỗi - Dành cho KOL), 'po_loi' (Kho hàng lỗi - Lỗi không chỉnh được).
+// ref_id của mọi đợt về đều có dạng "<po>-r<roundNo>[-kol|-loi]-<rowId>" nên lọc bằng prefix "<po>-r" là đủ,
+// không lẫn sang đơn order khác (kể cả khi 1 po_code là tiền tố của po_code khác, vì luôn có "-r" ngay sau).
+function poNhapTxOfOrder(po){
+  return allTx.filter(t=>t.type==='Nhập'&&['po','po_kol','po_loi'].includes(t.ref_type)&&String(t.ref_id||'').startsWith(po+'-r'));
+}
+// Xoá 1 lô đơn order NCC — GIỜ CHO XOÁ dù đã có đợt hàng về: trước khi xoá, tự động ghi bút toán XUẤT
+// hoàn ngược đúng SL + đúng kho (Quản lý kho / Kho hàng lỗi) mà các đợt về của đơn này đã cộng vào, để
+// sổ kho không bị lệch. Đơn order khác không hề bị đụng tới.
 async function deleteSupplierOrderAsk(po){
   const rows=supplierRows.filter(r=>r.po_code===po);
   if(!rows.length){toast('Không tìm thấy đơn order '+po,true);return;}
-  const daVeHang=rows.some(r=>(r.received||0)>0);
-  if(daVeHang){
-    alert(`Lô "${rows[0].name||po}" đã có đợt hàng về (đã cộng vào kho) — không xoá thẳng được để tránh sai lệch sổ kho.\n\nNếu thật sự cần xoá, hãy vào "Kiểm kê & Lịch sử" điều chỉnh lại tồn kho cho đúng trước, rồi mới xoá đơn order này.`);
+  const lotLabel=rows[0].name||po;
+  const nhapTx=poNhapTxOfOrder(po);
+  if(!nhapTx.length){
+    if(!confirm(`Xoá hẳn đơn order "${lotLabel}" (${po})?\n\nĐơn này chưa có hàng về nên xoá an toàn. Sau khi xoá sẽ KHÔNG khôi phục lại được.`))return;
+    await reverseAndDeletePO(po,lotLabel,[]);
     return;
   }
-  if(!confirm(`Xoá hẳn đơn order "${rows[0].name||po}" (${po})?\n\nĐơn này chưa có hàng về nên xoá an toàn. Sau khi xoá sẽ KHÔNG khôi phục lại được.`))return;
+  // Gộp lại theo sản phẩm + đúng kho để nhân viên thấy rõ trước khi xác nhận sẽ bị trừ lại đúng bao nhiêu, ở đâu
+  const agg={};
+  nhapTx.forEach(t=>{
+    const whLabel=t.ref_type==='po'?'Quản lý kho':'Kho hàng lỗi';
+    const k=t.product_code+'|'+whLabel;
+    agg[k]=agg[k]||{product_code:t.product_code,whLabel,qty:0};
+    agg[k].qty+=t.quantity||0;
+  });
+  const lines=Object.values(agg).map(a=>{
+    const p=allProducts.find(x=>x.code===a.product_code);
+    return `• ${p?pname(p):a.product_code} — trừ lại ${a.qty} (${a.whLabel})`;
+  });
+  if(!confirm(`Đơn order "${lotLabel}" (${po}) ĐÃ có đợt hàng về (đã cộng vào kho).\n\nXoá đơn này sẽ TỰ ĐỘNG GHI XUẤT HOÀN NGƯỢC đúng số lượng đã cộng, để kho không bị lệch:\n\n${lines.join('\n')}\n\n⚠️ Chỉ dùng khi thật sự cần huỷ hẳn đơn order này (VD lên nhầm/trùng đơn). Sau khi xoá sẽ KHÔNG khôi phục lại được.\n\nVẫn xoá?`))return;
+  await reverseAndDeletePO(po,lotLabel,nhapTx);
+}
+// Thực hiện: (1) ghi Xuất hoàn ngược cho mỗi bút toán Nhập đã liệt kê (nếu có), (2) xoá hẳn các dòng
+// supplier_orders của po này. Có chặn trùng (dùng chung cơ chế dedup của postXuat) nên bấm lại nhỡ vẫn an toàn.
+async function reverseAndDeletePO(po,lotLabel,nhapTx){
   showLoad(true);
   try{
-    // [SỬA] "Đang về" không mất sau khi xoá — nguyên nhân: DEL() dùng Prefer:return=minimal nên PostgREST luôn trả
-    // 204 "thành công" DÙ THỰC TẾ 0 DÒNG BỊ XOÁ (ví dụ do bảng supplier_orders chưa được cấp quyền DELETE cho vai trò
-    // đang dùng trên Supabase — RLS âm thầm lọc mất điều kiện WHERE). Code cũ tin ngay là đã xoá rồi xoá luôn khỏi bộ
-    // nhớ cục bộ (supplierRows) → giao diện tưởng đã xoá, nhưng dữ liệu thật trên server vẫn còn, "Đang về" vẫn tính
-    // ra số cũ. Giờ đổi sang Prefer:return=representation để server trả về ĐÚNG các dòng đã xoá thật — nếu rỗng thì
-    // báo lỗi rõ ràng thay vì âm thầm coi như xong.
-    const r=await fetch(`${SB_URL}/rest/v1/supplier_orders?po_code=eq.${encodeURIComponent(po)}`,
+    for(const t of nhapTx){
+      const r=await postXuat({product_code:t.product_code,quantity:t.quantity,channel:'Xoá đơn order NCC (hoàn kho ngược)',
+        ref_type:t.ref_type,ref_id:t.ref_id+'-XOAPO',
+        note:`${NO_REVENUE_NOTE} Hoàn kho do xoá đơn order "${lotLabel}" (${po}) — trả lại SL đã cộng ở đợt về trước đó`,date:todayStr()});
+      if(r==='dup')continue; // đã hoàn rồi (VD bấm xoá 2 lần) — không trừ 2 lần
+    }
+    // [SỬA] dùng Prefer:return=representation để biết CHẮC là đã xoá thật (xem lý do chi tiết ở comment cũ bên dưới)
+    const resp=await fetch(`${SB_URL}/rest/v1/supplier_orders?po_code=eq.${encodeURIComponent(po)}`,
       {method:'DELETE',headers:{...H,'Prefer':'return=representation'}});
-    if(!r.ok)throw new Error(`${r.status} ${await r.text()}`);
-    const deleted=await r.json();
+    if(!resp.ok)throw new Error(`${resp.status} ${await resp.text()}`);
+    const deleted=await resp.json();
     if(!deleted||!deleted.length){
       toast('⚠️ Không xoá được — có thể tài khoản chưa được cấp quyền DELETE bảng supplier_orders trên Supabase (kiểm tra RLS policy)',true);
       showLoad(false);return;
     }
     supplierRows=supplierRows.filter(r=>r.po_code!==po);
-    toast(`✓ Đã xoá đơn order ${po}`);
-    renderOrderPage();renderKho();renderOrderPlan();
+    toast(nhapTx.length?`✓ Đã xoá đơn order ${po} — đã hoàn (trừ lại) đúng SL đã cộng kho từ các đợt về`:`✓ Đã xoá đơn order ${po}`);
+    renderOrderPage();renderKho();renderLoiKho();renderOrderPlan();renderLog();
   }catch(e){toast('Lỗi xoá: '+e.message,true);}
   showLoad(false);
 }
@@ -4352,6 +4380,13 @@ let logFilter='all';
 let logWhFilter='all';
 function logSetFilter(f){logFilter=f;renderLog();}
 function logSetWh(w){logWhFilter=w;renderLog();}
+// [MỚI] tách riêng để cả bảng lẫn khối tóm tắt đều dùng chung 1 khoảng ngày, tránh lệch số (khối tóm tắt
+// tính "Hôm nay" đúng nhưng bảng bên dưới lại hiện luôn cả các ngày khác — dễ gây hiểu nhầm)
+function logSumRange(){
+  if(logSumPeriod==='today')return{from:todayStr(),to:todayStr()};
+  if(logSumPeriod==='yesterday'){const y=daysAgo(1);return{from:y,to:y};}
+  return{from:logSumFrom,to:logSumTo};
+}
 function renderLog(){
   const tabsEl=document.getElementById('log-tabs');
   const cats=['all','Đi đơn','Order hàng','Chỉnh kho','Khác'];
@@ -4374,6 +4409,11 @@ function renderLog(){
   const q=(document.getElementById('log-search')?.value||'').trim().toLowerCase();
   let list=logWhFilter==='all'?byCat.slice():byCat.filter(t=>txWarehouse(t)===logWhFilter);
   renderLogSummary(list);
+  // [SỬA LỖI] bảng bên dưới trước đây KHÔNG lọc theo ngày (Hôm nay/Hôm qua/Tuỳ chỉnh) — hiện lẫn cả các ngày
+  // khác, khiến số dòng trong bảng không khớp với số ở khối tóm tắt phía trên (VD tóm tắt ghi "-3" nhưng bảng
+  // lại hiện 5 dòng vì có cả 2 dòng của ngày khác). Giờ bảng luôn lọc đúng khoảng ngày đang chọn ở trên.
+  const {from:sumFrom,to:sumTo}=logSumRange();
+  list=list.filter(t=>t.date>=sumFrom&&t.date<=sumTo);
   if(q)list=list.filter(t=>[t.product_code,t.product_name,t.staff_name,t.note,t.channel,t.reason,txChannelLabel(t)].some(v=>String(v||'').toLowerCase().includes(q)));
   list=list.sort((a,b)=>String(b.created_at||b.date).localeCompare(String(a.created_at||a.date)));
   document.getElementById('log-tbl').innerHTML=`<thead><tr><th class="l">Ngày</th><th class="l">Mã SP</th><th class="l">Sản phẩm</th><th>SL</th><th class="l">Biến động từ</th><th class="l">Kênh / Đơn vị</th><th class="l">Nhân viên</th><th class="l">Ghi chú</th></tr></thead><tbody>
@@ -4409,10 +4449,11 @@ function logSumCustomApply(){
 }
 function renderLogSummary(list){
   const el=document.getElementById('log-summary');if(!el)return;
-  let from,to,label;
-  if(logSumPeriod==='today'){from=to=todayStr();label='Hôm nay';}
-  else if(logSumPeriod==='yesterday'){from=to=daysAgo(1);label='Hôm qua';}
-  else{from=logSumFrom;to=logSumTo;label=(from===to)?'Ngày đã chọn':'Khoảng ngày đã chọn';}
+  let label;
+  const {from,to}=logSumRange();
+  if(logSumPeriod==='today')label='Hôm nay';
+  else if(logSumPeriod==='yesterday')label='Hôm qua';
+  else label=(from===to)?'Ngày đã chọn':'Khoảng ngày đã chọn';
   const dateLbl=from===to?fmtDate(from):`${fmtDate(from)} → ${fmtDate(to)}`;
   const rows=list.filter(t=>t.date>=from&&t.date<=to);
   const out=rows.filter(t=>t.type==='Xuất').reduce((s,t)=>s+(t.quantity||0),0);
