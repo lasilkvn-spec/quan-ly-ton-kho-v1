@@ -385,7 +385,10 @@ tr:last-child td{border-bottom:none}
           <div class="pg-t">Quản lý kho</div>
           <div class="pg-s">Một kho duy nhất — xưởng về thẳng nhà. Tồn = sổ cái · Đang về = đã đặt xưởng, chưa nhận · Nợ đơn khách = SL đang ở tab "Nợ hàng" · mục "Cần gửi" (Quản lý đơn) — đã hứa khách nhưng chưa xử lý & chưa trừ kho · Khả dụng = Tồn kho + Đang về − Nợ đơn khách.</div>
         </div>
-        <button class="btn" style="background:#B5715C;color:#fff;border-color:#B5715C" onclick="loadAll().then(loadSupplier)">↻ Tính lại</button>
+        <div class="row">
+          <button class="btn btn-honey" onclick="exportTongKhoAsOf()">📊 Xuất Excel tổng kho cuối ngày</button>
+          <button class="btn" style="background:#B5715C;color:#fff;border-color:#B5715C" onclick="loadAll().then(loadSupplier)">↻ Tính lại</button>
+        </div>
       </div>
       <div id="kho-dup-warn" style="margin-bottom:12px"></div>
       <div id="kho-alerts" style="margin-bottom:14px"></div>
@@ -1291,6 +1294,43 @@ function exportDonGuiExcel(){
   const label=dr&&dr.from&&dr.to?(dr.from===dr.to?dr.from:`${dr.from}_${dr.to}`):'tatca';
   XLSX.writeFile(wb,`bao_cao_da_gui_${label}.xlsx`);
   toast(`✅ Đã xuất ${list.length} dòng đơn`);
+}
+/* ── [MỚI] Xuất Excel "Tổng kho cuối ngày" — tồn kho TÍNH ĐẾN HẾT 1 ngày bất kỳ, dùng đúng công thức
+   stockOneAsOf() đã có sẵn (sổ cái, đã loại sales_adjust & Kho hàng lỗi) — vì vậy số khớp 100% với app,
+   không tính riêng. Xuất 2 sheet: Kho hàng (apparel) + Phụ kiện (nếu có), kèm sheet Tổng hợp. ── */
+function exportTongKhoAsOf(){
+  const dmy=(prompt('Xuất tổng kho tính đến HẾT ngày nào? (dd/mm/yyyy)','31/08/'+new Date().getFullYear())||'').trim();
+  if(!dmy)return;
+  const iso=_sToISO(dmy);
+  if(!iso){toast('Ngày không hợp lệ — nhập đúng dạng dd/mm/yyyy',true);return;}
+  const buildRows=(list)=>{
+    const arr=sortPS(list).map(p=>({code:p.code,name:p.name||'',color:p.color||'',size:p.size||'',qty:stockOneAsOf(p.code,iso)}));
+    const total=arr.reduce((s,r)=>s+r.qty,0);
+    return{rows:[['Mã SP','Tên sản phẩm','Màu','Size','Tồn kho'],
+      ...arr.map(r=>[r.code,r.name,r.color,r.size,r.qty]),
+      ['','','','Tổng cộng',total]],total};
+  };
+  const kh=buildRows(allProducts);
+  const hasAcc=allAccProducts.length>0;
+  const pk=hasAcc?buildRows(allAccProducts):null;
+  const wb=XLSX.utils.book_new();
+  const ws1=XLSX.utils.aoa_to_sheet(kh.rows);ws1['!cols']=[{wch:14},{wch:28},{wch:14},{wch:10},{wch:10}];
+  XLSX.utils.book_append_sheet(wb,ws1,'Kho hàng');
+  if(hasAcc){
+    const ws2=XLSX.utils.aoa_to_sheet(pk.rows);ws2['!cols']=[{wch:14},{wch:28},{wch:14},{wch:10},{wch:10}];
+    XLSX.utils.book_append_sheet(wb,ws2,'Phụ kiện');
+  }
+  const wsS=XLSX.utils.aoa_to_sheet([
+    ['Tổng kho cuối ngày',_sDmy(iso)],[],
+    ['Kho','Tổng tồn'],
+    ['Kho hàng (apparel)',kh.total],
+    ...(hasAcc?[['Phụ kiện',pk.total]]:[]),
+    ['TỔNG CỘNG',kh.total+(hasAcc?pk.total:0)]
+  ]);
+  wsS['!cols']=[{wch:22},{wch:14}];
+  XLSX.utils.book_append_sheet(wb,wsS,'Tổng hợp');
+  XLSX.writeFile(wb,`tong_kho_cuoi_ngay_${iso}.xlsx`);
+  toast(`✅ Đã xuất tổng kho tính đến hết ${_sDmy(iso)}`);
 }
 /* ── Đơn "Chờ xác nhận" (lên đơn nhưng nhân viên KHÔNG tích chọn xuất ngay) — chốt xong với khách rồi mới
    chọn sản phẩm để xuất thật (trừ kho lúc này, không phải lúc lên đơn). ── */
