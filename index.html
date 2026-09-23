@@ -3142,16 +3142,29 @@ function opRowCalc(p,prods,stock,target,coming,targetSale,noDonKhach){
 // tính trên KHẢ DỤNG (Tồn kho + Đang về − Nợ đơn khách) thay vì chỉ Tồn+Đang về.
 // Nếu chưa nhập Target sale (không tính được thiếu hụt) thì chia đều theo %Bán, y như cách chia cũ.
 // Dùng "largest remainder" để tổng các size luôn khớp đúng số đã nhập.
-function allocateOrderQty(items,totalWant,stock,coming,targetSale,noDonKhach){
+function allocateOrderQty(items,totalWant,stock,coming,targetSale,noDonKhach,target){
   const total=Math.max(0,Math.round(totalWant||0));
   if(!total)return{};
+  // [SỬA] Trước đây khi CHƯA nhập "Target sale" thì mọi size đều ra deficit=0 (vì ideal=20×0=0) → hàm luôn rơi vào
+  // nhánh chia đều theo %Bán, HOÀN TOÀN không quan tâm size nào đang "Cần order" — gây lệch với cột Hụt/Trạng thái
+  // đang hiển thị (vốn tính theo "Mức muốn giữ", không phải Target sale). Giờ nếu chưa có Target sale, dùng đúng
+  // công thức Hụt = Mục tiêu riêng (Mức muốn giữ × %Bán) − Khả dụng − Dự báo 20 ngày, y hệt cột Hụt trên bảng,
+  // để 2 chỗ luôn khớp nhau: size đang "Cần order" sẽ được ưu tiên nhận SL order trước.
   const rows=items.map(p=>{
     const pct=pctBanOf(items,p.code);
     const ton=stock[p.code]||0,cm=(coming&&coming[p.code])||0,nodk=(noDonKhach&&noDonKhach[p.code])||0;
     const av=ton+cm-nodk;
-    const sizeTargetSale=targetSale*pct;
-    const ideal=20*sizeTargetSale; // muốn giữ đủ 20 ngày bán theo Target sale
-    const deficit=Math.max(0,ideal-av);
+    let deficit;
+    if(targetSale>0){
+      const sizeTargetSale=targetSale*pct;
+      const ideal=20*sizeTargetSale; // muốn giữ đủ 20 ngày bán theo Target sale
+      deficit=Math.max(0,ideal-av);
+    }else{
+      const d30=soldIn(p.code,30);
+      const fc20=Math.round(d30/30*20);
+      const mucTieu=(target||0)*pct;
+      deficit=Math.max(0,mucTieu-av-fc20); // = đúng "Hụt" của size này
+    }
     return{code:p.code,pct,deficit};
   });
   const sumDef=rows.reduce((s,x)=>s+x.deficit,0);
@@ -3198,7 +3211,7 @@ function renderOrderPlan(){
       const target=+(cg.items[0]?.threshold||0);
       const targetSale=+opTargetSale[wantKey]||0;
       const wantOrderQty=+opWantOrder[wantKey]||0;
-      const orderAlloc=allocateOrderQty(cg.items,wantOrderQty,stock,coming,targetSale,noDonKhach);
+      const orderAlloc=allocateOrderQty(cg.items,wantOrderQty,stock,coming,targetSale,noDonKhach,target);
       const sizes=cg.items.slice().sort((a,b)=>sizeRank(a.size)-sizeRank(b.size));
       let cTon=0,cAvail=0,cCm=0,cNodk=0,cD7=0,cD30=0,cFc=0,cHut=0,cCan=0,cOrder=0,rows='';
       sizes.forEach(p=>{
@@ -3668,6 +3681,73 @@ function roundBreakdownHtml(h){
 // Render 1 khối "Lịch sử về hàng" đầy đủ (dùng chung cho trang Order hàng + trang Phụ kiện) — mỗi đợt hiện rõ
 // Tổng số cái, kèm breakdown từng màu/size bên dưới thay vì nhét chung 1 dòng khó đọc như trước.
 // [MỚI] Mỗi đợt còn có ghi chú "Xưởng đã giao" / "Trả về xưởng" (tự do, không ràng buộc số) + ảnh lỗi đính kèm.
+// [MỚI] Y HỆT lotRoundHistory() nhưng KHÔNG chia theo số đợt — gộp mọi đợt về CÙNG 1 ngày nhận vào chung 1 dòng.
+// Dùng khi chủ shop chỉ cần biết "ngày này nhận tổng cộng bao nhiêu, màu/size nào" mà không cần phân biệt đợt mấy
+// (VD 1 lô về làm 3 đợt nhưng đợt 2 & 3 cùng ngày → theo đợt sẽ tách 2 dòng, theo ngày sẽ gộp làm 1).
+function lotDateHistory(po){
+  const byDate={};
+  allTx.filter(t=>t.type==='Nhập'&&['po','po_kol','po_loi'].includes(t.ref_type)&&(t.ref_id||'').startsWith(po+'-r')).forEach(t=>{
+    const d=t.date;
+    const g=(byDate[d]=byDate[d]||{date:d,total:0,lines:[]});
+    const tag=t.ref_type==='po_kol'?' (⭐KOL)':t.ref_type==='po_loi'?' (🚫Lỗi)':'';
+    g.total+=t.quantity||0;g.lines.push({name:(t.product_name||'')+tag,code:t.product_code,tagTxt:tag,qty:t.quantity||0});
+  });
+  return Object.values(byDate).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+}
+// Render khối "Tổng hợp theo ngày nhận" — cùng kiểu khối với orderHistBlockHtml(), tái dùng roundBreakdownHtml()
+// vì cấu trúc {date/total/lines} giống hệt {roundNo/date/total/lines} (chỉ khác nhãn hiển thị đầu dòng).
+function orderDateHistBlockHtml(hist){
+  if(!hist.length)return'';
+  return `<div style="padding:10px 15px;border-top:1px solid var(--border)">
+    <div style="font-size:11px;font-weight:700;color:var(--brown);letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px">📅 Tổng hợp nhận hàng theo ngày (${hist.length} ngày, gộp mọi đợt)</div>
+    ${hist.map(h=>`<div style="padding:7px 0;border-top:1px dashed var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12.5px">
+        <span><b>📆 ${fmtDate(h.date)}</b></span>
+        <b style="white-space:nowrap;color:var(--grn-fg)">Tổng +${h.total} cái</b>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px">${roundBreakdownHtml(h)}</div>
+    </div>`).join('')}
+  </div>`;
+}
+// [MỚI] Thanh chuyển "Theo đợt ↔ Theo ngày nhận" + nút Xuất Excel, đặt phía trên khối lịch sử — dùng chung cho
+// cả trang Order hàng (apparel) và trang Phụ kiện, thay thế trực tiếp chỗ gọi orderHistBlockHtml(hist,po) cũ.
+let lotHistView={}; // po -> 'round' | 'date', mặc định 'round' (giữ nguyên giao diện cũ nếu chưa bấm đổi)
+function setLotHistView(po,v){lotHistView[po]=v;renderOrderPage();}
+function lotHistToggleAndBlockHtml(po,hist){
+  if(!hist.length)return'';
+  const v=lotHistView[po]||'round';
+  const toggle=`<div style="display:flex;align-items:center;gap:6px;padding:10px 15px 0;flex-wrap:wrap">
+    <div class="tab${v==='round'?' on':''}" style="padding:4px 11px;font-size:11px" onclick="setLotHistView('${jsq(po)}','round')">📜 Theo đợt</div>
+    <div class="tab${v==='date'?' on':''}" style="padding:4px 11px;font-size:11px" onclick="setLotHistView('${jsq(po)}','date')">📅 Theo ngày nhận</div>
+    <button class="btn btn-sm" style="margin-left:auto" onclick="exportLotHistExcel('${jsq(po)}')">📊 Xuất Excel</button>
+  </div>`;
+  return toggle+(v==='date'?orderDateHistBlockHtml(lotDateHistory(po)):orderHistBlockHtml(hist,po));
+}
+// [MỚI] Xuất Excel lịch sử nhận hàng của 1 lô — LUÔN xuất bản "theo ngày" (gộp mọi đợt cùng ngày làm 1),
+// tách rõ Màu/Size/Loại (Kho chính · Dành KOL · Lỗi không chỉnh được), kèm dòng Tổng mỗi ngày + Tổng cộng cuối bảng.
+function exportLotHistExcel(po){
+  const hist=lotDateHistory(po);
+  if(!hist.length){toast('Lô này chưa có đợt nào về hàng',true);return;}
+  const HEAD=['Ngày nhận','Màu','Size','Loại','Số lượng'];
+  const rows=[HEAD];
+  hist.forEach(h=>{
+    h.lines.forEach(l=>{
+      const{color,size}=productColorSizeByCode(l.code,l.name);
+      const tg=(l.tagTxt||'').trim();
+      const loai=tg==='(⭐KOL)'?'Dành KOL':tg==='(🚫Lỗi)'?'Lỗi không chỉnh được':'Kho chính';
+      rows.push([fmtDate(h.date),color||'—',size||'—',loai,l.qty]);
+    });
+    rows.push(['','','',`Tổng ngày ${fmtDate(h.date)}`,h.total]);
+  });
+  rows.push(['','','','TỔNG CỘNG',hist.reduce((s,h)=>s+h.total,0)]);
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:13},{wch:16},{wch:8},{wch:24},{wch:10}];
+  const wb=XLSX.utils.book_new();
+  const lotName=(supplierRows.find(x=>x.po_code===po)||{}).name||po;
+  XLSX.utils.book_append_sheet(wb,ws,'Nhận hàng theo ngày');
+  XLSX.writeFile(wb,`nhan_hang_${String(lotName).replace(/[^\w\-]+/g,'_')}.xlsx`);
+  toast('✅ Đã xuất lịch sử nhận hàng theo ngày');
+}
 function orderHistBlockHtml(hist,po){
   if(!hist.length)return'';
   return `<div style="padding:10px 15px;border-top:1px solid var(--border)">
@@ -3699,6 +3779,67 @@ function roundNoteBlockHtml(po,roundNo){
 function renderOrderPage(){
   if(orderView==='sp'){renderOrderBySP();return;}
   renderOrderByLot();
+}
+// [MỚI — theo yêu cầu] Bảng "Tổng hợp nhận hàng theo ngày" hiện THẲNG trên trang, chia riêng TỪNG NCC cho dễ xem
+// (mỗi NCC 1 bảng ngày·màu·size·tổng riêng), trong phạm vi các lô đang xem (đúng theo tab Đang về/Đã về hiện tại,
+// không phụ thuộc bộ lọc NCC — luôn hiện đủ mọi NCC) — không cần bấm vào từng lô, không cần xuất Excel mới xem được.
+// Sort theo ngày (mới nhất trước / cũ nhất trước) áp dụng chung cho mọi bảng NCC, bấm đổi tại chỗ.
+let opDateAggOpen=true; // mặc định mở sẵn cho dễ thấy — bấm vào thanh tiêu đề để thu gọn/mở lại
+let opDateAggSort='desc'; // 'desc' = ngày mới nhất trước, 'asc' = ngày cũ nhất trước
+function toggleOpDateAgg(){opDateAggOpen=!opDateAggOpen;renderOrderPage();}
+function setOpDateAggSort(v){opDateAggSort=v;renderOrderPage();}
+// Gộp lotDateHistory() của NHIỀU lô (poArr), tách riêng theo supplier_name — trả về { supKey: { ngày: {date,total,lines} } }.
+// Lô chưa gắn NCC gom chung vào NONE_KEY (giống hệt cách nhóm "Chưa gắn NCC" đang dùng ở phần thẻ lô bên dưới).
+const OP_AGG_NONE_KEY='__NONE__';
+function lotDateAggBySupplier(poArr){
+  const bySup={};
+  poArr.forEach(([po,rowsRaw])=>{
+    const sup=(rowsRaw[0].supplier_name||'').trim()||OP_AGG_NONE_KEY;
+    const g=(bySup[sup]=bySup[sup]||{});
+    lotDateHistory(po).forEach(h=>{
+      const d=(g[h.date]=g[h.date]||{date:h.date,total:0,lines:[]});
+      d.total+=h.total;d.lines=d.lines.concat(h.lines);
+    });
+  });
+  return bySup;
+}
+function orderDateAggBoxHtml(poArr){
+  const bySup=lotDateAggBySupplier(poArr);
+  const supKeys=Object.keys(bySup).sort((a,b)=>a===OP_AGG_NONE_KEY?-1:b===OP_AGG_NONE_KEY?1:a.localeCompare(b,'vi'));
+  let grand=0;
+  const supBlocks=supKeys.map(sup=>{
+    const arr=Object.values(bySup[sup]);
+    const supTotal=arr.reduce((s,h)=>s+h.total,0);grand+=supTotal;
+    const sorted=arr.slice().sort((a,b)=>opDateAggSort==='asc'?(a.date||'').localeCompare(b.date||''):(b.date||'').localeCompare(a.date||''));
+    const rows=sorted.map(h=>`<tr>
+        <td class="l" style="font-weight:700;white-space:nowrap">${fmtDate(h.date)}</td>
+        <td class="l"><div style="display:flex;flex-wrap:wrap;gap:5px">${roundBreakdownHtml(h)}</div></td>
+        <td style="font-weight:800;color:var(--grn-fg);white-space:nowrap">+${h.total}</td>
+      </tr>`).join('');
+    const label=sup===OP_AGG_NONE_KEY?'❔ Chưa gắn NCC':'🏭 '+escapeHtml(sup);
+    return `<div style="margin-bottom:14px">
+      <div style="background:#B5715C;color:#fff;padding:7px 14px;border-radius:8px;font-family:var(--f-head);font-weight:800;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+        <span>${label}</span><span style="opacity:.9">${sorted.length} ngày · Tổng ${fmtN(supTotal)}</span>
+      </div>
+      <div style="overflow:auto"><table>
+        <thead><tr><th class="l">Ngày nhận</th><th class="l">Chi tiết màu · size</th><th>Tổng SL</th></tr></thead>
+        <tbody>${rows||'<tr><td colspan="3" class="dim" style="text-align:center;padding:12px">Chưa có đợt nào về hàng.</td></tr>'}</tbody>
+      </table></div>
+    </div>`;
+  }).join('');
+  return `<div class="card" style="padding:0;overflow:hidden;margin-bottom:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:var(--dark);color:#fff;padding:12px 16px;cursor:pointer" onclick="toggleOpDateAgg()">
+      <div style="font-family:var(--f-head);font-weight:800;font-size:13px">📅 Tổng hợp nhận hàng theo ngày — theo từng NCC (Tổng ${fmtN(grand)} cái)</div>
+      <span style="font-size:12px;opacity:.75">${opDateAggOpen?'▲ Thu gọn':'▼ Xem chi tiết'}</span>
+    </div>
+    ${opDateAggOpen?`
+    <div style="padding:9px 16px 3px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <span style="font-size:11px;color:var(--brown);font-weight:700">Sắp xếp:</span>
+      <div class="tab${opDateAggSort==='desc'?' on':''}" style="padding:4px 11px;font-size:11px" onclick="event.stopPropagation();setOpDateAggSort('desc')">Mới nhất trước</div>
+      <div class="tab${opDateAggSort==='asc'?' on':''}" style="padding:4px 11px;font-size:11px" onclick="event.stopPropagation();setOpDateAggSort('asc')">Cũ nhất trước</div>
+    </div>
+    <div style="padding:2px 16px 14px">${supBlocks||'<div class="dim" style="text-align:center;padding:14px">Chưa có đợt nào về hàng trong tab đang xem.</div>'}</div>`:''}
+  </div>`;
 }
 function renderOrderByLot(){
   const box=document.getElementById('o-list');if(!box)return;
@@ -3763,11 +3904,11 @@ function renderOrderByLot(){
       </div>
       ${ncColorChipsHtml(gkey,rowsAll)}
       <div>${rows.map(r=>orderRowHtml(r)).join('')||'<div class="dim" style="padding:16px;text-align:center;font-size:12.5px">Không có dòng nào khớp màu đang lọc.</div>'}</div>
-      ${orderHistBlockHtml(hist,po)}
+      ${lotHistToggleAndBlockHtml(po,hist)}
       ${!done?`<div style="padding:11px 15px;border-top:1px solid var(--border)"><button class="btn btn-honey" style="width:100%" onclick="confirmLot('${jsq(po)}')">✓ Xác nhận hàng về — cập nhật kho</button></div>`:''}
     </div>`;
   };
-  box.innerHTML=supKeys.map((sup,i)=>{
+  box.innerHTML=orderDateAggBoxHtml(poArr)+supKeys.map((sup,i)=>{
     const lots=bySupplier[sup];
     const label=sup===NONE_KEY?'❔ Chưa gắn NCC':'🏭 '+escapeHtml(sup);
     const head=`<div style="background:#B5715C;color:#fff;padding:9px 16px;border-radius:9px;font-family:var(--f-head);font-weight:800;font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;margin:${i===0?'0':'20px'} 0 10px">${label} · ${lots.length} lô</div>`;
@@ -4240,7 +4381,7 @@ function renderPkNccList(){
         </div>
       </div>
       <div>${prows.map(r=>orderRowHtml(r,true)).join('')}</div>
-      ${orderHistBlockHtml(hist,po)}
+      ${lotHistToggleAndBlockHtml(po,hist)}
       ${!done?`<div style="padding:11px 15px;border-top:1px solid var(--border)"><button class="btn btn-honey" style="width:100%" onclick="confirmLot('${jsq(po)}')">✓ Xác nhận hàng về — cập nhật kho</button></div>`:''}
     </div>`;
   }).join('');
