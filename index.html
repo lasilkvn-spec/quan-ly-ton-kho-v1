@@ -1139,7 +1139,8 @@ function renderToday(){
      alter table orders add column if not exists due_date date;
    là app tự chuyển sang dùng cột riêng. Mỗi lần dời hẹn được ghi lại trong note "[DỜI HẸN dd/mm→dd/mm: lý do]". */
 let DUE_COL_MISSING=false;
-let dueBucket='all';       // bộ lọc theo mức gấp trong tab Nợ hàng · Cần gửi
+let dueBucket='all';
+let dueSort='due_asc'; // cách xếp đơn trong Nợ hàng · Cần gửi       // bộ lọc theo mức gấp trong tab Nợ hàng · Cần gửi
 let dueCtx=null;           // trạng thái hộp chọn ngày đang mở
 let _dueNotified=false;
 const DUE_TAG_RE=/\s*\[HẸN GIAO (\d{4}-\d{2}-\d{2})\]/g;
@@ -1315,7 +1316,33 @@ function dueStripHtml(){
   const B=[['late','Trễ hẹn'],['today','Hẹn hôm nay'],['soon','1–2 ngày tới'],['later','Còn xa']];
   if(c.none)B.push(['none','Chưa hẹn ngày']);
   return `<div class="due-strip">${B.map(([k,l])=>`<button type="button" class="due-b ${k}${c[k]?'':' zero'}${dueBucket===k?' on':''}" onclick="donSetDueBucket('${k}')"><div class="n">${c[k]}</div><div class="l">${l}</div></button>`).join('')}</div>
-    <div class="due-hint">${dueBucket==='all'?'Đơn xếp theo ngày hẹn gần nhất trước. Bấm 1 ô để lọc.':'Đang lọc theo mức hẹn · bấm lại ô đó để xem tất cả.'}</div>`;
+    ${dueSortHtml()}
+    <div class="due-hint">${dueBucket==='all'?'Bấm 1 ô phía trên để lọc theo mức hẹn.':'Đang lọc theo mức hẹn · bấm lại ô đó để xem tất cả.'}${dueSort.startsWith('due')?' Đơn chưa hẹn ngày luôn nằm cuối, xếp theo khách chờ lâu nhất.':''}</div>`;
+}
+const DUE_SORTS=[
+  ['due_asc','Hẹn gần nhất'],
+  ['due_desc','Hẹn xa nhất'],
+  ['created_asc','Khách chờ lâu nhất'],
+  ['created_desc','Lên đơn mới nhất'],
+];
+function createdOf(g){return String(g[0].created_at||g[0].date||'');}
+function sortDueGroups(groups){
+  const byCreatedAsc=(a,b)=>createdOf(a).localeCompare(createdOf(b));
+  const byDue=dir=>(a,b)=>{
+    const da=dueOfGroup(a),db=dueOfGroup(b);
+    if(!da&&!db)return byCreatedAsc(a,b);   // cùng chưa hẹn ngày → khách chờ lâu nhất lên trước
+    if(!da)return 1;if(!db)return -1;        // chưa hẹn ngày luôn xuống cuối
+    return dir*da.localeCompare(db)||byCreatedAsc(a,b);
+  };
+  const cmp={due_asc:byDue(1),due_desc:byDue(-1),created_asc:byCreatedAsc,created_desc:(a,b)=>byCreatedAsc(b,a)}[dueSort]||byDue(1);
+  return groups.sort(cmp);
+}
+function donSetDueSort(k){dueSort=k;renderDon();}
+function dueSortHtml(){
+  return `<div class="row" style="align-items:center;gap:6px;margin-top:10px">
+    <span style="font-size:11.5px;font-weight:600;color:var(--brown)">Sắp xếp:</span>
+    ${DUE_SORTS.map(([k,l])=>`<button type="button" class="tab${dueSort===k?' on':''}" style="font-family:var(--f-body)" onclick="donSetDueSort('${k}')">${l}</button>`).join('')}
+  </div>`;
 }
 function donSetDueBucket(k){dueBucket=dueBucket===k?'all':k;renderDon();}
 function goDueOverdue(){
@@ -1739,7 +1766,7 @@ function renderDon(){
     <button class="btn btn-sm" onclick="clearDonVariantFilter()">✕ Bỏ lọc, xem tất cả</button></div>`:'';
   const groups=groupOrders(listF);
   // [MỚI] Nợ hàng · Cần gửi: xếp theo ngày hẹn gần nhất trước (đơn chưa có ngày hẹn xuống cuối)
-  if(dueMode)groups.sort((a,b)=>{const da=dueOfGroup(a)||'9999',db=dueOfGroup(b)||'9999';return da<db?-1:da>db?1:0;});
+  if(dueMode)sortDueGroups(groups);
   if(!groups.length){box.innerHTML=banner+`<div class="card dim" style="text-align:center">${dueMode&&dueBucket!=='all'?'Không có đơn nào ở mức hẹn này.':'Không có đơn trong mục này.'}</div>`;return;}
   box.innerHTML=banner+groups.map(g=>orderCard(g,true)).join('');
 }
