@@ -107,6 +107,44 @@ tr:last-child td{border-bottom:none}
 #sb-backdrop.on{display:block}
 @media(max-width:760px){.sb{position:fixed;left:0;z-index:100;transform:translateX(-100%);transition:.2s}.sb.open{transform:none}.main{padding:16px;padding-top:60px}.grid2{grid-template-columns:1fr}#menu-btn{display:flex}}
 
+
+/* ===== NỢ ĐƠN — NGÀY HẸN GIAO KHÁCH ===== */
+.due{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid transparent;white-space:nowrap}
+.due-late{background:var(--red-bg);color:var(--red-fg);border-color:#E08A8A}
+.due-today{background:#FFE3B8;color:#7A3E00;border-color:#F0A868}
+.due-soon{background:var(--yel-bg);color:var(--yel-fg);border-color:var(--honey-deep)}
+.due-later{background:var(--bg);color:var(--brown);border-color:var(--border)}
+.due-none{background:transparent;color:var(--brown);border:1px dashed #CFC8B4}
+.due-done{background:var(--grn-bg);color:var(--grn-fg)}
+.oc.due-l-late{border-left:4px solid #E08A8A}
+.oc.due-l-today{border-left:4px solid #F0A868}
+.oc.due-l-soon{border-left:4px solid var(--honey-deep)}
+.due-strip{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.due-b{flex:1 1 112px;min-width:112px;text-align:left;padding:9px 12px;border-radius:10px;border:1px solid var(--border);background:var(--card);cursor:pointer;font-family:var(--f-body);color:var(--dark)}
+.due-b .n{font-family:var(--f-head);font-size:20px;font-weight:800;line-height:1}
+.due-b .l{font-size:11px;font-weight:600;color:var(--brown);margin-top:4px}
+.due-b.late{background:var(--red-bg);border-color:#E08A8A}.due-b.late .n{color:var(--red-fg)}
+.due-b.today{background:#FFE3B8;border-color:#F0A868}.due-b.today .n{color:#7A3E00}
+.due-b.soon{background:var(--yel-bg);border-color:var(--honey-deep)}
+.due-b.zero{opacity:.45}
+.due-b.on{box-shadow:0 0 0 2px var(--dark)}
+.due-hint{font-size:11px;color:var(--brown);margin-top:6px}
+.due-alert{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--red-bg);color:var(--red-fg);border:1px solid #E08A8A;border-radius:10px;padding:9px 14px;font-size:12.5px;margin-bottom:12px}
+.due-q{font-size:12px;font-weight:700;color:var(--dark);margin:14px 0 8px}
+.due-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.due-chip{padding:7px 12px;border-radius:10px;border:1px solid var(--border);background:var(--card);cursor:pointer;font-family:var(--f-body);text-align:left;line-height:1.3;color:var(--dark)}
+.due-chip b{display:block;font-size:12px}
+.due-chip small{font-size:10.5px;color:var(--brown)}
+.due-chip:hover{border-color:var(--brown)}
+.due-chip.on{background:var(--dark);border-color:var(--dark);color:var(--honey)}.due-chip.on b{color:var(--honey)}.due-chip.on small{color:rgba(255,237,172,.75)}
+.due-chip.sm{padding:5px 10px;font-size:11.5px}
+.due-read{border-radius:10px;padding:10px 13px;font-size:13px;background:var(--bg);color:var(--brown);border:1px dashed #CFC8B4}
+.due-read.ok{background:var(--honey);color:var(--dark);border:1px solid var(--honey-deep)}
+.due-line{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:6px 0;border-bottom:1px solid var(--border)}
+.due-line:last-child{border-bottom:none}
+.due-b:focus-visible,.due-chip:focus-visible{outline:2px solid var(--brown);outline-offset:2px}
+.nav-b.alert,.tab .c.alert{background:#E24B4A;color:#fff}
+
 /* ===== KPI NHÂN VIÊN — kanban + avatar + progress ===== */
 .kpi-board{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px}
 .kpi-col{flex:0 0 268px;width:268px;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:10px}
@@ -302,7 +340,7 @@ tr:last-child td{border-bottom:none}
           </div>
           <div class="row" style="margin-top:8px">
             <button class="btn btn-honey" onclick="saveOrderTay('cho_chot')">💾 Chờ chốt</button>
-            <button class="btn" style="background:var(--org-bg);color:var(--org-fg);border-color:#E8C84A" onclick="saveOrderTay('no_hang')">⏳ Nợ đơn</button>
+            <button class="btn" style="background:var(--org-bg);color:var(--org-fg);border-color:#E8C84A" onclick="saveOrderTay('no_hang')" title="Lưu đơn nợ — sẽ hỏi ngày hẹn giao cho khách">⏳ Nợ đơn · hẹn ngày giao</button>
           </div>
           <div class="row" style="margin-top:8px">
             <button class="btn btn-grn" onclick="saveOrderTay('thai_khach')">🇹🇭 Đơn Thái · Khách</button>
@@ -353,6 +391,7 @@ tr:last-child td{border-bottom:none}
           <div class="tab" id="donv-sp" onclick="donView='sp';donVariantFilter=null;renderDon()">🧷 Theo sản phẩm</div>
         </div>
       </div>
+      <div id="don-due-alert"></div>
       <div class="tabs" id="don-tabs"></div>
       <div id="don-date-bar" style="margin-bottom:12px"></div>
       <div id="don-brk" style="margin-bottom:12px"></div>
@@ -890,12 +929,13 @@ async function loadAll(){
     allProducts=pr.filter(p=>(p.category||'apparel')!=='accessory');
     allAccProducts=pr.filter(p=>(p.category||'apparel')==='accessory');
     allTx=tx;allOrders=or.filter(o=>o.status!=='Đã xoá');deletedOrders=or.filter(o=>o.status==='Đã xoá');
+    if(or.length)DUE_COL_MISSING=!('due_date' in or[0]); // chưa chạy SQL thêm cột → lưu ngày hẹn tạm trong ghi chú
     try{kolPosts=await sbAll('kol_posts?order=created_at.desc');}catch(e){kolPosts=[];}
     try{lotRoundNotes=await sbAll('lot_round_notes?order=id.desc');}catch(e){lotRoundNotes=[];} // bảng chưa tạo thì để rỗng, không vỡ trang
     await loadStaffAndKpi(); // "Nhân viên & Lương" + "KPI Nhân viên" — Supabase thay cho localStorage, đồng bộ mọi máy
     setConn(true,'Đã kết nối Supabase');
     document.getElementById('setup-note').innerHTML='';
-    renderAll();
+    renderAll();notifyDueOnce();
   }catch(e){
     setConn(false,'Lỗi kết nối');
     document.getElementById('setup-note').innerHTML=`<div class="setup"><b>Chưa chạy được.</b> ${escapeHtml(e.message)}<br>Kiểm tra Supabase đã có cột mới (ref_type, ref_id, is_kol...) và bảng products có dữ liệu. Xem file SQL kèm brief.</div>`;
@@ -1045,7 +1085,7 @@ const TAY_KIND_MAP={
   thai_kol:  {channel:'KOL Thái',status:'Chờ xuất',ship_method:'',confirmTo:'Chờ gửi',confirmLabel:'Xác nhận đi đơn (có tem in)',label:'Đơn Thái · KOL'},
   quocte:    {channel:'Quốc tế',status:'Chờ xuất',ship_method:'',confirmTo:'Chờ gửi',confirmLabel:'Xác nhận đi đơn (có tem in)',label:'Đơn Quốc Tế'},
 };
-async function saveOrderTay(kind){
+async function saveOrderTay(kind,dueDate){
   const cfg=TAY_KIND_MAP[kind]; if(!cfg){toast('Loại đơn không hợp lệ',true);return;}
   const name=document.getElementById('t-name').value.trim();
   const phone=document.getElementById('t-phone').value.trim();
@@ -1055,6 +1095,8 @@ async function saveOrderTay(kind){
   const lines=tLines.filter(l=>l.code&&l.qty>0).map(l=>({...l,qty:intv(l.qty,1),price:intv(l.price,0)}));
   if(!name){toast('Nhập tên khách',true);return;}
   if(!lines.length){toast('Chọn ít nhất 1 sản phẩm',true);return;}
+  // [MỚI] Nợ đơn BẮT BUỘC có ngày hẹn giao khách — chưa có thì mở hộp chọn ngày, chọn xong mới lưu đơn
+  if(kind==='no_hang'&&!dueDate){openDueCreate(name,lines);return;}
   const code=newCode();
   const custPrefix=custCodePrefixFor(cfg.channel);
   const customer_code=custPrefix?nextCustCode(custPrefix):'';
@@ -1062,14 +1104,15 @@ async function saveOrderTay(kind){
   try{
     for(const l of lines){
       const p=allProducts.find(x=>x.code===l.code);
-      const rows=await POST('orders',{order_code:code,date:todayStr(),customer_name:name,phone,address:addr,
+      const rows=await postOrderRow({order_code:code,date:todayStr(),customer_name:name,phone,address:addr,
         product_code:l.code,product_name:pname(p),quantity:l.qty,channel:cfg.channel,status:cfg.status,
         tracking_code:'',staff:'',note:note||cfg.label,amount_due:l.qty*l.price,is_paid:false,shipping_fee:0,
-        payment_method:pay,ship_method:cfg.ship_method,customer_code});
+        payment_method:pay,ship_method:cfg.ship_method,customer_code},kind==='no_hang'?dueDate:'');
       if(rows&&rows[0])allOrders.unshift(rows[0]);
       // KHÔNG trừ kho ở bước tạo — kho chỉ trừ thật khi nhân viên bấm xác nhận xuất/đi đơn ở bước sau.
     }
-    toast(`✓ Tạo đơn ${code} · ${cfg.label} — chưa trừ kho, chờ xác nhận "${cfg.confirmLabel}"`);
+    if(kind==='no_hang'){closeModal();toast(`✓ Tạo đơn nợ ${code} · hẹn giao ${fmtDue(dueDate)} (${dueRelText(dueDate)}) — chưa trừ kho`);}
+    else toast(`✓ Tạo đơn ${code} · ${cfg.label} — chưa trừ kho, chờ xác nhận "${cfg.confirmLabel}"`);
     tLines=[];document.getElementById('t-name').value='';document.getElementById('t-phone').value='';document.getElementById('t-addr').value='';document.getElementById('t-note').value='';addLine();
     renderToday();renderKho();renderKol();updateBadges();
     if(cfg.ship_method==='Grab'){
@@ -1088,6 +1131,210 @@ function renderToday(){
   const box=document.getElementById('t-today');
   if(!groups.length){box.innerHTML='<div class="dim" style="padding:10px">Chưa có đơn hôm nay.</div>';return;}
   box.innerHTML=groups.map(g=>orderCard(g,false,true)).join('');
+}
+
+/* ══════════ [MỚI] NỢ ĐƠN — NGÀY HẸN GIAO KHÁCH ══════════
+   Mỗi đơn Nợ hàng có 1 ngày hẹn giao (cột orders.due_date, kiểu date). Nếu Supabase CHƯA có cột này,
+   app tự lưu tạm vào ghi chú dạng "[HẸN GIAO yyyy-mm-dd]" để không mất dữ liệu — chạy SQL:
+     alter table orders add column if not exists due_date date;
+   là app tự chuyển sang dùng cột riêng. Mỗi lần dời hẹn được ghi lại trong note "[DỜI HẸN dd/mm→dd/mm: lý do]". */
+let DUE_COL_MISSING=false;
+let dueBucket='all';       // bộ lọc theo mức gấp trong tab Nợ hàng · Cần gửi
+let dueCtx=null;           // trạng thái hộp chọn ngày đang mở
+let _dueNotified=false;
+const DUE_TAG_RE=/\s*\[HẸN GIAO (\d{4}-\d{2}-\d{2})\]/g;
+const WD_SHORT=['CN','T2','T3','T4','T5','T6','T7'];
+const WD_FULL=['Chủ nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'];
+function ymdParts(ymd){const[y,m,d]=String(ymd).slice(0,10).split('-').map(Number);return[y,m,d];}
+function addDays(ymd,n){const[y,m,d]=ymdParts(ymd);const dt=new Date(y,m-1,d+n);return `${dt.getFullYear()}-${p2(dt.getMonth()+1)}-${p2(dt.getDate())}`;}
+function daysBetween(a,b){const[y1,m1,d1]=ymdParts(a),[y2,m2,d2]=ymdParts(b);return Math.round((Date.UTC(y2,m2-1,d2)-Date.UTC(y1,m1-1,d1))/86400000);}
+function wdIdx(ymd){const[y,m,d]=ymdParts(ymd);return new Date(y,m-1,d).getDay();}
+function fmtDue(ymd){return `${WD_SHORT[wdIdx(ymd)]} ${ymd.slice(8,10)}/${ymd.slice(5,7)}`;}
+function fmtDueFull(ymd){return `${WD_FULL[wdIdx(ymd)]}, ${fmtDate(ymd)}`;}
+function stripDueTag(note){return String(note||'').replace(DUE_TAG_RE,'').trim();}
+function withDueTag(note,due){const b=stripDueTag(note);return due?`${b} [HẸN GIAO ${due}]`.trim():b;}
+function dueOf(o){
+  if(!o)return '';
+  if(o.due_date)return String(o.due_date).slice(0,10);
+  const m=[...String(o.note||'').matchAll(DUE_TAG_RE)];return m.length?m[m.length-1][1]:'';
+}
+function dueOfGroup(g){for(const r of g){const d=dueOf(r);if(d)return d;}return '';}
+function dueMoves(g){return (String(g[0]?.note||'').match(/\[DỜI HẸN/g)||[]).length;}
+// late = đã qua ngày hẹn · today · soon = 1–2 ngày tới · later · none = đơn cũ chưa có ngày hẹn
+function dueBucketOf(ymd){
+  if(!ymd)return 'none';
+  const n=daysBetween(todayStr(),ymd);
+  return n<0?'late':n===0?'today':n<=2?'soon':'later';
+}
+function dueRelText(ymd){
+  const n=daysBetween(todayStr(),ymd);
+  return n<0?`trễ hẹn ${-n} ngày`:n===0?'hôm nay':n===1?'ngày mai':`còn ${n} ngày`;
+}
+// đơn Nợ hàng còn ở mục "Cần gửi" (chưa xử lý), gom theo mã đơn
+function owedGroups(){return groupOrders(allOrders.filter(o=>o.status==='Nợ hàng'&&!o.local_sent));}
+function dueCounts(){
+  const c={late:0,today:0,soon:0,later:0,none:0};
+  owedGroups().forEach(g=>{c[dueBucketOf(dueOfGroup(g))]++;});
+  return c;
+}
+function dueChipHtml(g){
+  const o=g[0];const d=dueOfGroup(g);const mv=dueMoves(g);
+  if(!d)return o.local_sent?'':`<span class="due due-none">📅 Chưa hẹn ngày</span>`;
+  if(o.local_sent)return `<span class="due due-done" title="Ngày hẹn giao khách">📅 Hẹn ${fmtDue(d)} · đã gửi</span>`;
+  const b=dueBucketOf(d);
+  const n=daysBetween(todayStr(),d);
+  const txt=n<0?`Trễ hẹn ${-n} ngày`:n===0?'Hẹn giao hôm nay':n===1?'Hẹn ngày mai':`Còn ${n} ngày`;
+  return `<span class="due due-${b}" title="Ngày hẹn giao khách: ${fmtDueFull(d)}${mv?` · đã dời hẹn ${mv} lần`:''}">📅 ${fmtDue(d)} · ${txt}${mv?` · dời ${mv} lần`:''}</span>`;
+}
+// POST 1 dòng đơn kèm ngày hẹn — tự lùi về ghi chú nếu Supabase chưa có cột due_date
+async function postOrderRow(body,due){
+  if(!due)return POST('orders',body);
+  if(!DUE_COL_MISSING){
+    try{return await POST('orders',{...body,due_date:due});}
+    catch(e){if(!/due_date/i.test(e.message))throw e;DUE_COL_MISSING=true;console.warn('[Nợ đơn] Chưa có cột orders.due_date — lưu ngày hẹn tạm trong ghi chú.');}
+  }
+  return POST('orders',{...body,note:withDueTag(body.note,due)});
+}
+// PATCH cả đơn (mọi dòng cùng mã) kèm ngày hẹn — trả về đúng object đã ghi để cập nhật bộ nhớ
+async function patchOrderWithDue(code,patch,due){
+  const url=`orders?order_code=eq.${encodeURIComponent(code)}`;
+  const base={...patch,note:stripDueTag(patch.note)};
+  if(due&&!DUE_COL_MISSING){
+    try{const p={...base,due_date:due};await PATCH(url,p);return p;}
+    catch(e){if(!/due_date/i.test(e.message))throw e;DUE_COL_MISSING=true;}
+  }
+  const p=due?{...base,note:withDueTag(base.note,due)}:base;
+  await PATCH(url,p);return p;
+}
+
+/* ── Hộp chọn ngày hẹn (dùng chung cho lúc tạo đơn nợ & lúc dời hẹn) ── */
+const DUE_PRESETS=[[1,'Ngày mai'],[3,'3 ngày nữa'],[5,'5 ngày nữa'],[7,'1 tuần'],[14,'2 tuần']];
+const DUE_REASONS=['Xưởng giao trễ','Khách xin dời','Chờ đủ màu/size'];
+function dueStockLines(lines){
+  let coming={};try{coming=comingQty();}catch(e){}
+  return lines.map(l=>{
+    const p=allProducts.find(x=>x.code===l.code);
+    const have=stockOne(l.code),cm=coming[l.code]||0;
+    const enough=have>=l.qty;
+    return `<div class="due-line"><span>${escapeHtml(p?pname(p):l.code)} × <b>${l.qty}</b></span>
+      <span style="white-space:nowrap;color:${enough?'var(--grn-fg)':'var(--brown)'}">${enough?'✓ Kho đang đủ':`Tồn ${have}`}${cm?` · đang về ${cm}`:''}</span></div>`;
+  }).join('');
+}
+function dueChipsHtml(cur){
+  const t=todayStr();
+  return `<div class="due-chips">${DUE_PRESETS.map(([n,lbl])=>{const d=addDays(t,n);
+    return `<button type="button" class="due-chip${d===cur?' on':''}" data-d="${d}" onclick="dueSelect('${d}')"><b>${lbl}</b><small>${fmtDue(d)}</small></button>`;}).join('')}</div>`;
+}
+function openDueCreate(name,lines){
+  dueCtx={mode:'create',sel:'',name,lines};
+  const qty=lines.reduce((s,l)=>s+l.qty,0);
+  m_title('⏳ Nợ đơn — hẹn ngày giao khách');
+  document.getElementById('m-body').innerHTML=`
+    <div style="font-size:13px;margin-bottom:6px">👤 <b>${escapeHtml(name)}</b> · ${qty} món</div>
+    <div class="card" style="padding:4px 12px;margin-bottom:4px">${dueStockLines(lines)}</div>
+    ${lines.every(l=>stockOne(l.code)>=l.qty)?`<div class="due-hint">Kho đang đủ hàng cho đơn này — nếu gửi được luôn thì chọn loại đơn khác thay vì Nợ đơn.</div>`:''}
+    <div class="due-q">Hẹn giao cho khách ngày nào?</div>
+    ${dueChipsHtml('')}
+    <label class="fld"><span>Hoặc chọn ngày khác</span><input type="date" id="due-inp" min="${todayStr()}" onchange="dueSelect(this.value)"></label>
+    <div id="due-read" class="due-read">Chưa chọn ngày hẹn — bắt buộc để lưu đơn nợ.</div>`;
+  m_foot(`<button class="btn" onclick="closeModal()">Quay lại sửa đơn</button>
+    <button class="btn btn-dark" id="due-ok" disabled onclick="dueConfirm()">⏳ Lưu đơn nợ</button>`);
+  openModal();
+}
+function openDueEdit(code){
+  const g=allOrders.filter(o=>o.order_code===code);if(!g.length)return;
+  const o=g[0];const cur=dueOfGroup(g);const mv=dueMoves(g);
+  const created=String(o.created_at||o.date||'').slice(0,10);
+  const waited=created?daysBetween(created,todayStr()):0;
+  dueCtx={mode:'edit',sel:'',code,cur,reason:''};
+  m_title((cur?'📅 Dời ngày hẹn — ':'📅 Hẹn ngày giao — ')+code);
+  document.getElementById('m-body').innerHTML=`
+    <div style="font-size:13px;margin-bottom:6px">👤 <b>${escapeHtml(o.customer_name||'—')}</b> <span class="dim">${escapeHtml(o.phone||'')}</span></div>
+    <div class="card" style="padding:4px 12px;margin-bottom:8px">${dueStockLines(g.map(r=>({code:r.product_code,qty:r.quantity||0})))}</div>
+    <div class="row" style="gap:6px">
+      ${cur?dueChipHtml(g):'<span class="due due-none">📅 Chưa hẹn ngày</span>'}
+      ${created?`<span class="due due-later">🕒 Lên đơn ${fmtDate(created)} · khách đã chờ ${waited} ngày</span>`:''}
+    </div>
+    ${mv>=2?`<div class="due-hint" style="color:var(--red-fg)">Đơn này đã dời hẹn ${mv} lần — nên nhắn khách báo tình hình trước khi dời tiếp.</div>`:''}
+    <div class="due-q">${cur?'Ngày hẹn mới':'Hẹn giao cho khách ngày nào?'}</div>
+    ${dueChipsHtml('')}
+    <label class="fld"><span>Hoặc chọn ngày khác</span><input type="date" id="due-inp" min="${todayStr()}" onchange="dueSelect(this.value)"></label>
+    ${cur?`<div class="due-q" style="margin-top:4px">Lý do dời <span class="dim" style="font-weight:500">(không bắt buộc)</span></div>
+    <div class="due-chips">${DUE_REASONS.map(r=>`<button type="button" class="due-chip sm" data-r="${escapeHtml(r)}" onclick="dueReason(this.dataset.r)">${escapeHtml(r)}</button>`).join('')}</div>
+    <label class="fld"><input id="due-reason" placeholder="Lý do khác…" oninput="dueCtx.reason=this.value;document.querySelectorAll('[data-r]').forEach(b=>b.classList.toggle('on',b.dataset.r===this.value))"></label>`:''}
+    <div id="due-read" class="due-read">Chọn ngày hẹn${cur?' mới':''} ở trên.</div>`;
+  m_foot(`<button class="btn" onclick="closeModal()">Huỷ</button>
+    <button class="btn btn-dark" id="due-ok" disabled onclick="dueConfirm()">📅 Lưu ngày hẹn</button>`);
+  openModal();
+}
+function dueReason(r){
+  if(!dueCtx)return;
+  dueCtx.reason=dueCtx.reason===r?'':r;
+  const inp=document.getElementById('due-reason');if(inp)inp.value=dueCtx.reason;
+  document.querySelectorAll('[data-r]').forEach(b=>b.classList.toggle('on',b.dataset.r===dueCtx.reason));
+}
+function dueSelect(d){
+  if(!dueCtx)return;
+  const read=document.getElementById('due-read'),ok=document.getElementById('due-ok');
+  if(d&&d<todayStr()){read.className='due-read';read.textContent='Ngày hẹn không được trước hôm nay.';ok.disabled=true;return;}
+  dueCtx.sel=d||'';
+  document.querySelectorAll('.due-chip[data-d]').forEach(b=>b.classList.toggle('on',b.dataset.d===d));
+  const inp=document.getElementById('due-inp');if(inp&&inp.value!==d)inp.value=d;
+  if(!d){read.className='due-read';read.textContent='Chưa chọn ngày hẹn.';ok.disabled=true;return;}
+  if(dueCtx.mode==='edit'&&d===dueCtx.cur){read.className='due-read';read.textContent='Đây đang là ngày hẹn hiện tại.';ok.disabled=true;return;}
+  read.className='due-read ok';
+  read.innerHTML=`📅 Hẹn giao <b>${fmtDueFull(d)}</b> · ${dueRelText(d)}${dueCtx.mode==='edit'&&dueCtx.cur?` <span style="opacity:.7">(trước: ${fmtDue(dueCtx.cur)})</span>`:''}`;
+  ok.disabled=false;
+  ok.textContent=dueCtx.mode==='create'?`⏳ Lưu đơn nợ · hẹn ${fmtDue(d)}`:`📅 Lưu hẹn ${fmtDue(d)}`;
+}
+async function dueConfirm(){
+  if(!dueCtx||!dueCtx.sel)return;
+  if(dueCtx.mode==='create'){const d=dueCtx.sel;dueCtx=null;await saveOrderTay('no_hang',d);return;}
+  const{code,sel,reason}=dueCtx;
+  await applyDueChange(code,sel,(reason||'').trim());
+}
+async function applyDueChange(code,newDue,reason){
+  const rows=allOrders.filter(o=>o.order_code===code);if(!rows.length)return;
+  const oldDue=dueOfGroup(rows);
+  if(newDue===oldDue){closeModal();return;}
+  let note=stripDueTag(rows[0].note||'');
+  if(oldDue)note=`${note} [DỜI HẸN ${fmtDate(oldDue).slice(0,5)}→${fmtDate(newDue).slice(0,5)}${reason?': '+reason:''}]`.trim();
+  showLoad(true);
+  try{
+    const fin=await patchOrderWithDue(code,{note},newDue);
+    rows.forEach(o=>Object.assign(o,fin));
+    dueCtx=null;closeModal();
+    toast(oldDue?`📅 Đã dời hẹn ${code}: ${fmtDue(oldDue)} → ${fmtDue(newDue)}`:`📅 Đã hẹn giao ${code} vào ${fmtDue(newDue)}`);
+    renderDonTabs();renderDon();renderToday();updateBadges();
+  }catch(e){toast('Lỗi lưu ngày hẹn: '+e.message,true);}
+  showLoad(false);
+}
+// dải lọc theo mức gấp trong tab Nợ hàng · Cần gửi
+function dueStripHtml(){
+  const c=dueCounts();
+  const B=[['late','Trễ hẹn'],['today','Hẹn hôm nay'],['soon','1–2 ngày tới'],['later','Còn xa']];
+  if(c.none)B.push(['none','Chưa hẹn ngày']);
+  return `<div class="due-strip">${B.map(([k,l])=>`<button type="button" class="due-b ${k}${c[k]?'':' zero'}${dueBucket===k?' on':''}" onclick="donSetDueBucket('${k}')"><div class="n">${c[k]}</div><div class="l">${l}</div></button>`).join('')}</div>
+    <div class="due-hint">${dueBucket==='all'?'Đơn xếp theo ngày hẹn gần nhất trước. Bấm 1 ô để lọc.':'Đang lọc theo mức hẹn · bấm lại ô đó để xem tất cả.'}</div>`;
+}
+function donSetDueBucket(k){dueBucket=dueBucket===k?'all':k;renderDon();}
+function goDueOverdue(){
+  const c=dueCounts();
+  donFilter='Nợ hàng';sendSubTab='cangui';donVariantFilter=null;dueBucket=c.late?'late':c.today?'today':'all';
+  renderDonTabs();renderDon();
+}
+function renderDueAlert(){
+  const box=document.getElementById('don-due-alert');if(!box)return;
+  const c=dueCounts();const n=c.late+c.today;
+  if(!n||donFilter==='Nợ hàng'){box.innerHTML='';return;}
+  const parts=[c.late?`<b>${c.late}</b> đơn trễ hẹn`:'',c.today?`<b>${c.today}</b> đơn hẹn giao hôm nay`:''].filter(Boolean).join(' · ');
+  box.innerHTML=`<div class="due-alert"><span>⏰ Nợ đơn cần xử lý: ${parts}</span><button class="btn btn-red btn-sm" onclick="goDueOverdue()">Xem các đơn này</button></div>`;
+}
+// báo 1 lần khi mở app
+function notifyDueOnce(){
+  if(_dueNotified)return;_dueNotified=true;
+  const c=dueCounts();
+  if(c.late||c.today)toast(`⏰ Nợ đơn: ${[c.late?c.late+' đơn trễ hẹn':'',c.today?c.today+' đơn hẹn giao hôm nay':''].filter(Boolean).join(' · ')} — xem ở Quản lý đơn › Nợ hàng`,c.late>0);
 }
 
 /* ══════════ QUẢN LÝ ĐƠN ══════════ */
@@ -1230,7 +1477,7 @@ function renderDonDateBar(){
     box.innerHTML=`<div class="tabs" style="margin-bottom:0">
       <div class="tab${sendSubTab==='cangui'?' on':''}" onclick="donSetSendSubTab('cangui')">📤 Cần gửi${cCanGui?`<span class="c">${cCanGui}</span>`:''}</div>
       <div class="tab${sendSubTab==='daGui'?' on':''}" onclick="donSetSendSubTab('daGui')">✅ Đã gửi${cDaGui?`<span class="c">${cDaGui}</span>`:''}</div>
-    </div>`;
+    </div>${donFilter==='Nợ hàng'&&sendSubTab==='cangui'?dueStripHtml():''}`;
     return;
   }
   // [MỚI] tab "Chờ xác nhận" — chia 4 sub-tab theo nguồn: Sàn Shopee / Sàn TikTok / Đơn GHN / Đơn Shopee Express
@@ -1435,8 +1682,10 @@ async function saveDoiTraTay(){
 function renderDonTabs(){
   document.getElementById('don-tabs').innerHTML=DON_FILTERS.map(ff=>{
     const codes=ff.k==='Đã xoá'?new Set(deletedOrders.map(o=>o.order_code)):new Set(allOrders.filter(ff.badgeF||ff.f).map(o=>o.order_code));
-    return `<div class="tab ${ff.k===donFilter?'on':''}" onclick="donFilter='${ff.k}';sendSubTab='cangui';pendingPlatformTab='Sàn Shopee';donVariantFilter=null;renderDonTabs();renderDon()">${ff.k}${codes.size?`<span class="c">${codes.size}</span>`:''}</div>`;
+    const hot=ff.k==='Nợ hàng'&&(()=>{const c=dueCounts();return c.late+c.today>0;})();
+    return `<div class="tab ${ff.k===donFilter?'on':''}" onclick="donFilter='${ff.k}';sendSubTab='cangui';pendingPlatformTab='Sàn Shopee';donVariantFilter=null;dueBucket='all';renderDonTabs();renderDon()">${ff.k}${codes.size?`<span class="c${hot?' alert':''}">${codes.size}</span>`:''}</div>`;
   }).join('');
+  renderDueAlert();
 }
 function renderDon(){
   const ff=DON_FILTERS.find(x=>x.k===donFilter);
@@ -1453,6 +1702,12 @@ function renderDon(){
   }
   if(LOCAL_SEND_SPLIT_FILTERS.includes(donFilter)){
     list=sendSubTab==='cangui'?list.filter(o=>!o.local_sent):list.filter(o=>o.local_sent);
+  }
+  // [MỚI] lọc theo mức gấp của ngày hẹn (chỉ ở Nợ hàng · Cần gửi)
+  const dueMode=donFilter==='Nợ hàng'&&sendSubTab==='cangui';
+  if(dueMode&&dueBucket!=='all'){
+    const ok=new Set(groupOrders(list).filter(g=>dueBucketOf(dueOfGroup(g))===dueBucket).map(g=>g[0].order_code));
+    list=list.filter(o=>ok.has(o.order_code));
   }
   if(donFilter==='Chờ xác nhận'){
     list=list.filter(o=>pendingPlatformOf(o)===pendingPlatformTab);
@@ -1483,7 +1738,9 @@ function renderDon(){
     <span>🧷 Đang lọc theo mã: <b>${escapeHtml(donVariantFilter.label)}</b> · ${listF.length} dòng đơn</span>
     <button class="btn btn-sm" onclick="clearDonVariantFilter()">✕ Bỏ lọc, xem tất cả</button></div>`:'';
   const groups=groupOrders(listF);
-  if(!groups.length){box.innerHTML=banner+'<div class="card dim" style="text-align:center">Không có đơn trong mục này.</div>';return;}
+  // [MỚI] Nợ hàng · Cần gửi: xếp theo ngày hẹn gần nhất trước (đơn chưa có ngày hẹn xuống cuối)
+  if(dueMode)groups.sort((a,b)=>{const da=dueOfGroup(a)||'9999',db=dueOfGroup(b)||'9999';return da<db?-1:da>db?1:0;});
+  if(!groups.length){box.innerHTML=banner+`<div class="card dim" style="text-align:center">${dueMode&&dueBucket!=='all'?'Không có đơn nào ở mức hẹn này.':'Không có đơn trong mục này.'}</div>`;return;}
   box.innerHTML=banner+groups.map(g=>orderCard(g,true)).join('');
 }
 // [MỚI] bấm 1 dòng ở "Chia theo sản phẩm" (theo màu·size) → nhảy sang view "Theo đơn", lọc đúng các đơn có mã đó
@@ -1552,7 +1809,7 @@ function orderCard(g,actions,emphTime){
       const warn=!avail?`<span class="warnbadge">chưa đủ hàng</span>`:'';
       btns=o.local_sent
         ?`<span class="pill" style="background:var(--grn-bg);color:var(--grn-fg)">✓ Đã gửi (chưa trừ kho)</span> <button class="btn btn-sm" onclick="unmarkLocalSent('${code}','Nợ hàng')">↩️ Chuyển lại Cần gửi</button>`
-        :`<button class="btn btn-grn btn-sm" onclick="markLocalSent('${code}','Nợ hàng','Xác nhận đi đơn')">✅ Xác nhận đi đơn</button>${warn}`;
+        :`<button class="btn btn-grn btn-sm" onclick="markLocalSent('${code}','Nợ hàng','Xác nhận đi đơn')">✅ Xác nhận đi đơn</button><button class="btn btn-sm" onclick="openDueEdit('${code}')">📅 ${dueOfGroup(g)?'Dời ngày hẹn':'Hẹn ngày giao'}</button>${warn}`;
     }else if(o.status==='Chờ gửi'){
       if(isKol){
         btns=`<button class="btn btn-pink btn-sm" onclick="shipOrder('${code}','Thường')">🎯 Gửi KOL — thường</button>
@@ -1582,11 +1839,13 @@ function orderCard(g,actions,emphTime){
   if(isThaiIntl||o.ship_method==='Grab')btns=(btns?btns:'')+`<button class="btn btn-sm" style="background:#222;color:#fff" onclick="printThaiLabel('${code}')">🖨 In tem</button>`;
   if(o.status!=='Đã xoá')btns=(btns?btns:'')+`<button class="btn btn-sm" onclick="openEditOrder('${code}')">✏️ Sửa đơn</button>`;
   if(o.status!=='Đã xoá')btns=(btns?btns:'')+`<button class="btn btn-sm" style="background:var(--red-bg);color:var(--red-fg);border-color:#E7A5A4" onclick="deleteOrderAsk('${code}')">🗑 Xoá đơn</button>`;
-  return `<div class="oc ${selected.has(code)?'sel':''}" id="oc-${code}">
+  const isOwed=o.status==='Nợ hàng';
+  const dueCls=isOwed&&!o.local_sent?' due-l-'+dueBucketOf(dueOfGroup(g)):'';
+  return `<div class="oc ${selected.has(code)?'sel':''}${dueCls}" id="oc-${code}">
     <div class="oc-hd">
       <div style="flex:1;min-width:200px">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
-          <span class="mono">${code}</span>${statusPill(o.status)}
+          <span class="mono">${code}</span>${statusPill(o.status)}${isOwed?dueChipHtml(g):''}
           ${['Chờ hàng về','Đã hoàn','Đã đổi'].includes(o.status)?(kd=>`<span class="pill" style="background:${kd.bg};color:${kd.fg};font-weight:700">${kd.tag}</span>`)(rtKindOf(rtKindFromNote(o.note))):''}
           <span class="pill" style="background:var(--honey);color:var(--dark)">${o.channel}</span>
           ${o.ship_method?`<span class="pill" style="background:var(--blue-bg);color:var(--blue-fg)">${o.ship_method}</span>`:''}
@@ -1680,7 +1939,8 @@ function openEditOrder(code){
       <label class="fld"><span>Thanh toán</span><input id="eo-pay" value="${escapeHtml(o.payment_method||'')}"></label>
       <label class="fld"><span>Mã vận đơn</span><input id="eo-track" value="${escapeHtml(o.tracking_code||'')}"></label>
     </div>
-    <label class="fld"><span>Ghi chú</span><input id="eo-note" value="${escapeHtml(o.note||'')}"></label>
+    ${o.status==='Nợ hàng'?`<label class="fld"><span>📅 Ngày hẹn giao khách</span><input type="date" id="eo-due" value="${dueOfGroup(rows)}"></label>`:''}
+    <label class="fld"><span>Ghi chú</span><input id="eo-note" value="${escapeHtml(stripDueTag(o.note||''))}"></label>
     <div style="font-size:11px;font-weight:700;color:var(--brown);letter-spacing:.05em;text-transform:uppercase;margin:14px 0 8px">Sản phẩm</div>
     ${rows.map((r,i)=>{
       const xuatQty=orderLineXuatQty(code,r.product_code);
@@ -1721,8 +1981,13 @@ async function saveEditOrder(code){
   }
   showLoad(true);
   try{
-    await PATCH(`orders?order_code=eq.${encodeURIComponent(code)}`,{customer_name:name,phone,address:addr,payment_method:pay,tracking_code:track,note});
-    allOrders.forEach(o=>{if(o.order_code===code){o.customer_name=name;o.phone=phone;o.address=addr;o.payment_method=pay;o.tracking_code=track;o.note=note;}});
+    // [MỚI] giữ/đổi ngày hẹn giao — đổi ngày ở đây cũng được ghi lại như 1 lần dời hẹn
+    const dueEl=document.getElementById('eo-due');
+    const oldDue=dueOfGroup(rows);const newDue=dueEl?(dueEl.value||oldDue):oldDue;
+    let noteSave=note;
+    if(dueEl&&oldDue&&newDue!==oldDue)noteSave=`${note} [DỜI HẸN ${fmtDate(oldDue).slice(0,5)}→${fmtDate(newDue).slice(0,5)}: sửa đơn]`.trim();
+    const fin=await patchOrderWithDue(code,{customer_name:name,phone,address:addr,payment_method:pay,tracking_code:track,note:noteSave},newDue);
+    allOrders.forEach(o=>{if(o.order_code===code)Object.assign(o,fin);});
     for(const e of edits){
       await PATCH(`orders?id=eq.${e.id}`,{quantity:e.qty,amount_due:e.price});
       const r=allOrders.find(x=>String(x.id)===String(e.id));
@@ -4672,7 +4937,9 @@ function renderLogSummary(list){
 /* ══════════ BADGES + MODAL ══════════ */
 function updateBadges(){
   const cnt=new Set(allOrders.filter(o=>['Chờ chốt','Chờ xuất','Chờ gửi','Nợ hàng','Chờ xác nhận'].includes(o.status)).map(o=>o.order_code)).size;
-  const b=document.getElementById('b-don');if(b){b.style.display=cnt?'':'none';b.textContent=cnt;}
+  const b=document.getElementById('b-don');if(b){b.style.display=cnt?'':'none';b.textContent=cnt;
+    const dc=dueCounts();const hot=dc.late+dc.today;b.classList.toggle('alert',hot>0);
+    b.title=hot?`${dc.late} đơn nợ trễ hẹn · ${dc.today} đơn hẹn giao hôm nay`:'';}
   const allKolCh=[...KOL_VN_CH,...KOL_THAI_CH];
   const kc=new Set(allOrders.filter(o=>allKolCh.includes(o.channel)&&!o.kol_posted_date).map(o=>o.order_code)).size;
   const bk=document.getElementById('b-kol');if(bk){bk.style.display=kc?'':'none';bk.textContent=kc;}
