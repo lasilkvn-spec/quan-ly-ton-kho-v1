@@ -231,6 +231,20 @@ tr:last-child td{border-bottom:none}
 
 .btn-primary{background:var(--dark);color:var(--cream);border-color:var(--dark)}
 .btn-danger{background:var(--red-bg);color:var(--red-fg);border-color:var(--red-fg)}
+/* ===== CÔNG NỢ XƯỞNG — chỉ chủ shop thấy ===== */
+body:not(.owner) .owner-only{display:none!important}
+.cn-card{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:14px;overflow:hidden}
+.cn-hd{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:var(--dark);color:#fff;padding:12px 16px}
+.cn-hd b{font-family:var(--f-head);font-size:15px}
+.cn-sum{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;padding:12px 16px;border-bottom:1px solid var(--border)}
+.cn-sum div{background:var(--bg);border-radius:9px;padding:8px 10px}
+.cn-sum .v{font-family:var(--f-head);font-weight:800;font-size:16px}
+.cn-sum .l{font-size:10.5px;color:var(--brown);margin-top:2px}
+.cn-lot{padding:11px 16px;border-top:1px solid var(--border)}
+.cn-lot-hd{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.cn-round{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:5px 0 5px 12px;border-left:2px solid var(--border);margin-top:5px}
+.cn-price{width:110px;text-align:right;padding:5px 8px;font-size:12.5px}
+.cn-pay{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12px;padding:7px 0;border-top:1px dashed var(--border)}
 </style>
 </head>
 <body>
@@ -238,7 +252,7 @@ tr:last-child td{border-bottom:none}
 <div id="sb-backdrop" onclick="toggleSidebar(false)"></div>
 <div class="app">
   <nav class="sb" id="sb">
-    <div class="sb-top"><div class="sb-logo">Là<span>Silk</span></div><div class="sb-tag">Đơn · Kho · Sổ cái</div></div>
+    <div class="sb-top"><div class="sb-logo" ondblclick="ownerPrompt()" title="">Là<span>Silk</span></div><div class="sb-tag">Đơn · Kho · Sổ cái</div></div>
     <div class="sb-conn"><span class="dot" id="cdot"></span><span id="clbl">Đang kết nối…</span></div>
     <div style="margin:0 14px 10px;padding:8px 10px;background:rgba(255,255,255,.06);border-radius:8px">
       <div style="font-size:8.5px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.12em;margin-bottom:5px">Nhân viên đang thao tác</div>
@@ -257,6 +271,7 @@ tr:last-child td{border-bottom:none}
       <div class="nav-i" data-pg="kho"><span class="nav-ico">📦</span><span class="nav-t">Quản Lý Kho</span></div>
       <div class="nav-i" data-pg="loikho"><span class="nav-ico">🚫</span><span class="nav-t">Kho hàng lỗi</span></div>
       <div class="nav-i" data-pg="order"><span class="nav-ico">🛒</span><span class="nav-t">Order Hàng</span></div>
+      <div class="nav-i owner-only" data-pg="congno"><span class="nav-ico">💰</span><span class="nav-t">Công nợ xưởng</span><span class="nav-b" id="b-congno" style="display:none">0</span></div>
       <div class="nav-i" data-pg="phukien"><span class="nav-ico">🧵</span><span class="nav-t">Kiểm kho phụ kiện</span></div>
       <div class="nav-grp">Kiểm kê</div>
       <div class="nav-i" data-pg="log"><span class="nav-ico">🔍</span><span class="nav-t">Kiểm kê & Lịch sử</span></div>
@@ -509,6 +524,10 @@ tr:last-child td{border-bottom:none}
                 <label class="fld"><span>🏭 Tên NCC</span><input id="o-supplier" placeholder="VD: Xưởng Tân Bình"></label>
                 <label class="fld"><span>Ghi chú</span><input id="o-note" placeholder="Ghi chú thêm (nếu có)"></label>
               </div>
+              <div class="owner-only" style="display:grid;grid-template-columns:200px 1fr;gap:12px;align-items:end">
+                <label class="fld"><span>💰 Đơn giá / cái (cả lô 1 giá)</span><input id="o-price" type="number" min="0" placeholder="VD: 120000"></label>
+                <div style="font-size:11px;color:var(--brown);margin-bottom:12px">🔒 Chỉ chủ shop thấy. Để trống nếu chưa chốt giá — nhập sau ở trang Công nợ xưởng.</div>
+              </div>
               <div style="font-size:11px;font-weight:700;color:var(--brown);letter-spacing:.05em;text-transform:uppercase;margin:6px 0 8px">Số lượng đặt hàng (chia theo từng màu)</div>
               <div id="o-grid" style="overflow:auto"></div>
               <div class="row" style="margin-top:14px"><button class="btn btn-dark" onclick="saveSupplierOrder()">✓ Tạo đơn order</button></div>
@@ -666,6 +685,28 @@ tr:last-child td{border-bottom:none}
           <div id="sSalList"></div>
         </div>
       </div>
+    </section>
+
+    <!-- CÔNG NỢ XƯỞNG — chỉ chủ shop (mật khẩu chung với Tính lương) -->
+    <section class="pg" id="pg-congno">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+        <div>
+          <div class="pg-t">💰 Công nợ xưởng</div>
+          <div class="pg-s">Tiền hàng <b>tự tính</b> từ lịch sử các đợt hàng đã nhận × đơn giá của lô. Xưởng đòi bao nhiêu thì ghi <b>Thanh toán</b> bấy nhiêu — tự cấn vào các đợt cũ nhất trước. 🔒 Trang này chỉ chủ shop thấy.</div>
+        </div>
+        <div class="row">
+          <button class="btn btn-dark" onclick="openSpPayment()">＋ Ghi khoản mới</button>
+          <button class="btn btn-honey" onclick="exportCongNoExcel()">📊 Xuất Excel</button>
+          <button class="btn" onclick="ownerLock()">🔒 Khoá lại</button>
+        </div>
+      </div>
+      <div id="cn-setup"></div>
+      <div class="metrics" id="cn-metrics"></div>
+      <div class="row" style="align-items:center;gap:8px;margin-bottom:12px">
+        <div class="tabs" id="cn-tabs" style="margin:0"></div>
+        <input id="cn-search" placeholder="🔎 Tìm xưởng / tên lô" oninput="renderCongNo()" style="max-width:240px">
+      </div>
+      <div id="cn-list"></div>
     </section>
 
     <section class="pg" id="pg-kpi">
@@ -932,6 +973,7 @@ async function loadAll(){
     if(or.length)DUE_COL_MISSING=!('due_date' in or[0]); // chưa chạy SQL thêm cột → lưu ngày hẹn tạm trong ghi chú
     try{kolPosts=await sbAll('kol_posts?order=created_at.desc');}catch(e){kolPosts=[];}
     try{lotRoundNotes=await sbAll('lot_round_notes?order=id.desc');}catch(e){lotRoundNotes=[];} // bảng chưa tạo thì để rỗng, không vỡ trang
+    await loadSupplierPayments(); // Công nợ xưởng — bảng supplier_payments (chưa tạo thì để rỗng, trang Công nợ sẽ báo cần chạy SQL)
     await loadStaffAndKpi(); // "Nhân viên & Lương" + "KPI Nhân viên" — Supabase thay cho localStorage, đồng bộ mọi máy
     setConn(true,'Đã kết nối Supabase');
     document.getElementById('setup-note').innerHTML='';
@@ -1029,6 +1071,7 @@ function goToPage(pg){
   if(pg==='qr'){renderQR(allProducts);}
   if(pg==='products'){renderProductsTable();}
   if(pg==='phukien'){renderPhuKien();}
+  if(pg==='congno'){if(!S_SAL_UNLOCKED){goToPage('tao');return;}renderCongNo();}
   if(pg==='loikho'){renderLoiKho();}
   toggleSidebar(false); // mobile: đóng menu sau khi chọn trang
 }
@@ -3745,6 +3788,8 @@ async function saveSupplierOrder(){
   const items=[...document.querySelectorAll('.og-inp')].map(i=>({code:i.dataset.code,qty:intv(i.value,0)})).filter(x=>x.code&&x.qty>0);
   if(!items.length){toast('Nhập số lượng đặt',true);return;}
   const code='PO'+Date.now().toString().slice(-8);
+  const priceEl=document.getElementById('o-price');
+  const unitPrice=(S_SAL_UNLOCKED&&priceEl&&priceEl.value!=='')?intv(priceEl.value,0):null;
   showLoad(true);
   try{
     for(const it of items){
@@ -3752,8 +3797,9 @@ async function saveSupplierOrder(){
       await POST('supplier_orders',{po_code:code,name,arr_date:arrD||null,ord_date:ordD||todayStr(),note,supplier_name,
         product_code:it.code,product_name:p?pname(p):'',qty:it.qty,received:0,status:'Chờ về'});
     }
+    if(unitPrice!=null){try{await setLotPrice(code,unitPrice,true);}catch(e){toast('Đã tạo lô nhưng chưa lưu được đơn giá: '+e.message,true);}}
     toast(`✓ Tạo đơn order "${name}"`);
-    document.getElementById('o-name').value='';document.getElementById('o-note').value='';document.getElementById('o-supplier').value='';
+    document.getElementById('o-name').value='';document.getElementById('o-note').value='';document.getElementById('o-supplier').value='';if(priceEl)priceEl.value='';
     renderOGrid();loadSupplier();
   }catch(e){toast('Lỗi (bảng supplier_orders?): '+e.message,true);}
   showLoad(false);
@@ -3774,7 +3820,7 @@ async function saveLotSupplier(po){
   showLoad(false);
 }
 let supplierRows=[];
-async function loadSupplier(){try{supplierRows=await sbAll('supplier_orders?order=po_code.desc');}catch(e){supplierRows=[];}renderOrderPage();renderKho();renderLoiKho();renderOrderPlan();}
+async function loadSupplier(){try{supplierRows=await sbAll('supplier_orders?order=po_code.desc');}catch(e){supplierRows=[];}renderOrderPage();renderKho();renderLoiKho();renderOrderPlan();updateCongNoBadge();if(document.getElementById('pg-congno')?.classList.contains('on'))renderCongNo();}
 // [MỚI] gom toàn bộ bút toán Nhập (đợt hàng về) đã cộng kho của ĐÚNG 1 đơn order NCC (po) — cả 3 loại:
 // 'po' (Quản lý kho chính), 'po_kol' (Kho hàng lỗi - Dành cho KOL), 'po_loi' (Kho hàng lỗi - Lỗi không chỉnh được).
 // ref_id của mọi đợt về đều có dạng "<po>-r<roundNo>[-kol|-loi]-<rowId>" nên lọc bằng prefix "<po>-r" là đủ,
@@ -4187,6 +4233,7 @@ function renderOrderByLot(){
             <input id="sup-${po}" value="${escapeHtml(o.supplier_name||'')}" placeholder="🏭 Nhập tên NCC..." style="padding:4px 9px;font-size:11.5px;border-radius:6px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;width:170px">
             <button class="btn btn-sm" style="padding:3px 9px;font-size:11px;background:transparent;color:var(--honey);border-color:rgba(255,255,255,.3)" onclick="saveLotSupplier('${jsq(po)}')">💾 Lưu NCC</button>
           </div>
+          ${S_SAL_UNLOCKED?`<div class="owner-only" style="font-size:11.5px;margin-top:6px;color:var(--honey)">💰 ${lotPriceOf(po)==null?'<b style="color:#F09595">Chưa nhập đơn giá</b>':'Đơn giá '+fmtVnd(lotPriceOf(po))+'/cái · tiền hàng đã nhận '+fmtVnd(lotReceivedValue(po))}</div>`:''}
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span style="background:${done?'var(--grn-bg)':'var(--honey)'};color:${done?'var(--grn-fg)':'var(--dark)'};padding:5px 14px;border-radius:7px;font-size:12px;font-weight:700">${done?'✓ Đã về đủ':'Đang về'}</span>
@@ -4347,7 +4394,9 @@ async function confirmLot(po){
       await PATCH(`supplier_orders?id=eq.${r.id}`,{received:r.received+tot,status:(r.received+tot>=r.qty)?'Đã về':'Đang về'});
       r.received+=tot;
     }
-    toast(`✓ Đã ghi nhận Đợt ${roundNo} về hàng, cập nhật kho`);
+    const _pr=S_SAL_UNLOCKED?lotPriceOf(po):null;
+    toast(`✓ Đã ghi nhận Đợt ${roundNo} về hàng, cập nhật kho`+(_pr!=null?` · tiền hàng đợt này ${fmtVnd((lotRoundHistory(po).find(h=>h.roundNo===roundNo)||{total:0}).total*_pr)}`:''));
+    if(document.getElementById('pg-congno')?.classList.contains('on'))renderCongNo();
     renderOrderPage();renderKho();renderLoiKho();
   }catch(e){toast('Lỗi: '+e.message,true);}
   showLoad(false);
@@ -6326,7 +6375,7 @@ function staffTab(which){
 document.addEventListener('keydown',ev=>{if(ev.key==='Enter'&&document.activeElement&&document.activeElement.id==='sSalPass')sSalUnlock();});
 function sSalUnlock(){
   const p=document.getElementById('sSalPass'),err=document.getElementById('sSalErr');
-  if(p.value===SCFG.PASSWORD){S_SAL_UNLOCKED=true;sessionStorage.setItem('ssal','1');p.value='';if(err)err.textContent='';sShowSalContent();}
+  if(p.value===SCFG.PASSWORD){S_SAL_UNLOCKED=true;sessionStorage.setItem('ssal','1');p.value='';if(err)err.textContent='';setOwnerMode(true);sShowSalContent();}
   else{if(err)err.textContent='Sai mật khẩu, thử lại nha';p.value='';p.focus();}
 }
 function sShowSalContent(){
@@ -6960,7 +7009,284 @@ function renderKpiDash(){
     }).join(''):'<div class="card dim" style="text-align:center">Không có việc nào Trễ hạn / Có rủi ro trong tuần này 🎉</div>'}`;
 }
 
-addLine();ddInit();
+/* ══════════ CÔNG NỢ XƯỞNG (chỉ chủ shop) ══════════
+   Tiền hàng phải trả KHÔNG nhập tay: = tổng SL các đợt đã nhận trong lịch sử về hàng của lô (lotRoundHistory —
+   gồm cả Nhập kho / Dành KOL / Lỗi không chỉnh được) × đơn giá của lô (cột supplier_orders.unit_price, 1 lô 1 giá).
+   Nhân viên/chủ shop chỉ ghi các khoản: cọc, thanh toán, giảm trừ, phát sinh, số dư đầu kỳ (bảng supplier_payments).
+   Còn nợ = Tiền hàng đã nhận + Phát sinh + Số dư đầu kỳ − Đã trả − Cọc − Giảm trừ. (Âm = cọc/trả trước đang treo.)
+   Cần chạy 1 lần trong Supabase (SQL Editor) — xem CN_SQL bên dưới. */
+let supplierPayments=[],SP_TABLE_MISSING=false;
+let cnFilter='all';
+const CN_SQL=`alter table supplier_orders add column if not exists unit_price numeric;
+create table if not exists supplier_payments(
+  id bigint generated always as identity primary key,
+  supplier_name text not null, date date not null,
+  kind text not null, amount numeric not null,
+  po_code text, note text default '', staff_name text,
+  created_at timestamptz default now());
+alter table supplier_payments enable row level security;
+create policy "public rw" on supplier_payments for all using (true) with check (true);`;
+const SP_KINDS={
+  thanh_toan:{label:'Thanh toán',sign:-1,bg:'var(--grn-bg)',fg:'var(--grn-fg)'},
+  coc:{label:'Cọc',sign:-1,bg:'var(--blue-bg)',fg:'var(--blue-fg)'},
+  giam_tru:{label:'Giảm trừ (lỗi / đền bù)',sign:-1,bg:'var(--org-bg)',fg:'var(--org-fg)'},
+  phat_sinh:{label:'Phát sinh thêm (rập, mẫu, sửa…)',sign:1,bg:'var(--red-bg)',fg:'var(--red-fg)'},
+  so_du_dau:{label:'Số dư nợ đầu kỳ (chuyển từ sheet)',sign:1,bg:'var(--bg)',fg:'var(--brown)'},
+};
+const CN_NONE='(Chưa gắn NCC)';
+function fmtVnd(n){return (Math.round(+n||0)).toLocaleString('vi-VN')+'đ';}
+async function loadSupplierPayments(){
+  try{supplierPayments=await sbAll('supplier_payments?order=date.desc,id.desc');SP_TABLE_MISSING=false;}
+  catch(e){supplierPayments=[];SP_TABLE_MISSING=true;}
+}
+function cnPriceColMissing(){return supplierRows.length>0&&!('unit_price' in supplierRows[0]);}
+function lotPriceOf(po){
+  const r=supplierRows.find(x=>x.po_code===po&&x.unit_price!=null&&x.unit_price!=='');
+  return r?+r.unit_price:null;
+}
+function lotReceivedQty(po){return lotRoundHistory(po).reduce((s,h)=>s+h.total,0);}
+function lotReceivedValue(po){const p=lotPriceOf(po);return p==null?0:lotReceivedQty(po)*p;}
+async function setLotPrice(po,price,silent){
+  try{await PATCH(`supplier_orders?po_code=eq.${encodeURIComponent(po)}`,{unit_price:price});}
+  catch(e){if(/unit_price/i.test(e.message))throw new Error('Supabase chưa có cột unit_price — chạy đoạn SQL ở trang Công nợ xưởng');throw e;}
+  supplierRows.forEach(r=>{if(r.po_code===po)r.unit_price=price;});
+  if(!silent)toast(price==null?'✓ Đã xoá đơn giá lô':`✓ Đã lưu đơn giá ${fmtVnd(price)}/cái`);
+}
+async function cnSavePrice(po){
+  const el=document.getElementById('cnp-'+po);if(!el)return;
+  const v=el.value.trim()===''?null:intv(el.value,0);
+  showLoad(true);
+  try{await setLotPrice(po,v);renderCongNo();renderOrderPage();}catch(e){toast(e.message,true);}
+  showLoad(false);
+}
+function cnKey(name){return (name||'').trim().toLowerCase()||'__none__';}
+/* Thanh toán KHÔNG theo lô/đợt — xưởng đòi bao nhiêu thì trả bấy nhiêu (trả chung cho xưởng).
+   Để vẫn biết đã trả tới đâu, mọi khoản trừ nợ (thanh toán + cọc + giảm trừ) được tự động "cấn" vào
+   các khoản nợ CŨ NHẤT trước (đợt hàng về, phát sinh, số dư đầu kỳ — xếp theo ngày). */
+function supplierBook(){
+  const book={};
+  const get=name=>{const k=cnKey(name);return book[k]=book[k]||{key:k,name:(name||'').trim()||CN_NONE,lots:[],payments:[],debits:[]};};
+  const byPo={};supplierRows.forEach(r=>{(byPo[r.po_code]=byPo[r.po_code]||[]).push(r);});
+  Object.entries(byPo).forEach(([po,rows])=>{
+    const price=lotPriceOf(po);
+    const hist=lotRoundHistory(po);
+    const b=get(rows[0].supplier_name);
+    const lot={po,name:rows[0].name||po,ordDate:rows[0].ord_date,price,
+      orderedQty:rows.reduce((s,r)=>s+(r.qty||0),0),receivedQty:hist.reduce((s,h)=>s+h.total,0),rounds:[]};
+    lot.value=price==null?0:lot.receivedQty*price;
+    hist.forEach(h=>{const d={type:'dot',date:h.date,lot,roundNo:h.roundNo,qty:h.total,amount:price==null?0:h.total*price,noPrice:price==null};lot.rounds.push(d);b.debits.push(d);});
+    b.lots.push(lot);
+  });
+  supplierPayments.forEach(p=>{
+    const b=get(p.supplier_name);b.payments.push(p);
+    if((SP_KINDS[p.kind]||{}).sign===1)b.debits.push({type:'khoan',date:p.date,pay:p,amount:+p.amount||0});
+  });
+  return Object.values(book).map(b=>{
+    const sum=k=>b.payments.filter(p=>p.kind===k).reduce((s,p)=>s+(+p.amount||0),0);
+    b.hang=b.lots.reduce((s,l)=>s+l.value,0);
+    b.phatSinh=sum('phat_sinh');b.soDu=sum('so_du_dau');b.daTra=sum('thanh_toan');b.coc=sum('coc');b.giamTru=sum('giam_tru');
+    b.credit=b.daTra+b.coc+b.giamTru;
+    b.con=b.hang+b.phatSinh+b.soDu-b.credit;
+    // cấn trừ cũ trước
+    b.debits.sort((x,y)=>String(x.date).localeCompare(String(y.date))||((x.roundNo||0)-(y.roundNo||0)));
+    let left=b.credit;
+    b.debits.forEach(d=>{if(d.noPrice){d.st='nogia';return;}const used=Math.min(left,d.amount);left-=used;d.paid=used;d.st=used>=d.amount?'paid':used>0?'part':'open';});
+    const firstOpen=b.debits.find(d=>d.st==='open'||d.st==='part');
+    b.oldestOpen=firstOpen?firstOpen.date:null;
+    b.lots.forEach(l=>{
+      const pr=l.rounds.filter(r=>!r.noPrice);
+      l.paidAmt=pr.reduce((s,r)=>s+(r.paid||0),0);
+      l.st=l.price==null?'nogia':!l.rounds.length?'none':l.paidAmt>=l.value?'paid':l.paidAmt>0?'part':'open';
+    });
+    b.missing=b.lots.filter(l=>l.price==null).length;
+    b.owedQty=b.lots.reduce((s,l)=>s+Math.max(0,l.orderedQty-l.receivedQty),0);
+    b.lots.sort((a,c)=>String(c.po).localeCompare(String(a.po)));
+    return b;
+  }).sort((a,c)=>(a.name===CN_NONE)-(c.name===CN_NONE)||c.con-a.con);
+}
+const CN_ST={paid:['✓ Đã trả','var(--grn-bg)','var(--grn-fg)'],part:['Trả 1 phần','var(--org-bg)','var(--org-fg)'],
+  open:['Chưa trả','var(--yel-bg)','var(--yel-fg)'],nogia:['⚠ Chờ nhập giá','var(--red-bg)','var(--red-fg)'],none:['Chưa về hàng','var(--bg)','var(--brown)']};
+function cnPill(st,extra){const[t,bg,fg]=CN_ST[st];return `<span class="pill" style="background:${bg};color:${fg}">${t}${extra||''}</span>`;}
+function updateCongNoBadge(){
+  const b=document.getElementById('b-congno');if(!b)return;
+  if(!S_SAL_UNLOCKED){b.style.display='none';return;}
+  const n=new Set(supplierRows.filter(r=>lotPriceOf(r.po_code)==null).map(r=>r.po_code)).size;
+  b.style.display=n?'':'none';b.textContent=n;b.title=n?`${n} lô chưa nhập đơn giá`:'';
+}
+let cnOpenLedger={}; // xưởng -> có mở hết sổ đối chiếu không
+function renderCongNo(){
+  if(!S_SAL_UNLOCKED)return;
+  updateCongNoBadge();
+  const setup=document.getElementById('cn-setup');
+  setup.innerHTML=(SP_TABLE_MISSING||cnPriceColMissing())?`<div class="setup"><b>Cần chạy SQL 1 lần trong Supabase (SQL Editor)</b> để lưu được đơn giá và các khoản thanh toán:<pre style="white-space:pre-wrap;font-size:11px;background:#fff;border-radius:8px;padding:10px;margin-top:8px;color:var(--dark)">${escapeHtml(CN_SQL)}</pre></div>`:'';
+  const all=supplierBook();
+  const owe=all.filter(b=>b.con>0).reduce((s,b)=>s+b.con,0);
+  const credit=all.filter(b=>b.con<0).reduce((s,b)=>s-b.con,0);
+  const missing=all.reduce((s,b)=>s+b.missing,0);
+  const owedQty=all.reduce((s,b)=>s+b.owedQty,0);
+  document.getElementById('cn-metrics').innerHTML=`
+    <div class="metric" style="background:var(--red-bg);border-color:#E08A8A"><div class="metric-v" style="font-size:20px;color:var(--red-fg)">${fmtVnd(owe)}</div><div class="metric-l">Tổng còn nợ các xưởng</div></div>
+    <div class="metric honey"><div class="metric-v" style="font-size:20px">${fmtVnd(credit)}</div><div class="metric-l">Cọc / trả trước đang treo</div></div>
+    <div class="metric"><div class="metric-v">${missing}</div><div class="metric-l">Lô chưa nhập đơn giá</div></div>
+    <div class="metric pink"><div class="metric-v">${fmtN(owedQty)}</div><div class="metric-l">Cái xưởng còn nợ shop</div></div>`;
+  const tabs=[['all','Tất cả',all.length],['owe','Đang nợ',all.filter(b=>b.con>0).length],['missing','Chờ nhập giá',all.filter(b=>b.missing).length]];
+  document.getElementById('cn-tabs').innerHTML=tabs.map(([k,l,n])=>`<div class="tab${cnFilter===k?' on':''}" onclick="cnFilter='${k}';renderCongNo()">${l}<span class="c">${n}</span></div>`).join('');
+  const q=(document.getElementById('cn-search')?.value||'').trim().toLowerCase();
+  let list=all;
+  if(cnFilter==='owe')list=list.filter(b=>b.con>0);
+  if(cnFilter==='missing')list=list.filter(b=>b.missing);
+  if(q)list=list.filter(b=>b.name.toLowerCase().includes(q)||b.lots.some(l=>(l.name||'').toLowerCase().includes(q)||String(l.po).toLowerCase().includes(q)));
+  const box=document.getElementById('cn-list');
+  if(!list.length){box.innerHTML='<div class="card dim" style="text-align:center">Không có xưởng nào khớp.</div>';return;}
+  box.innerHTML=list.map(cnCardHtml).join('');
+}
+// Sổ đối chiếu: mọi đợt hàng về (+ nợ) và mọi khoản (± nợ) theo thời gian, kèm số dư chạy — mới nhất ở trên
+function cnLedgerRows(b){
+  const ev=[];
+  b.debits.forEach(d=>{if(d.type==='dot')ev.push({date:d.date,ord:0,amt:d.amount,d});});
+  b.payments.forEach(p=>{const k=SP_KINDS[p.kind]||{sign:-1};ev.push({date:p.date,ord:k.sign>0?0:1,amt:k.sign*(+p.amount||0),p,d:b.debits.find(x=>x.pay===p)});});
+  ev.sort((x,y)=>String(x.date).localeCompare(String(y.date))||x.ord-y.ord||((x.d&&x.d.roundNo)||0)-((y.d&&y.d.roundNo)||0));
+  let bal=0;ev.forEach(e=>{bal+=e.amt;e.bal=bal;});
+  return ev.reverse();
+}
+function cnCardHtml(b){
+  const nm=b.name===CN_NONE?'':b.name;
+  const conCls=b.con>0?'color:#F09595':'color:#97C459';
+  const sumCell=(v,l,st)=>`<div><div class="v" style="${st||''}">${v}</div><div class="l">${l}</div></div>`;
+  const ev=cnLedgerRows(b);
+  const showAll=!!cnOpenLedger[b.key];
+  const evShown=showAll?ev:ev.slice(0,8);
+  const ledger=evShown.map(e=>{
+    if(e.p){const k=SP_KINDS[e.p.kind]||{label:e.p.kind,sign:-1,bg:'var(--bg)',fg:'var(--brown)'};
+      return `<div class="cn-pay"><div><span style="color:var(--brown)">${fmtDate(e.p.date)}</span> <span class="pill" style="background:${k.bg};color:${k.fg}">${escapeHtml(k.label.split(' (')[0])}</span>${e.p.note?` ${escapeHtml(e.p.note)}`:''}${e.p.staff_name?` <span class="dim">· ${escapeHtml(e.p.staff_name)}</span>`:''}${e.d&&e.d.st?' '+cnPill(e.d.st):''}</div>
+        <div style="display:flex;align-items:center;gap:12px;white-space:nowrap"><b style="color:${k.sign>0?'var(--red-fg)':'var(--grn-fg)'}">${k.sign>0?'+':'−'}${fmtVnd(e.p.amount)}</b><span style="min-width:96px;text-align:right;color:var(--brown)">${fmtVnd(e.bal)}</span>
+        <span style="cursor:pointer;color:var(--red-fg);font-weight:700" title="Xoá khoản này" onclick="deleteSpPayment(${e.p.id})">✕</span></div></div>`;}
+    const d=e.d;
+    return `<div class="cn-pay"><div><span style="color:var(--brown)">${fmtDate(d.date)}</span> 📦 Về hàng <b>${escapeHtml(d.lot.name)}</b> · đợt ${d.roundNo} · <b>${d.qty}</b> cái${d.lot.price!=null?` × ${fmtVnd(d.lot.price)}`:''} ${cnPill(d.st,d.st==='part'?` · còn ${fmtVnd(d.amount-d.paid)}`:'')}</div>
+      <div style="display:flex;align-items:center;gap:12px;white-space:nowrap"><b style="color:var(--red-fg)">${d.noPrice?'+ ?':'+'+fmtVnd(d.amount)}</b><span style="min-width:96px;text-align:right;color:var(--brown)">${fmtVnd(e.bal)}</span><span style="width:12px"></span></div></div>`;
+  }).join('');
+  const lots=b.lots.map(l=>`<div class="cn-pay">
+      <div><b>${escapeHtml(l.name)}</b> <span class="mono">${escapeHtml(l.po)}</span> <span style="color:var(--brown)">· đặt ${l.orderedQty} · nhận ${l.receivedQty}${l.orderedQty>l.receivedQty?` · xưởng còn nợ ${l.orderedQty-l.receivedQty} cái`:''}</span> ${cnPill(l.st)}</div>
+      <div style="display:flex;align-items:center;gap:6px;white-space:nowrap">
+        <span style="color:var(--brown)">${l.price==null?'':fmtVnd(l.value)}</span>
+        <input class="cn-price" id="cnp-${escapeHtml(l.po)}" type="number" min="0" placeholder="Đơn giá/cái" value="${l.price==null?'':l.price}">
+        <button class="btn btn-sm" onclick="cnSavePrice('${jsq(l.po)}')">💾</button></div></div>`).join('');
+  return `<div class="cn-card">
+    <div class="cn-hd"><div><b>🏭 ${escapeHtml(b.name)}</b> <span style="font-size:12px;margin-left:8px;${conCls}">${b.con>=0?'Còn nợ':'Đang treo'} <b>${fmtVnd(Math.abs(b.con))}</b></span>
+        ${b.oldestOpen&&b.con>0?`<div style="font-size:11px;opacity:.7;margin-top:3px">Đang nợ từ đợt hàng ngày ${fmtDate(b.oldestOpen)}</div>`:''}</div>
+      <div class="row"><button class="btn btn-sm btn-honey" onclick="openSpPayment('${jsq(nm)}','thanh_toan')">💸 Thanh toán</button>
+        <button class="btn btn-sm" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.3)" onclick="openSpPayment('${jsq(nm)}','coc')">＋ Cọc</button>
+        <button class="btn btn-sm" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.3)" onclick="openSpPayment('${jsq(nm)}','phat_sinh')">＋ Khoản khác</button></div></div>
+    <div class="cn-sum">
+      ${sumCell(fmtVnd(b.hang),'Tiền hàng đã nhận')}
+      ${sumCell(fmtVnd(b.phatSinh+b.soDu),'Phát sinh + đầu kỳ')}
+      ${sumCell(fmtVnd(b.daTra),'Đã thanh toán')}
+      ${sumCell(fmtVnd(b.coc),'Đã cọc')}
+      ${sumCell(fmtVnd(b.giamTru),'Giảm trừ')}
+      ${sumCell(fmtVnd(b.con),b.con>=0?'Còn nợ':'Trả dư / cọc treo',b.con>0?'color:var(--red-fg)':'color:var(--grn-fg)')}
+    </div>
+    ${b.missing?`<div style="padding:8px 16px;background:var(--red-bg);color:var(--red-fg);font-size:11.5px;font-weight:600">⚠ ${b.missing} lô chưa nhập đơn giá — tiền hàng các lô này chưa được tính vào nợ.</div>`:''}
+    <div style="padding:10px 16px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:var(--brown);text-transform:uppercase;letter-spacing:.04em"><span>📒 Sổ đối chiếu (mới nhất ở trên)</span><span>Số tiền · Số dư nợ</span></div>
+      ${ledger||'<div class="dim" style="font-size:11.5px;padding:6px 0">Chưa có đợt hàng hay khoản nào.</div>'}
+      ${ev.length>8?`<div style="text-align:center;margin-top:6px"><button class="btn btn-sm" onclick="cnOpenLedger['${jsq(b.key)}']=!cnOpenLedger['${jsq(b.key)}'];renderCongNo()">${showAll?'Thu gọn':'Xem tất cả '+ev.length+' dòng'}</button></div>`:''}
+    </div>
+    <div style="padding:10px 16px;border-top:1px solid var(--border)">
+      <div style="font-size:11px;font-weight:700;color:var(--brown);text-transform:uppercase;letter-spacing:.04em">🏷 Đơn giá các lô (${b.lots.length})</div>
+      ${lots||'<div class="dim" style="font-size:11.5px;padding:6px 0">Chưa có lô nào.</div>'}
+    </div>
+  </div>`;
+}
+function openSpPayment(supplier,kind){
+  if(!S_SAL_UNLOCKED)return;
+  if(SP_TABLE_MISSING){toast('Chưa có bảng supplier_payments — chạy đoạn SQL ở đầu trang Công nợ xưởng trước',true);return;}
+  const names=[...new Set([...supplierRows.map(r=>(r.supplier_name||'').trim()),...supplierPayments.map(p=>p.supplier_name)].filter(Boolean))];
+  m_title(kind==='thanh_toan'?'💸 Thanh toán cho xưởng':'＋ Ghi khoản công nợ xưởng');
+  document.getElementById('m-body').innerHTML=`
+    <datalist id="sp-names">${names.map(n=>`<option value="${escapeHtml(n)}">`).join('')}</datalist>
+    <label class="fld"><span>🏭 Xưởng / NCC</span><input id="sp-sup" list="sp-names" value="${escapeHtml(supplier||'')}" oninput="spShowDebt()" placeholder="Chọn hoặc gõ đúng tên xưởng"></label>
+    <div id="sp-debt" class="due-read" style="margin-bottom:10px"></div>
+    <div class="grid2">
+      <label class="fld"><span>Loại khoản</span><select id="sp-kind">${Object.entries(SP_KINDS).map(([k,v])=>`<option value="${k}" ${k===(kind||'thanh_toan')?'selected':''}>${v.label}</option>`).join('')}</select></label>
+      <label class="fld"><span>Ngày</span><input id="sp-date" type="date" value="${todayStr()}"></label>
+    </div>
+    <label class="fld"><span>Số tiền (đ) — xưởng đòi bao nhiêu nhập bấy nhiêu</span><input id="sp-amt" type="number" min="0" placeholder="VD: 9250000"></label>
+    <label class="fld"><span>Ghi chú</span><input id="sp-note" placeholder="VD: CK Vietcombank, xưởng đòi qua Zalo..."></label>
+    <div style="font-size:11px;color:var(--brown)">Tiền trả <b>không cần chọn lô</b> — hệ thống tự cấn vào các đợt hàng cũ nhất trước. Thanh toán / Cọc / Giảm trừ → trừ nợ. Phát sinh / Số dư đầu kỳ → cộng nợ.</div>`;
+  m_foot(`<button class="btn" onclick="closeModal()">Huỷ</button><button class="btn btn-dark" onclick="saveSpPayment()">💾 Lưu khoản</button>`);
+  openModal();spShowDebt();
+}
+function spShowDebt(){
+  const el=document.getElementById('sp-debt');if(!el)return;
+  const sup=document.getElementById('sp-sup').value;
+  const b=supplierBook().find(x=>x.key===cnKey(sup));
+  if(!sup.trim()||!b){el.className='due-read';el.textContent='Chọn xưởng để xem đang nợ bao nhiêu.';return;}
+  el.className='due-read ok';
+  el.innerHTML=b.con>0?`Hiện đang nợ <b>${escapeHtml(b.name)}</b>: <b>${fmtVnd(b.con)}</b> <button class="btn btn-sm" style="margin-left:6px" onclick="document.getElementById('sp-amt').value=${Math.round(b.con)}">Trả hết</button>`
+    :`<b>${escapeHtml(b.name)}</b> hiện không còn nợ${b.con<0?` (đang treo ${fmtVnd(-b.con)})`:''}.`;
+}
+async function saveSpPayment(){
+  const supplier_name=document.getElementById('sp-sup').value.trim();
+  const kind=document.getElementById('sp-kind').value;
+  const amount=intv(document.getElementById('sp-amt').value,0);
+  const date=document.getElementById('sp-date').value||todayStr();
+  const note=document.getElementById('sp-note').value.trim();
+  if(!supplier_name){toast('Chọn xưởng',true);return;}
+  if(!amount){toast('Nhập số tiền',true);return;}
+  const existing=[...supplierRows.map(r=>(r.supplier_name||'').trim()),...supplierPayments.map(p=>p.supplier_name)].find(n=>n&&cnKey(n)===cnKey(supplier_name));
+  showLoad(true);
+  try{
+    const rows=await POST('supplier_payments',{supplier_name:existing||supplier_name,kind,amount,date,po_code:null,note,staff_name:currentStaffName||''});
+    if(rows&&rows[0])supplierPayments.unshift(rows[0]);
+    closeModal();renderCongNo();toast(`✓ Đã ghi ${SP_KINDS[kind].label.split(' (')[0].toLowerCase()} ${fmtVnd(amount)}`);
+  }catch(e){toast('Lỗi lưu (đã chạy SQL tạo bảng supplier_payments chưa?): '+e.message,true);}
+  showLoad(false);
+}
+async function deleteSpPayment(id){
+  const p=supplierPayments.find(x=>x.id===id);if(!p)return;
+  if(!confirm(`Xoá khoản ${(SP_KINDS[p.kind]||{label:p.kind}).label.split(' (')[0]} ${fmtVnd(p.amount)} ngày ${fmtDate(p.date)} của ${p.supplier_name}?`))return;
+  showLoad(true);
+  try{await DEL(`supplier_payments?id=eq.${id}`);supplierPayments=supplierPayments.filter(x=>x.id!==id);renderCongNo();toast('✓ Đã xoá khoản');}
+  catch(e){toast('Lỗi xoá: '+e.message,true);}
+  showLoad(false);
+}
+function exportCongNoExcel(){
+  if(!S_SAL_UNLOCKED)return;
+  const all=supplierBook();
+  const wb=XLSX.utils.book_new();
+  const s1=[['Xưởng','Tiền hàng đã nhận','Phát sinh','Số dư đầu kỳ','Đã thanh toán','Đã cọc','Giảm trừ','Còn nợ','Nợ từ đợt ngày','Cái xưởng còn nợ','Lô chưa có giá'],
+    ...all.map(b=>[b.name,b.hang,b.phatSinh,b.soDu,b.daTra,b.coc,b.giamTru,b.con,b.oldestOpen?fmtDate(b.oldestOpen):'',b.owedQty,b.missing])];
+  const s2=[['Xưởng','Ngày','Nội dung','Cộng nợ','Trừ nợ','Số dư nợ','Tình trạng']];
+  all.forEach(b=>{cnLedgerRows(b).reverse().forEach(e=>{
+    if(e.p){const k=SP_KINDS[e.p.kind]||{label:e.p.kind,sign:-1};
+      s2.push([b.name,fmtDate(e.p.date),k.label+(e.p.note?' · '+e.p.note:''),k.sign>0?+e.p.amount:'',k.sign<0?+e.p.amount:'',e.bal,e.d&&e.d.st?CN_ST[e.d.st][0]:'']);}
+    else{const d=e.d;s2.push([b.name,fmtDate(d.date),`Về hàng ${d.lot.name} · đợt ${d.roundNo} · ${d.qty} cái${d.lot.price!=null?' × '+d.lot.price:''}`,d.noPrice?'chờ giá':d.amount,'',e.bal,CN_ST[d.st][0]]);}
+  });});
+  const s3=[['Xưởng','Lô','Mã lô','SL đặt','SL nhận','Đơn giá','Tiền hàng','Tình trạng']];
+  all.forEach(b=>b.lots.forEach(l=>s3.push([b.name,l.name,l.po,l.orderedQty,l.receivedQty,l.price??'',l.value,CN_ST[l.st][0]])));
+  [[s1,'Tổng hợp'],[s2,'Sổ đối chiếu'],[s3,'Đơn giá các lô']].forEach(([d,n])=>{const ws=XLSX.utils.aoa_to_sheet(d);ws['!cols']=d[0].map((_,i)=>({wch:i===2&&n==='Sổ đối chiếu'?46:16}));XLSX.utils.book_append_sheet(wb,ws,n);});
+  XLSX.writeFile(wb,`cong_no_xuong_${todayStr()}.xlsx`);
+}
+/* Chế độ chủ shop: mở khoá bằng mật khẩu Tính lương (0802), hoặc nhấp đúp vào logo LàSilk ở menu.
+   Khi khoá: mục "Công nợ xưởng" & đơn giá ở Đặt NCC bị ẩn hoàn toàn khỏi giao diện. */
+function setOwnerMode(on){
+  document.body.classList.toggle('owner',!!on);
+  updateCongNoBadge();
+}
+function ownerPrompt(){
+  if(S_SAL_UNLOCKED){goToPage('congno');return;}
+  const pw=prompt('Mật khẩu chủ shop:');
+  if(pw==null)return;
+  if(pw===SCFG.PASSWORD){
+    S_SAL_UNLOCKED=true;sessionStorage.setItem('ssal','1');setOwnerMode(true);renderOrderPage();goToPage('congno');
+  }else toast('Sai mật khẩu',true);
+}
+function ownerLock(){
+  S_SAL_UNLOCKED=false;sessionStorage.removeItem('ssal');setOwnerMode(false);
+  renderOrderPage();goToPage('tao');toast('🔒 Đã khoá — trang Công nợ & Tính lương đã ẩn');
+}
+
+addLine();ddInit();setOwnerMode(S_SAL_UNLOCKED);
 document.getElementById('o-ord').value=todayStr();
 document.getElementById('o-date').value=daysAgo(-20);
 renderStaffPickerBadge();
