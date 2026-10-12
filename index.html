@@ -245,6 +245,18 @@ body:not(.owner) .owner-only{display:none!important}
 .cn-round{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:5px 0 5px 12px;border-left:2px solid var(--border);margin-top:5px}
 .cn-price{width:110px;text-align:right;padding:5px 8px;font-size:12.5px}
 .cn-pay{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12px;padding:7px 0;border-top:1px dashed var(--border)}
+
+/* ===== BẢNG SỐ LƯỢNG SOẠN HÀNG (Lên đơn — xác nhận 2 bước) ===== */
+.stg{margin-top:16px;border:2px solid var(--dark);border-radius:14px;overflow:hidden;background:var(--card)}
+.stg-hd{background:var(--dark);color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.stg-hd b{font-family:var(--f-head);font-size:15px;color:var(--honey)}
+.stg-grp{padding:12px 16px;border-top:1px solid var(--border)}
+.stg-grp-t{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px}
+.stg table td,.stg table th{padding:6px 8px}
+.stg-prod td{background:#B5715C;color:#fff;font-weight:800;text-align:left;font-size:12px;letter-spacing:.04em}
+.stg-short td.n{background:var(--red-bg);color:var(--red-fg);font-weight:800}
+.stg-foot{display:flex;gap:8px;justify-content:flex-end;align-items:center;flex-wrap:wrap;padding:12px 16px;border-top:1px solid var(--border);background:var(--bg)}
+.stg-warn{background:var(--red-bg);color:var(--red-fg);padding:9px 16px;font-size:12.5px;font-weight:600}
 </style>
 </head>
 <body>
@@ -304,6 +316,7 @@ body:not(.owner) .owner-only{display:none!important}
         </div>
         <div id="sh-pending" style="margin-top:12px;max-width:680px"></div>
         <div id="sh-preview" style="margin-top:16px"></div>
+        <div id="sh-stage"></div>
       </div>
 
       <!-- NGOẠI SÀN: tách riêng 2 mục GHN và Shopee Express để đọc tem đúng loại, không tự nhận diện lẫn lộn -->
@@ -317,6 +330,7 @@ body:not(.owner) .owner-only{display:none!important}
           <div id="ng-ghn-summary" style="margin-top:12px"></div>
         </div>
         <div id="ng-ghn-preview" style="margin-top:16px"></div>
+        <div id="ng-ghn-stage"></div>
 
         <div class="pg-t" style="font-size:15px;margin-top:26px">📦 Đơn Shopee Express (SPX)</div>
         <div class="setup">📥 Tải <b>tem SPX/Shopee Express (.pdf)</b> — layout "Từ:"/"Đến:" cạnh nhau, không có "Mã đơn hàng". Lưu ý: tem SPX ngoại sàn thường không in SĐT khách — bạn có thể bổ sung tay nếu cần.</div>
@@ -325,6 +339,7 @@ body:not(.owner) .owner-only{display:none!important}
           <div id="ng-spx-summary" style="margin-top:12px"></div>
         </div>
         <div id="ng-spx-preview" style="margin-top:16px"></div>
+        <div id="ng-spx-stage"></div>
       </div>
 
       <!-- TẠO TAY -->
@@ -350,21 +365,22 @@ body:not(.owner) .owner-only{display:none!important}
           <label class="fld" style="margin-top:12px"><span>Ghi chú</span><input id="t-note" placeholder="tuỳ chọn"></label>
           <div style="font-size:11px;font-weight:700;color:var(--brown);letter-spacing:.05em;text-transform:uppercase;margin:14px 0 8px">Chọn loại đơn</div>
           <div class="row" style="margin-top:2px">
-            <button class="btn btn-blue" onclick="saveOrderTay('grab_khach')">🛵 Đơn Grab · Khách</button>
-            <button class="btn btn-pink" onclick="saveOrderTay('grab_kol')">🛵⭐ Đơn Grab · KOL</button>
+            <button class="btn btn-blue" onclick="stageOpen('tay','grab_khach')">🛵 Đơn Grab · Khách</button>
+            <button class="btn btn-pink" onclick="stageOpen('tay','grab_kol')">🛵⭐ Đơn Grab · KOL</button>
           </div>
           <div class="row" style="margin-top:8px">
-            <button class="btn btn-honey" onclick="saveOrderTay('cho_chot')">💾 Chờ chốt</button>
-            <button class="btn" style="background:var(--org-bg);color:var(--org-fg);border-color:#E8C84A" onclick="saveOrderTay('no_hang')" title="Lưu đơn nợ — sẽ hỏi ngày hẹn giao cho khách">⏳ Nợ đơn · hẹn ngày giao</button>
+            <button class="btn btn-honey" onclick="stageOpen('tay','cho_chot')">💾 Chờ chốt</button>
+            <button class="btn" style="background:var(--org-bg);color:var(--org-fg);border-color:#E8C84A" onclick="stageOpen('tay','no_hang')" title="Lưu đơn nợ — sẽ hỏi ngày hẹn giao cho khách">⏳ Nợ đơn · hẹn ngày giao</button>
           </div>
           <div class="row" style="margin-top:8px">
-            <button class="btn btn-grn" onclick="saveOrderTay('thai_khach')">🇹🇭 Đơn Thái · Khách</button>
-            <button class="btn btn-pink" onclick="saveOrderTay('thai_kol')">🇹🇭⭐ Đơn Thái · KOL</button>
+            <button class="btn btn-grn" onclick="stageOpen('tay','thai_khach')">🇹🇭 Đơn Thái · Khách</button>
+            <button class="btn btn-pink" onclick="stageOpen('tay','thai_kol')">🇹🇭⭐ Đơn Thái · KOL</button>
           </div>
           <div class="row" style="margin-top:8px">
-            <button class="btn btn-dark" onclick="saveOrderTay('quocte')">🌐 Đơn Quốc Tế</button>
+            <button class="btn btn-dark" onclick="stageOpen('tay','quocte')">🌐 Đơn Quốc Tế</button>
           </div>
         </div>
+        <div id="t-stage" style="max-width:820px"></div>
         <div style="margin-top:20px" class="pg-s"><b>Đơn tạo hôm nay</b></div>
         <div id="t-today"></div>
       </div>
@@ -1143,6 +1159,7 @@ async function saveOrderTay(kind,dueDate){
   const code=newCode();
   const custPrefix=custCodePrefixFor(cfg.channel);
   const customer_code=custPrefix?nextCustCode(custPrefix):'';
+  let ok=false;
   showLoad(true);
   try{
     for(const l of lines){
@@ -1156,6 +1173,7 @@ async function saveOrderTay(kind,dueDate){
     }
     if(kind==='no_hang'){closeModal();toast(`✓ Tạo đơn nợ ${code} · hẹn giao ${fmtDue(dueDate)} (${dueRelText(dueDate)}) — chưa trừ kho`);}
     else toast(`✓ Tạo đơn ${code} · ${cfg.label} — chưa trừ kho, chờ xác nhận "${cfg.confirmLabel}"`);
+    ok=true;stageMarkDone('tay');
     tLines=[];document.getElementById('t-name').value='';document.getElementById('t-phone').value='';document.getElementById('t-addr').value='';document.getElementById('t-note').value='';addLine();
     renderToday();renderKho();renderKol();updateBadges();
     if(cfg.ship_method==='Grab'){
@@ -1168,6 +1186,7 @@ async function saveOrderTay(kind,dueDate){
     }
   }catch(e){toast('Lỗi: '+e.message,true);}
   showLoad(false);
+  return ok;
 }
 function renderToday(){
   const t=todayStr();const groups=groupOrders(allOrders.filter(o=>o.date===t));
@@ -5390,6 +5409,7 @@ function shFindOrder(l){
   return {pick:null,cands:[]};
 }
 function renderShopeePreview(){
+  stageClear('sh',true); // sửa bảng xem trước → bảng số lượng cũ không còn đúng, bỏ đi để xem lại
   const box=document.getElementById('sh-preview'),sum=document.getElementById('sh-summary');
   if(!shopeeLines.length){box.innerHTML='';sum.innerHTML='<div class="dim" style="padding:8px">Không có dòng hợp lệ (có thể toàn đơn huỷ/hoàn).</div>';return;}
   const exist=new Map();allOrders.forEach(o=>{if(!exist.has(o.order_code))exist.set(o.order_code,o);});
@@ -5433,12 +5453,13 @@ function renderShopeePreview(){
       <td class="l">${k==='new'||k==='nomatch'?`<select onchange="shopeeLines[${i}].code=this.value;renderShopeePreview()" style="font-size:11px;padding:5px 8px"><option value="">— chưa khớp —</option>${opts}</select>`:'<span class="dim" style="font-size:11px">không cần</span>'}</td>
       <td>${chk}</td>
     </tr>`;}).join('')}</tbody></table></div>
-    <div class="row" style="margin-top:14px"><button class="btn btn-honey" onclick="shopeeImport()">📦 Gắn ${linkN+updN} mã VĐ · nhập ${newN} đơn mới</button></div>`;
+    <div class="row" style="margin-top:14px"><button class="btn btn-honey" onclick="stageOpen('sh')">🧾 Xem bảng số lượng để kiểm tra (${newN} đơn mới${linkN+updN?` · ${linkN+updN} mã VĐ`:''}${sameN?` · ${sameN} đã có`:''})</button></div>`;
   box.querySelectorAll('tbody tr').forEach((tr,i)=>{const s=tr.querySelector('select');if(s&&(kinds[i]==='new'||kinds[i]==='nomatch'))s.value=shopeeLines[i].code||'';});
 }
 // [MỚI] bật/tắt "xuất kho ngay" cho 1 mã đơn — bỏ tích sẽ khiến đơn đó nhảy vào "Chờ xác nhận" thay vì trừ kho ngay
 function toggleShopeeUnchecked(sn,checked){
   if(checked)shopeeUncheckedSN.delete(sn);else shopeeUncheckedSN.add(sn);
+  stageClear('sh',true);
 }
 async function shopeeImport(){
   const exist=new Map();allOrders.forEach(o=>{if(!exist.has(o.order_code))exist.set(o.order_code,o);});
@@ -5469,7 +5490,7 @@ async function shopeeImport(){
   shopeeLines.forEach(l=>{if(l.tracking&&exist.has(l.sn)&&(exist.get(l.sn).tracking_code||'')!==l.tracking&&!usedTrack.has(l.tracking))updMap[l.sn]=l.tracking;});
   const updSNs=Object.keys(updMap);
   if(!work.length&&!updSNs.length&&!linkCodes.length){toast('Không có gì để cập nhật (mã VĐ đã gắn hoặc chưa chọn đơn)',true);return;}
-  showLoad(true);const okOrders=new Set();
+  let ok=false;showLoad(true);const okOrders=new Set();
   try{
     // GẮN mã VĐ cho đơn tạo tay — KHÔNG tạo đơn, KHÔNG trừ kho
     for(const code of linkCodes){
@@ -5509,11 +5530,12 @@ async function shopeeImport(){
       allOrders.forEach(o=>{if(o.order_code===sn)o.tracking_code=updMap[sn];});
     }
     const parts=[];if(linkCodes.length)parts.push(`gắn mã VĐ cho ${linkCodes.length} đơn có sẵn`);if(okOrders.size)parts.push(`nhập ${okOrders.size} đơn mới (trừ kho)`);if(pendingOrders.size)parts.push(`${pendingOrders.size} đơn chờ xác nhận (chưa trừ kho)`);if(updSNs.length)parts.push(`cập nhật ${updSNs.length} mã VĐ`);
-    toast('✅ '+parts.join(' · '));
+    toast('✅ '+parts.join(' · '));ok=true;
     shopeeLines=[];shopeeUncheckedSN=new Set();document.getElementById('sh-file').value='';document.getElementById('sh-preview').innerHTML='';document.getElementById('sh-summary').innerHTML='';renderShopeePending();
     renderAll();loadSupplier();
   }catch(e){toast('Lỗi: '+e.message,true);}
   showLoad(false);
+  return ok;
 }
 
 /* ══════════ NGOẠI SÀN (GHN + SPX/Shopee Express) ══════════ */
@@ -5727,6 +5749,7 @@ async function ngoaiParse(type,input){
   }catch(e){sum.innerHTML='<div class="setup" style="background:var(--red-bg);color:var(--red-fg)">Lỗi đọc PDF: '+escapeHtml(e.message)+'</div>';}
 }
 function renderNgoaiPreview(type){
+  stageClear('ng-'+type,true);
   const lines=ngLines[type];
   const box=document.getElementById('ng-'+type+'-preview'),sum=document.getElementById('ng-'+type+'-summary');
   const usedTrack=new Set(allOrders.map(o=>o.tracking_code||'').filter(Boolean));
@@ -5762,17 +5785,18 @@ function renderNgoaiPreview(type){
     }).join('');
   }).join('')}
   </tbody></table></div>
-  <div class="row" style="margin-top:14px"><button class="btn btn-dark" onclick="ngoaiConfirm('${type}')">✅ Xác nhận nhập ${codes.length} đơn</button></div>`;
+  <div class="row" style="margin-top:14px"><button class="btn btn-dark" onclick="stageOpen('ng-${type}')">🧾 Xem bảng số lượng để kiểm tra (${codes.length} đơn)</button></div>`;
 }
 // [MỚI] bật/tắt "xuất kho ngay" cho 1 mã đơn Ngoại Sàn — bỏ tích sẽ khiến đơn nhảy vào "Chờ xác nhận"
 function ngoaiToggleUnchecked(type,sn,checked){
   if(checked)ngUnchecked[type].delete(sn);else ngUnchecked[type].add(sn);
+  stageClear('ng-'+type,true);
 }
 // [SỬA] chọn "Loại đơn" xong render lại preview, để riêng đơn KOL hiện thêm ô chọn trừ kho nào (Quản lý kho / Kho hàng lỗi)
 // [MỚI] khi chuyển sang "Đổi hàng" đảm bảo có sẵn retQty (mặc định = SL đã gửi) để nhân viên chỉ cần chọn đúng sản phẩm lấy về
 function ngoaiSetKind(type,sn,kind){ngLines[type].forEach(l=>{if(l.sn===sn){l.kind=kind;if(kind!=='kol')l.khoSrc='main';if(kind==='doi'&&!l.retQty)l.retQty=l.qty;}});renderNgoaiPreview(type);}
 // riêng đơn KOL: chọn trừ kho chính (Quản lý kho) hay Kho hàng lỗi (mục "Dành cho KOL")
-function ngoaiSetKhoSrc(type,sn,src){ngLines[type].forEach(l=>{if(l.sn===sn)l.khoSrc=src;});}
+function ngoaiSetKhoSrc(type,sn,src){ngLines[type].forEach(l=>{if(l.sn===sn)l.khoSrc=src;});stageClear('ng-'+type,true);}
 // [MỚI] chọn sản phẩm + SL dự kiến LẤY VỀ cho đơn Đổi hàng (khác với sản phẩm đã xuất kho gửi khách)
 function ngoaiSetRet(type,sn,field,value){
   ngLines[type].forEach(l=>{if(l.sn===sn){
@@ -5792,7 +5816,7 @@ async function ngoaiConfirm(type){
   // sản phẩm vừa gửi đi cho khách). Cảnh báo & bỏ qua các đơn Đổi hàng chưa chọn SP lấy về.
   const missingRet=codes.filter(sn=>{const it=bySn[sn][0];return it.kind==='doi'&&!it.retCode;});
   if(missingRet.length&&!confirm(`${missingRet.length} đơn "Đổi hàng" CHƯA chọn "SP lấy về" (${missingRet.slice(0,6).join(', ')}${missingRet.length>6?'…':''}) — các đơn này sẽ bị BỎ QUA để tránh cộng kho sai sản phẩm sau này. Chọn Huỷ để quay lại chọn, hay OK để tiếp tục bỏ qua chúng?`))return;
-  showLoad(true);let doneKhach=0,doneKol=0,doneDoi=0,donePending=0;
+  let ok=false;showLoad(true);let doneKhach=0,doneKol=0,doneDoi=0,donePending=0;
   try{
     for(const sn of codes){
       const items=bySn[sn].filter(l=>l.code);
@@ -5843,11 +5867,289 @@ async function ngoaiConfirm(type){
       else if(kind==='kol')doneKol+=items.length;else if(kind==='doi')doneDoi+=items.length;else doneKhach+=items.length;
     }
     const parts=[];if(doneKhach)parts.push(`${doneKhach} dòng Khách (trừ kho)`);if(doneKol)parts.push(`${doneKol} dòng KOL (trừ kho)`);if(doneDoi)parts.push(`${doneDoi} dòng Đổi hàng (đã gửi SP mới, chờ lấy SP cũ về)`);if(donePending)parts.push(`${donePending} dòng chờ xác nhận (chưa trừ kho)`);
-    toast('✅ '+(parts.join(' · ')||'Đã xử lý'));
+    toast('✅ '+(parts.join(' · ')||'Đã xử lý'));ok=true;
     ngLines[type]=[];ngUnchecked[type]=new Set();document.getElementById('ng-'+type+'-file').value='';document.getElementById('ng-'+type+'-preview').innerHTML='';document.getElementById('ng-'+type+'-summary').innerHTML='';
     renderAll();
   }catch(e){toast('Lỗi: '+e.message,true);}
   showLoad(false);
+  return ok;
+}
+
+/* ══════════ [MỚI] BẢNG SỐ LƯỢNG SOẠN HÀNG — XÁC NHẬN 2 BƯỚC (Lên đơn) ══════════
+   Bước 1: nhân viên bấm "Xác nhận" ở Đơn Sàn / Ngoại Sàn / Tạo Tay → CHƯA lưu, CHƯA trừ kho, chỉ hiện bảng
+           số lượng chia theo Sản phẩm → Màu → Size, nằm cố định ngay dưới khu vực lên đơn.
+           Cột: SL vừa lên · Tồn trước (tồn kho HIỆN TẠI) · Tồn sau · ⚠ Thiếu (tô đỏ khi tồn sau bị âm).
+           Chia 2 nhóm: "Đã trừ kho" và "Chờ xác nhận" (đơn bỏ tích "Xuất kho ngay"). Đổi hàng chỉ tính SP gửi đi.
+           Thiếu hàng KHÔNG chặn — chỉ báo đỏ để nhân viên kiểm tra lại.
+   Bước 2: bấm "Xác nhận lần 2" → lúc này mới thật sự lưu đơn & trừ kho (gọi đúng hàm nhập cũ).
+           Nếu dữ liệu bị sửa giữa 2 lần bấm → bảng tự tính lại, bắt xem lại rồi bấm lần nữa.
+   Sau khi xong, bảng vẫn giữ nguyên (số đã "chốt" tại lúc xác nhận) để in phiếu / xuất Excel soạn hàng. */
+const STAGES={};
+const STAGE_BOX={sh:'sh-stage','ng-ghn':'ng-ghn-stage','ng-spx':'ng-spx-stage',tay:'t-stage'};
+function stageAgg(lines){
+  const m={};
+  lines.forEach(l=>{
+    const src=l.src||'main',k=l.code+'|'+src;
+    const r=m[k]=m[k]||{code:l.code,src,qty:0,orders:new Set()};
+    r.qty+=l.qty||0;if(l.sn)r.orders.add(l.sn);
+  });
+  return Object.values(m);
+}
+function stageSig(groups,extra){
+  return JSON.stringify([extra||'',groups.map(g=>g.rows.map(r=>[r.code,r.src,r.qty,[...r.orders].sort().join(',')]).sort((a,b)=>(a[0]+a[1]).localeCompare(b[0]+b[1])))]);
+}
+// [MỚI] đơn "đã nhập trước đó": lấy đúng SP/SL từ đơn ĐANG LƯU trong hệ thống (không dựa vào dòng đọc từ file,
+// vì dòng đó có thể chưa khớp được sản phẩm) — đây chính là số kho đã trừ lần trước.
+function stageOldRows(sns,tracks){
+  const seen=new Set(),out=[];
+  allOrders.forEach(o=>{
+    if(o.status==='Chờ hàng về'||!o.product_code)return;
+    if(!(sns.has(o.order_code)||tracks.has((o.tracking_code||'').trim())))return;
+    const k=o.id??(o.order_code+'#'+o.product_code);if(seen.has(k))return;seen.add(k);
+    out.push({code:o.product_code,qty:o.quantity||0,sn:o.order_code,src:'main'});
+  });
+  return out;
+}
+function shopeeStageSpec(){
+  if(!shopeeLines.length){toast('Chưa có đơn nào — tải file trước',true);return null;}
+  const exist=new Set(allOrders.map(o=>o.order_code));
+  const usedTrack=new Set(allOrders.map(o=>(o.tracking_code||'').trim()).filter(Boolean));
+  const fresh=l=>!exist.has(l.sn)&&l.tracking&&!usedTrack.has(l.tracking);
+  // y hệt điều kiện "work" trong shopeeImport()
+  const work=shopeeLines.filter(l=>l.code&&!l.linkTo&&fresh(l));
+  const ded=work.filter(l=>!shopeeUncheckedSN.has(l.sn)),pend=work.filter(l=>shopeeUncheckedSN.has(l.sn));
+  const linkN=new Set(shopeeLines.filter(l=>l.linkTo&&fresh(l)).map(l=>l.sn)).size;
+  const updN=new Set(shopeeLines.filter(l=>exist.has(l.sn)&&l.tracking&&!usedTrack.has(l.tracking)).map(l=>l.sn)).size;
+  const skipN=shopeeLines.filter(l=>!l.code&&!l.linkTo&&fresh(l)).length;
+  const oldL=shopeeLines.filter(l=>exist.has(l.sn)||(l.tracking&&usedTrack.has(l.tracking)));
+  const old=stageOldRows(new Set(oldL.map(l=>l.sn)),new Set(oldL.map(l=>l.tracking).filter(Boolean)));
+  const nothing=!work.length&&!linkN&&!updN;
+  const notes=[];
+  if(nothing)notes.push('<b>Không có đơn mới nào cần xác nhận</b> — các đơn trong file đã nhập trước đó hoặc chưa khớp sản phẩm. Bảng dưới chỉ để đối chiếu số lượng.');
+  if(linkN)notes.push(`Gắn mã vận đơn cho <b>${linkN}</b> đơn tạo tay có sẵn — không trừ kho thêm.`);
+  if(updN)notes.push(`Cập nhật mã vận đơn cho <b>${updN}</b> đơn đã có — không trừ kho.`);
+  if(skipN)notes.push(`<b style="color:var(--red-fg)">${skipN} dòng chưa khớp sản phẩm sẽ bị bỏ qua</b> — chọn SP ở bảng phía trên nếu muốn nhập.`);
+  const groups=[
+    {title:'Đã trừ kho',tone:'ded',note:'Trừ kho thật khi bấm "Xác nhận lần 2".',rows:stageAgg(ded)},
+    {title:'Chờ xác nhận',tone:'pend',note:'Đơn đã bỏ tích "Xuất kho ngay" — chưa trừ kho, vào Quản lý đơn ▸ Chờ xác nhận. Tồn sau là dự kiến nếu chốt.',rows:stageAgg(pend)},
+    {title:'Đã nhập trước đó',tone:'info',note:'Đơn đã có trong hệ thống — kho đã trừ từ trước, lần này KHÔNG trừ lại. Chỉ để đối chiếu.',rows:stageAgg(old)},
+  ];
+  return{nothing,fileName:stageFileName('sh-file'),title:`Đơn Sàn · ${new Set(work.map(l=>l.sn)).size} đơn mới${old.length?` · ${new Set(old.map(l=>l.sn)).size} đơn đã có`:''}`,groups,notes,sig:stageSig(groups,linkN+'|'+updN),
+    commit:()=>shopeeImport(),confirmLabel:'✅ Xác nhận lần 2 — trừ kho'};
+}
+function ngoaiStageSpec(type){
+  const lines=ngLines[type]||[];
+  if(!lines.length){toast('Chưa có đơn nào — tải tem trước',true);return null;}
+  const usedTrack=new Set(allOrders.map(o=>o.tracking_code||'').filter(Boolean));
+  const bySn={};lines.forEach(l=>{(bySn[l.sn]=bySn[l.sn]||[]).push(l);});
+  const codes=Object.keys(bySn).filter(sn=>!usedTrack.has(sn));
+  const ded=[],pend=[];let missRet=0,hasDoi=false;
+  codes.forEach(sn=>{
+    const items=bySn[sn].filter(l=>l.code);if(!items.length)return;
+    const kind=items[0].kind;
+    if(kind==='doi'&&!items[0].retCode){missRet++;return;}
+    if(kind==='doi')hasDoi=true;
+    const pending=kind!=='doi'&&ngUnchecked[type].has(sn);
+    const src=kind==='kol'&&items[0].khoSrc==='loikho'?'loikho':'main';
+    items.forEach(l=>(pending?pend:ded).push({code:l.code,qty:l.qty,sn,src}));
+  });
+  const oldSn=new Set(Object.keys(bySn).filter(sn=>usedTrack.has(sn)));
+  const old=stageOldRows(oldSn,oldSn);
+  const nothing=!ded.length&&!pend.length;
+  const unmatched=lines.filter(l=>!l.code&&!usedTrack.has(l.sn)).length;
+  const already=Object.keys(bySn).length-codes.length;
+  const notes=[];
+  if(unmatched)notes.push(`<b style="color:var(--red-fg)">${unmatched} dòng chưa khớp sản phẩm sẽ bị bỏ qua.</b>`);
+  if(missRet)notes.push(`<b style="color:var(--red-fg)">${missRet} đơn Đổi hàng chưa chọn "SP lấy về" sẽ bị bỏ qua.</b>`);
+  if(nothing)notes.unshift('<b>Không có đơn mới nào cần xác nhận</b> — các đơn trong file đã nhập trước đó hoặc chưa khớp sản phẩm. Bảng dưới chỉ để đối chiếu số lượng.');
+  const groups=[
+    {title:'Đã trừ kho',tone:'ded',note:'Trừ kho thật khi bấm "Xác nhận lần 2".'+(hasDoi?' Đơn Đổi hàng chỉ tính SP gửi đi — SP lấy về sẽ cộng kho khi hàng về.':''),rows:stageAgg(ded)},
+    {title:'Chờ xác nhận',tone:'pend',note:'Đơn đã bỏ tích "Xuất kho ngay" — chưa trừ kho, vào Quản lý đơn ▸ Chờ xác nhận. Tồn sau là dự kiến nếu chốt.',rows:stageAgg(pend)},
+    {title:'Đã nhập trước đó',tone:'info',note:'Đơn đã có trong hệ thống — kho đã trừ từ trước, lần này KHÔNG trừ lại. Chỉ để đối chiếu.',rows:stageAgg(old)},
+  ];
+  return{nothing,fileName:stageFileName('ng-'+type+'-file'),title:`Ngoại Sàn · ${NG_LABEL[type]} · ${new Set([...ded,...pend].map(l=>l.sn)).size} đơn mới${already?` · ${already} đơn đã có`:''}`,groups,notes,sig:stageSig(groups),
+    commit:()=>ngoaiConfirm(type),confirmLabel:'✅ Xác nhận lần 2 — trừ kho'};
+}
+function tayStageSpec(kind){
+  const cfg=TAY_KIND_MAP[kind];if(!cfg){toast('Loại đơn không hợp lệ',true);return null;}
+  const name=document.getElementById('t-name').value.trim();
+  const lines=tLines.filter(l=>l.code&&l.qty>0).map(l=>({code:l.code,qty:intv(l.qty,1),sn:name,src:'main'}));
+  if(!name){toast('Nhập tên khách',true);return null;}
+  if(!lines.length){toast('Chọn ít nhất 1 sản phẩm',true);return null;}
+  const groups=[{title:'Chờ xác nhận',tone:'pend',
+    note:`${cfg.label}: đơn tạo tay chưa trừ kho khi lưu — kho trừ khi bấm "${cfg.confirmLabel}" ở Quản lý đơn. Tồn sau là dự kiến.`,
+    rows:stageAgg(lines)}];
+  return{kind,title:`Tạo tay · ${cfg.label} · ${name}`,groups,notes:[],sig:stageSig(groups,kind),
+    commit:()=>saveOrderTay(kind),confirmLabel:'✅ Xác nhận lần 2 — lưu đơn'};
+}
+// tên file tem / file đơn đang tải — phiếu soạn hàng & file Excel đặt theo đúng tên file này
+function stageFileName(inputId){const f=document.getElementById(inputId)?.files?.[0];return f?f.name:'';}
+function stageBaseName(st){
+  const n=(st.fileName||'').replace(/\.[^.]+$/,'').trim();
+  return n||st.title;
+}
+function stageBuild(key,kind){
+  if(key==='tay')return tayStageSpec(kind);
+  if(key==='sh')return shopeeStageSpec();
+  return ngoaiStageSpec(key.slice(3));
+}
+function stageOpen(key,kind){
+  const spec=stageBuild(key,kind);if(!spec)return;
+  spec.key=key;STAGES[key]=spec;stageRender(key);
+  setTimeout(()=>document.getElementById(STAGE_BOX[key])?.scrollIntoView({behavior:'smooth',block:'start'}),60);
+}
+// onlyPending=true: chỉ bỏ bảng đang chờ xác nhận lần 2 (bảng đã chốt xong vẫn giữ để in/soạn hàng)
+function stageClear(key,onlyPending){
+  const st=STAGES[key];if(onlyPending&&st&&st.done)return;
+  delete STAGES[key];
+  const b=document.getElementById(STAGE_BOX[key]);if(b)b.innerHTML='';
+}
+// tính Tồn trước / Tồn sau từ tồn kho HIỆN TẠI; nhóm "Chờ xác nhận" nối tiếp sau nhóm "Đã trừ kho" (cùng mã thì trừ dồn)
+function stageFreeze(st){
+  const used={};
+  st.groups.forEach(g=>g.rows.forEach(r=>{
+    const k=r.code+'|'+r.src;
+    if(g.tone==='info'){const cur=r.src==='loikho'?loiStockOne(r.code,'kol'):stockOne(r.code);r.before=cur;r.after=cur;r.short=0;return;}
+    const base=(r.src==='loikho'?loiStockOne(r.code,'kol'):stockOne(r.code))-(used[k]||0);
+    r.before=base;r.after=base-r.qty;r.short=Math.max(0,Math.min(r.qty,-r.after));
+    used[k]=(used[k]||0)+r.qty;
+  }));
+}
+function stageMarkDone(key){
+  const st=STAGES[key];if(!st||st.done)return;
+  st.done=true;st.doneAt=new Date();stageRender(key);
+}
+async function stageConfirm(key){
+  const st=STAGES[key];if(!st||st.done||st.nothing)return;
+  const fresh=stageBuild(key,st.kind);if(!fresh)return;
+  if(fresh.sig!==st.sig){
+    fresh.key=key;STAGES[key]=fresh;stageRender(key);
+    toast('Đơn vừa thay đổi — bảng đã cập nhật lại, kiểm tra rồi bấm xác nhận lần nữa',true);
+    return;
+  }
+  stageFreeze(st); // chốt số tồn trước/sau ngay trước khi trừ kho
+  const ok=await st.commit();
+  if(ok)stageMarkDone(key);
+}
+function stageRowsSorted(g){
+  const nm=normName();
+  return g.rows.map(r=>{
+    const p=allProducts.find(x=>x.code===r.code);
+    return{...r,product:p?(nm[(p.name||'').trim().toLowerCase()]||p.name||r.code):r.code,
+      color:(p&&(p.color||'').trim())||'—',size:(p&&p.size)||'—'};
+  }).sort((a,b)=>a.product.localeCompare(b.product,'vi')||colorKeyOf(a.color).localeCompare(colorKeyOf(b.color),'vi')||sizeRank(a.size)-sizeRank(b.size));
+}
+function stageGroupHtml(st,g){
+  const rows=stageRowsSorted(g);
+  const tone=g.tone==='ded'?['var(--grn-bg)','var(--grn-fg)']:g.tone==='info'?['var(--blue-bg)','var(--blue-fg)']:['var(--org-bg)','var(--org-fg)'];
+  const qty=rows.reduce((s,r)=>s+r.qty,0);
+  const orders=new Set(g.rows.flatMap(r=>[...r.orders])).size;
+  const shortN=rows.filter(r=>r.short>0).length;
+  let body='',i=0;
+  while(i<rows.length){
+    const prod=rows[i].product;let j=i;while(j<rows.length&&rows[j].product===prod)j++;
+    const sub=rows.slice(i,j).reduce((s,r)=>s+r.qty,0);
+    body+=`<tr class="stg-prod"><td colspan="6">● ${escapeHtml(prod)} <span style="opacity:.85;font-weight:600">· ${sub} món</span></td></tr>`;
+    let k=i;
+    while(k<j){
+      const ck=colorKeyOf(rows[k].color);let m=k;while(m<j&&colorKeyOf(rows[m].color)===ck)m++;
+      for(let x=k;x<m;x++){
+        const r=rows[x],bad=r.short>0;
+        body+=`<tr class="${bad?'stg-short':''}">
+          ${x===k?`<td rowspan="${m-k}" class="l" style="font-weight:700;border-left:5px solid ${colorBg(r.color)}">${escapeHtml(r.color)}</td>`:''}
+          <td class="l n" style="font-weight:600">${escapeHtml(r.size)}${r.src==='loikho'?' <span class="pill" style="background:var(--pink-soft);color:#993556">Kho lỗi · KOL</span>':''}</td>
+          <td class="n" style="font-weight:800;font-size:15px">${r.qty}</td>
+          <td class="n">${r.before}</td>
+          <td class="n" style="font-weight:700">${r.after}</td>
+          <td class="n">${bad?`⚠ ${r.short}`:'—'}</td></tr>`;
+      }
+      k=m;
+    }
+    i=j;
+  }
+  return `<div class="stg-grp">
+    <div class="stg-grp-t">
+      <span class="pill" style="background:${tone[0]};color:${tone[1]};font-size:12px;padding:4px 12px">${escapeHtml(g.title)}</span>
+      <span style="font-size:12px;color:var(--brown)">${orders} đơn · <b style="color:var(--dark)">${qty}</b> món${shortN?` · <b style="color:var(--red-fg)">${shortN} mã thiếu</b>`:''}</span>
+    </div>
+    ${g.note&&(!st.done||g.tone==='info')?`<div style="font-size:11.5px;color:var(--brown);margin-bottom:8px">${escapeHtml(g.note)}</div>`:''}
+    <div style="overflow:auto"><table>
+      <thead><tr><th class="l">Màu</th><th class="l">Size</th><th>SL vừa lên</th><th>${g.tone==='info'?'Tồn hiện tại':'Tồn trước'}</th><th>${g.tone==='info'?'Tồn hiện tại':'Tồn sau'}${g.tone==='pend'?' (dự kiến)':''}</th><th>⚠ Thiếu</th></tr></thead>
+      <tbody>${body}<tr class="tot"><td colspan="2" class="l">Tổng ${escapeHtml(g.title.toLowerCase())}</td><td>${qty}</td><td colspan="3"></td></tr></tbody>
+    </table></div></div>`;
+}
+function stageRender(key){
+  const st=STAGES[key];const box=document.getElementById(STAGE_BOX[key]);if(!box)return;
+  if(!st){box.innerHTML='';return;}
+  if(!st.done)stageFreeze(st); // chưa chốt → luôn lấy tồn kho hiện tại
+  const shown=st.groups.filter(g=>g.rows.length);
+  const shortN=shown.reduce((s,g)=>s+g.rows.filter(r=>r.short>0).length,0);
+  const t=st.doneAt?`${p2(st.doneAt.getHours())}:${p2(st.doneAt.getMinutes())}`:'';
+  box.innerHTML=`<div class="stg">
+    <div class="stg-hd">
+      <div><b>🧾 Bảng số lượng soạn hàng</b>
+        <div style="font-size:11.5px;opacity:.7;margin-top:2px">${st.fileName?'📄 '+escapeHtml(st.fileName)+' · ':''}${escapeHtml(st.title)} · tồn kho tính ${st.done?'tại lúc xác nhận':'theo số hiện tại'}</div></div>
+      ${st.done?`<span class="pill" style="background:var(--grn-bg);color:var(--grn-fg)">✓ Đã xác nhận lúc ${t}</span>`
+        :st.nothing?`<span class="pill" style="background:var(--blue-bg);color:var(--blue-fg)">Chỉ để đối chiếu</span>`
+        :`<span class="pill" style="background:var(--honey);color:var(--dark)">Chờ xác nhận lần 2</span>`}
+    </div>
+    ${shortN?`<div class="stg-warn">⚠ Có ${shortN} mã bị âm kho${st.done?'':' sau khi lên đơn'} — nhân viên kiểm tra lại số lượng / đếm lại hàng trên kệ.${st.done?'':' Vẫn có thể xác nhận.'}</div>`:''}
+    ${st.notes&&st.notes.length&&(!st.done||st.nothing)?`<div style="padding:9px 16px;font-size:11.5px;color:var(--brown);background:var(--bg)">${st.notes.map(n=>'• '+n).join('<br>')}</div>`:''}
+    ${shown.length?shown.map(g=>stageGroupHtml(st,g)).join(''):`<div class="dim" style="padding:16px;text-align:center">${st.nothing?'Không tìm thấy sản phẩm nào khớp với kho cho các dòng trong file.':'Đợt này không có sản phẩm nào cần trừ kho (chỉ gắn / cập nhật mã vận đơn).'}</div>`}
+    <div class="stg-foot">
+      <button class="btn btn-sm" onclick="stagePrint('${key}')">🖨 In phiếu soạn hàng</button>
+      <button class="btn btn-sm btn-honey" onclick="stageExcel('${key}')">📊 Xuất Excel</button>
+      <span style="flex:1"></span>
+      ${st.done||st.nothing?`<button class="btn btn-sm" onclick="stageClear('${key}')">✕ Đóng bảng</button>`
+        :`<button class="btn btn-sm" onclick="stageClear('${key}')">✕ Huỷ, sửa lại</button>
+          <button class="btn btn-dark" onclick="stageConfirm('${key}')">${st.confirmLabel}</button>`}
+    </div></div>`;
+}
+function stageFlat(st){
+  return st.groups.flatMap(g=>stageRowsSorted(g).map(r=>({group:g.title,...r})));
+}
+function stagePrint(key){
+  const st=STAGES[key];if(!st)return;if(!st.done)stageFreeze(st);
+  const w=window.open('','_blank','width=780,height=900');
+  if(!w){toast('Trình duyệt đang chặn cửa sổ in — cho phép popup rồi bấm lại',true);return;}
+  const groupsHtml=st.groups.filter(g=>g.rows.length).map(g=>{
+    const rows=stageRowsSorted(g);let lastP='',lastC='';
+    const body=rows.map(r=>{
+      const showP=r.product!==lastP;if(showP){lastP=r.product;lastC='';}
+      const showC=colorKeyOf(r.color)!==lastC;lastC=colorKeyOf(r.color);
+      return `<tr class="${r.short?'bad':''}"><td>${showP?'<b>'+escapeHtml(r.product)+'</b>':''}</td><td>${showC?escapeHtml(r.color):''}</td><td>${escapeHtml(r.size)}${r.src==='loikho'?' (Kho lỗi·KOL)':''}</td>
+        <td class="c big">${r.qty}</td><td class="c">${r.before}</td><td class="c">${r.after}</td><td class="c">${r.short?'⚠ '+r.short:''}</td><td class="c">☐</td></tr>`;
+    }).join('');
+    const tot=rows.reduce((s,r)=>s+r.qty,0);
+    return `<h3>${escapeHtml(g.title)} — ${tot} món</h3><table><thead><tr><th>Sản phẩm</th><th>Màu</th><th>Size</th><th>SL</th><th>Tồn trước</th><th>Tồn sau</th><th>Thiếu</th><th>Đã lấy</th></tr></thead><tbody>${body}</tbody></table>`;
+  }).join('');
+  const d=st.doneAt||new Date();
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Phiếu soạn hàng · ${escapeHtml(stageBaseName(st))}</title><style>
+    body{font-family:Arial,Helvetica,sans-serif;color:#222;padding:18px;font-size:12.5px}
+    h2{margin:0 0 2px;font-size:18px}.sub{color:#777;margin-bottom:12px}
+    h3{margin:16px 0 6px;font-size:14px}table{width:100%;border-collapse:collapse}
+    th,td{border:1px solid #ccc;padding:5px 7px;text-align:left}th{background:#f2ece4;font-size:11px}
+    .c{text-align:center}.big{font-weight:800;font-size:14px}tr.bad td{background:#fcebeb;color:#791f1f}
+    .btn{margin-top:14px;padding:8px 20px;background:#3E2723;color:#fff;border:none;border-radius:6px;cursor:pointer}
+    @media print{.btn{display:none}}
+  </style></head><body>
+    <h2>LàSilk · Phiếu soạn hàng — ${escapeHtml(stageBaseName(st))}</h2>
+    <div class="sub">${st.fileName?'File: '+escapeHtml(st.fileName)+' · ':''}${escapeHtml(st.title)} · ${p2(d.getDate())}/${p2(d.getMonth()+1)}/${d.getFullYear()} ${p2(d.getHours())}:${p2(d.getMinutes())}${currentStaffName?' · '+escapeHtml(currentStaffName):''}</div>
+    ${groupsHtml||'<div>Không có sản phẩm.</div>'}
+    <button class="btn" onclick="window.print()">🖨 In</button>
+  </body></html>`);
+  w.document.close();
+}
+function stageExcel(key){
+  const st=STAGES[key];if(!st)return;if(!st.done)stageFreeze(st);
+  const rows=[['Nhóm','Sản phẩm','Màu','Size','Mã SP','SL vừa lên','Tồn trước','Tồn sau','Thiếu']];
+  stageFlat(st).forEach(r=>rows.push([r.group,r.product,r.color,r.size+(r.src==='loikho'?' (Kho lỗi·KOL)':''),r.code,r.qty,r.before,r.after,r.short||'']));
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:14},{wch:22},{wch:14},{wch:8},{wch:10},{wch:10},{wch:10},{wch:10},{wch:8}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Soạn hàng');
+  const d=st.doneAt||new Date();
+  const safe=stageBaseName(st).replace(/[\\/:*?"<>|]+/g,'_').slice(0,80);
+  XLSX.writeFile(wb,`Phieu soan hang - ${safe} - ${todayStr()}.xlsx`);
 }
 
 /* ══════════ INIT ══════════ */
