@@ -5111,9 +5111,61 @@ function shColorAlias(temColor){
 // Nguyên tắc: KHÔNG SUY ĐOÁN khi thiếu dữ liệu — nếu không tách được rõ Size hoặc không xác định được
 // đúng 1 Màu (khi sản phẩm có nhiều màu), KHÔNG tự chọn đại 1 sản phẩm dù tên có vẻ khớp. Trả về '' để
 // dòng đó bắt buộc vào "cần duyệt tay", chọn tay đúng màu/size rồi mới trừ kho.
+// [MỚI] Luật đọc riêng theo TÊN SẢN PHẨM TRÊN SÀN → tự hiểu đúng sản phẩm + màu trong kho, dùng chung cho
+// Đơn Sàn (Shopee/TikTok) và Ngoại Sàn (GHN/SPX) vì cùng đi qua shMatch.
+//   • Trên sàn: "MIDNIGHT MUSE – Đầm Sườn Xám Gấm Họa Tiết Hoa Dáng Ôm Thanh Lịch Cao Cấp LASILK"
+//   • Tem ngoại sàn người bán gõ tay: "sườn xám đen M", "sườn xám đỏ L"... (thiếu/viết tắt đều được)
+// Cách hiểu: tên (không dấu) chứa 1 trong các cụm "when" → tìm SP trong danh mục có tên chứa 1 trong các cụm
+// "kho" → màu lấy từ chữ "đen"/"đỏ" xuất hiện trong tên + phân loại. CHỈ nhận khi ra đúng 1 sản phẩm
+// (đúng size + đúng màu) — không đủ dữ liệu thì trả '' để nhân viên duyệt tay, KHÔNG đoán.
+// Thêm sản phẩm khác: thêm 1 dòng vào bảng này.
+const SHOPEE_NAME_RULES=[
+  {label:'Midnight Muse · Sườn xám',when:['midnight muse','suon xam'],kho:['midnight muse','suon xam'],colors:[{word:'den',kho:'den'},{word:'do',kho:'do'}]},
+];
+// tách Size (token size chuẩn cuối cùng) + Màu (đen/đỏ) từ 1 đoạn chữ thô, vd "...LASILK, Sườn xám - ĐEN, S"
+function shRuleRead(raw){
+  const rule=SHOPEE_NAME_RULES.find(r=>r.when.some(w=>shvNorm(raw).includes(w)));
+  if(!rule)return null;
+  const toks=String(raw||'').split(/[\s,:;]+/).map(t=>t.trim()).filter(Boolean);
+  let size='';
+  for(let i=toks.length-1;i>=0;i--){if(sizeRank(toks[i])!==99){size=toks[i].toUpperCase();break;}}
+  const nt=shvNorm(raw).split(' ');
+  const hit=rule.colors.filter(c=>nt.includes(c.word));
+  return {rule,size,color:hit.length===1?hit[0]:null};
+}
+// hiển thị gọn ở bảng xem trước (giống "Jenni (Đỏ,S)") thay vì cả tên dài của sàn; null nếu không thuộc luật nào
+function shRuleDisplay(line){
+  const rd=shRuleRead((line.prod||'')+', '+(line.variation||''));
+  if(!rd||!rd.rule.label)return null;
+  const c=rd.color?(rd.color.word==='den'?'Đen':'Đỏ'):'';
+  return {name:rd.rule.label,variation:[c,rd.size].filter(Boolean).join(',')};
+}
+function shRuleMatch(line){
+  const text=shvNorm((line.prod||'')+' '+(line.variation||''));
+  const toks=text.split(' ');
+  const rule=SHOPEE_NAME_RULES.find(r=>r.when.some(w=>text.includes(w)));
+  if(!rule)return '';
+  let {color:vColor,size}=shParseVar(line.variation);
+  const rd=shRuleRead((line.prod||'')+', '+(line.variation||''));
+  if(!size&&rd)size=rd.size; // [MỚI] dự phòng: dò size ở cuối cả đoạn chữ
+  if(!size)return '';
+  // màu: ưu tiên chữ trong ô Phân loại, rồi mới tới tên SP; nếu thấy cả đen lẫn đỏ ở cùng 1 nơi → mập mờ, bỏ
+  const pickColor=str=>{
+    const t=shvNorm(str).split(' ');
+    const hit=rule.colors.filter(c=>t.includes(c.word));
+    return hit.length===1?hit[0]:null;
+  };
+  const col=pickColor(vColor)||pickColor(line.variation)||pickColor(line.prod)||(rd&&rd.color)||null;
+  if(!col)return '';
+  let cands=allProducts.filter(p=>rule.kho.some(k=>shvNorm(p.name).includes(k)));
+  const bySize=cands.filter(p=>shNorm(p.size)===shNorm(size));
+  const hit=bySize.filter(p=>shvNorm(p.color).split(' ').includes(col.kho));
+  return hit.length===1?hit[0].code:'';
+}
 function shMatch(line){
   if(line.skuVar){const p=allProducts.find(x=>x.code===line.skuVar);if(p)return p.code;}
   if(line.skuProd){const p=allProducts.find(x=>x.code===line.skuProd);if(p)return p.code;}
+  {const rc=shRuleMatch(line);if(rc)return rc;} // [MỚI] luật tên riêng (vd Midnight Muse / sườn xám đen-đỏ)
   const nm=shBracket(line.prod);const {color,size}=shParseVar(line.variation);
   if(!size)return ''; // thiếu Size từ text → không đủ dữ liệu, bắt buộc duyệt tay, không đoán
   // ưu tiên khớp CHÍNH XÁC tên trước (an toàn nhất); chỉ hạ xuống khớp mờ (chứa chuỗi con) nếu không có khớp chính xác nào
@@ -5273,7 +5325,7 @@ function shpRecipient(rows){
   return {name:out[0]||'',addr:out.slice(1).join(', ')};
 }
 function shpParseProducts(full){
-  const out=[];const re=/\d+\.\s*(\[[\s\S]*?SL:\s*\d+)/g;let m;
+  const out=[];const re=/\d+\.\s*(\[[\s\S]*?SL:\s*\d+|(?:MIDNIGHT\s+MUSE|S[ưu][ờo]n\s+x[áa]m)[\s\S]*?SL:\s*\d+)/gi;let m; // [MỚI] nhận thêm dòng không có "[" khi là Midnight Muse / Sườn xám
   while((m=re.exec(full))){
     const qty=parseInt((m[1].match(/SL:\s*(\d+)/)||[])[1]||'1')||1;
     const s=m[1].replace(/,?\s*SL:\s*\d+\s*$/,'').trim();
@@ -5447,7 +5499,7 @@ function renderShopeePreview(){
       <td class="l mono" style="font-size:10.5px;font-weight:700">${escapeHtml(l.sn)}</td>
       <td class="l" style="font-size:11px">${tag}${pickSel}</td>
       <td class="l" style="font-size:11px">${l.buyer?escapeHtml(l.buyer):'<span class="dim">—</span>'}${l.express?' <span class="pill" style="background:var(--red-bg);color:var(--red-fg)">🔥 Hỏa Tốc</span>':''}</td>
-      <td class="l" style="font-size:11px;max-width:200px">${escapeHtml(shBracket(l.prod))}${l.variation?` <span class="dim">(${escapeHtml(l.variation)})</span>`:''}</td>
+      <td class="l" style="font-size:11px;max-width:200px">${(()=>{const d=shRuleDisplay(l);return d?`${escapeHtml(d.name)}${d.variation?` <span class="dim">(${escapeHtml(d.variation)})</span>`:''}`:`${escapeHtml(shBracket(l.prod))}${l.variation?` <span class="dim">(${escapeHtml(l.variation)})</span>`:''}`;})()}</td>
       <td style="font-weight:700">${l.qty}</td>
       <td class="l mono" style="font-size:10px">${l.tracking?escapeHtml(l.tracking):'<span class="dim">— (hoả tốc)</span>'}</td>
       <td class="l">${k==='new'||k==='nomatch'?`<select onchange="shopeeLines[${i}].code=this.value;renderShopeePreview()" style="font-size:11px;padding:5px 8px"><option value="">— chưa khớp —</option>${opts}</select>`:'<span class="dim" style="font-size:11px">không cần</span>'}</td>
@@ -5631,6 +5683,8 @@ function spxOffRecipient(rows){
 // là phần đầu câu — phần dư giữa tên SP và size chính là màu.
 function spxSplitProdVar(raw){
   raw=String(raw||'').trim();
+  {const rr=shRuleRead(raw); // [MỚI] Midnight Muse / sườn xám: tên dài + "Sườn xám - ĐEN, S" → giữ nguyên tên, biến thể = Màu, Size
+    if(rr&&rr.size&&rr.color)return{prod:raw,variation:(rr.color.word==='den'?'Đen':'Đỏ')+', '+rr.size};}
   // [SỬA] một số tem bị lỗi font/icon chèn ký tự lạ có dấu ':' vào GIỮA câu (VD icon áo trước tên SP bị
   // đọc thành "(cid:0)" hoặc ký tự khác có ':') khiến lastIndexOf(':') bắt nhầm dấu ':' đó thay vì dấu ':'
   // phân cách size thật ở cuối câu → chỉ coi dấu ':' hợp lệ khi phần sau nó NGẮN (đúng kiểu size/số lượng
