@@ -1596,7 +1596,7 @@ function renderDonDateBar(){
   ${donFilter==='Đã gửi'?`<div class="row" style="margin-top:8px"><button class="btn btn-honey btn-sm" onclick="exportDonGuiExcel()">📊 Xuất Excel báo cáo</button></div>`:''}`;
 }
 /* ── [MỚI] Xuất Excel báo cáo tab "Đã gửi" (theo đúng khoảng ngày đang lọc + tìm kiếm/lọc SP hiện tại) ──
-   Gồm: Tên khách, SĐT, Mã vận đơn, Đơn vị vận chuyển, Tên sản phẩm, Có phải hàng đổi không, Sản phẩm lấy về (nếu có).
+   Gồm: Mã đơn, Ngày đi đơn, Tên khách, SĐT, Mã vận đơn, Đơn vị vận chuyển, Tên sản phẩm, Có phải hàng đổi không, Sản phẩm lấy về (nếu có).
    "Sản phẩm lấy về" lấy từ dòng "Chờ hàng về" cùng order_code (do luồng Đổi hàng GHN/SPX tạo — xem ngoaiConfirm). */
 function exportDonGuiExcel(){
   const ff=DON_FILTERS.find(x=>x.k==='Đã gửi');
@@ -1618,14 +1618,16 @@ function exportDonGuiExcel(){
   allOrders.forEach(o=>{
     if(o.status==='Chờ hàng về'&&o.channel==='Đổi hàng')(retByCode[o.order_code]=retByCode[o.order_code]||[]).push(`${o.product_name} × ${o.quantity}`);
   });
-  const HEAD=['Mã đơn','Tên khách','Số điện thoại','Mã vận đơn','Đơn vị vận chuyển','Tên sản phẩm','SL','Có phải hàng đổi?','Sản phẩm lấy về'];
+  const HEAD=['Mã đơn','Ngày đi đơn','Tên khách','Số điện thoại','Mã vận đơn','Đơn vị vận chuyển','Tên sản phẩm','SL','Có phải hàng đổi?','Sản phẩm lấy về'];
+  // Ngày đi đơn = sent_date (ngày gửi thật); đơn cũ chưa có sent_date thì lấy ngày tạo — giống orderDateOf()
+  const fmtD=d=>{const m=String(d||'').slice(0,10).match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?`${m[3]}/${m[2]}/${m[1]}`:String(d||'').slice(0,10);};
   const rows=[HEAD,...list.map(o=>{
     const isDoi=o.channel==='Đổi hàng';
-    return [o.order_code,o.customer_name||'',o.phone||'',o.tracking_code||'',o.ship_method||'',o.product_name||'',o.quantity||'',
+    return [o.order_code,fmtD(o.sent_date||o.created_at||o.date),o.customer_name||'',o.phone||'',o.tracking_code||'',o.ship_method||'',o.product_name||'',o.quantity||'',
       isDoi?'Có':'Không',isDoi?(retByCode[o.order_code]||[]).join(', '):''];
   })];
   const ws=XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols']=[{wch:14},{wch:20},{wch:13},{wch:16},{wch:14},{wch:26},{wch:6},{wch:12},{wch:26}];
+  ws['!cols']=[{wch:14},{wch:12},{wch:20},{wch:13},{wch:16},{wch:14},{wch:26},{wch:6},{wch:12},{wch:26}];
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Đã gửi');
   const label=dr&&dr.from&&dr.to?(dr.from===dr.to?dr.from:`${dr.from}_${dr.to}`):'tatca';
   XLSX.writeFile(wb,`bao_cao_da_gui_${label}.xlsx`);
