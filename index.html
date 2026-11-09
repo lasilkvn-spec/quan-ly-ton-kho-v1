@@ -831,7 +831,15 @@ function sbClean(v){
   return v;
 }
 const GET=p=>sb(p);
-const POST=(p,b)=>sb(p,{method:'POST',body:JSON.stringify(sbClean(b))});
+const POST=(p,b)=>{
+  // [SET] đơn ghi mã SET đã tách → tự lưu thành 1 Áo + 1 Chân váy
+  if(/^orders(\?|$)/.test(p)&&b&&!Array.isArray(b)&&b.product_code){
+    const rc=resolveCode(b.product_code);
+    if(rc!==b.product_code){const kp=allProducts.find(x=>x.code===rc);b={...b,product_code:rc,product_name:kp?pname(kp):b.product_name};}
+    if(isSetParent(b.product_code))return postOrderSetAware(p,b);
+  }
+  return sb(p,{method:'POST',body:JSON.stringify(sbClean(b))});
+};
 const PATCH=(p,b)=>sb(p,{method:'PATCH',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify(sbClean(b))});
 const DEL=(p)=>sb(p,{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
 // UPSERT: ghi đè theo khoá xung đột (on_conflict) — dùng để đồng bộ "Nhân viên & Lương" + "KPI Nhân viên" lên
@@ -863,6 +871,7 @@ async function sbAll(path){
 
 /* ══════════ STATE + UTILS ══════════ */
 let allProducts=[],allTx=[],allOrders=[],kolPosts=[];
+let setParents=[]; // [SET] mã SET đã tách Áo/Chân váy — ẩn khỏi mọi trang, chỉ giữ ngầm để khớp đơn sàn & sổ cái cũ
 // [MỚI] đơn đã bấm "Xoá đơn" — không xoá hẳn khỏi Supabase nữa, chỉ chuyển status='Đã xoá' và tách ra
 // mảng riêng này (không lẫn vào allOrders) để mọi tính toán/thống kê khác trong app không bị ảnh hưởng,
 // đồng thời vẫn xem lại được ở tab "Đã xoá" trong Quản lý đơn.
@@ -910,16 +919,82 @@ function isPopupKho(t){return POPUP_IN_REFS.includes(t.ref_type)||POPUP_OUT_REFS
 function isSideKho(t){return isLoiKho(t)||isPopupKho(t);}
 function popupChan(k){const p=POPUP_PARTNERS.find(x=>x.k===k);return 'Pop Up · '+(p?p.label:k);}
 function popupPartnerOfTx(t){const ch=String(t.channel||'');const p=POPUP_PARTNERS.find(x=>ch.includes('Pop Up · '+x.label)||ch.includes('Pop Up trả về · '+x.label));return p?p.k:'';}
-function stockOne(code){
-  return allTx.filter(t=>t.product_code===code&&!isSalesAdjust(t)&&!isSideKho(t))
+/* ══════════ [MỚI] SET TÁCH ÁO / CHÂN VÁY ══════════
+   Mỗi mã SET (VD SET SƠ MI LỤA · Đen · M, mã X) được tách thành 2 mã con trong bảng products:
+     X-AO  (màu "Đen · Áo")   và   X-CV  (màu "Đen · Chân váy") — cùng tên SP, cùng size.
+   Nhân viên vẫn lên đơn / nhập đơn sàn bằng mã SET như cũ → 1 set = 1 áo + 1 chân váy, nên MỌI bút toán của mã
+   SET (bán, nhập lô cũ, kiểm kê trước khi tách...) được tính CHO CẢ 2 mã con. Bút toán ghi riêng vào mã con
+   (đếm kho áo riêng, đặt xưởng riêng chân váy...) chỉ tính cho đúng mã con đó.
+     - Tồn/Bán/Đang về/Nợ đơn của mã con = số của chính nó + số của mã SET cha
+     - Tồn của mã SET cha = min(tồn Áo, tồn Chân váy) → số set còn ghép đủ bộ để bán
+   Mọi trang (Kho, Order hàng, Đặt NCC, Kho hàng lỗi, Pop Up, Đi đơn) chỉ hiện 2 mã con, ẩn mã SET cha.
+   Riêng bảng tổng quan theo ngày ở Đi đơn và các số tổng/metric vẫn đếm theo đơn thật (1 set = 1). */
+const SET_PARTS=[{suf:'-AO',label:'Áo'},{suf:'-CV',label:'Chân váy'}];
+let _setIdx=null,_setIdxSrc=null;
+function setIndex(){
+  if(_setIdx&&_setIdxSrc===allProducts&&_setIdx.n===allProducts.length&&_setIdx.np===setParents.length&&_setIdx.nt===allTx.length)return _setIdx;
+  const byCode={};allProducts.forEach(p=>byCode[p.code]=p);setParents.forEach(p=>byCode[p.code]=p);
+  const parentOf={},kids={};
+  allProducts.forEach(p=>{const c=String(p.code||'');
+    for(const s of SET_PARTS){if(c.endsWith(s.suf)){const par=c.slice(0,-s.suf.length);
+      if(par&&byCode[par]){parentOf[c]=par;(kids[par]=kids[par]||[]).push(c);}}}});
+  // [GỘP MÃ] bút toán đánh dấu ref_type='merge', ref_id='MERGE:<mã cũ>><mã mới>' → mã cũ gộp hẳn vào mã mới
+  const mergedInto={},mergedFrom={};
+  allTx.forEach(t=>{if(t.ref_type!=='merge')return;const m=String(t.ref_id||'').match(/^MERGE:(.+)>(.+)$/);
+    if(m&&m[1]!==m[2]&&!mergedInto[m[1]]){mergedInto[m[1]]=m[2];(mergedFrom[m[2]]=mergedFrom[m[2]]||[]).push(m[1]);}});
+  _setIdx={parentOf,kids,mergedInto,mergedFrom,n:allProducts.length,np:setParents.length,nt:allTx.length};_setIdxSrc=allProducts;
+  return _setIdx;
+}
+// mã thật đang dùng của 1 mã (mã đã gộp → mã nó được gộp vào)
+function resolveCode(code){const mi=setIndex().mergedInto;let c=code,g=0;while(mi[c]&&g++<5)c=mi[c];return c;}
+// các mã có số liệu tính cho 1 mã: chính nó + các mã cũ đã gộp vào nó
+function ownCodes(code){const mf=setIndex().mergedFrom[code];return mf?[code,...mf]:[code];}
+// đưa mã SET đã có đủ mã con ra khỏi allProducts (ẩn khỏi mọi trang/danh sách chọn), cất vào setParents
+function partitionSetParents(){
+  const all=[...allProducts,...setParents];const codes=new Set(all.map(p=>p.code));
+  const isPar=p=>SET_PARTS.every(x=>codes.has(p.code+x.suf));
+  _setIdx=null;const mi=setIndex().mergedInto;
+  const hide=p=>isPar(p)||!!mi[p.code];
+  setParents=all.filter(hide);allProducts=all.filter(p=>!hide(p));_setIdx=null;
+}
+function findProdAny(code){return allProducts.find(x=>x.code===code)||setParents.find(x=>x.code===code);}
+// danh sách để KHỚP đơn sàn theo SKU/tên: gồm cả mã SET ẩn (đơn ghi set → khớp mã SET → tự tách 1 áo + 1 chân váy)
+function matchPool(){const mi=setIndex().mergedInto;return [...allProducts,...setParents.filter(p=>!mi[p.code])];}
+// [SET] 1 dòng đơn ghi mã SET → tách thành 1 dòng Áo + 1 dòng Chân váy (cùng SL). Tiền (amount_due/phí ship) để ở dòng Áo.
+async function postOrderSetAware(path,b){
+  const kids=setIndex().kids[b.product_code];
+  const out=[];
+  for(let i=0;i<kids.length;i++){
+    const kp=allProducts.find(x=>x.code===kids[i]);
+    const body={...b,product_code:kids[i],product_name:kp?pname(kp):b.product_name};
+    if(i>0){if('amount_due' in body)body.amount_due=0;if('shipping_fee' in body)body.shipping_fee=0;}
+    const r=await sb(path,{method:'POST',body:JSON.stringify(sbClean(body))});
+    if(Array.isArray(r))out.push(...r);
+  }
+  out.slice(1).forEach(r=>{if(typeof allOrders!=='undefined')allOrders.unshift(r);}); // dòng đầu do nơi gọi tự thêm như cũ
+  return out;
+}
+function isSetParent(code){const k=setIndex().kids[code];return !!(k&&k.length);}
+function isSetChild(code){return !!setIndex().parentOf[code];}
+function ledgerOne(code,date){
+  const oc=ownCodes(code);
+  return allTx.filter(t=>oc.includes(t.product_code)&&!isSalesAdjust(t)&&!isSideKho(t)&&(!date||t.date<=date))
     .reduce((s,t)=>s+(t.type==='Nhập'?(t.quantity||0):-(t.quantity||0)),0);
+}
+function stockOne(code){
+  const ix=setIndex();if(ix.mergedInto[code])return stockOne(resolveCode(code));
+  if(ix.kids[code]&&ix.kids[code].length)return Math.min(...ix.kids[code].map(k=>stockOne(k)));
+  const par=ix.parentOf[code];
+  return ledgerOne(code)+(par?ledgerOne(par):0);
 }
 function computeStock(){const r={};allProducts.forEach(p=>r[p.code]=stockOne(p.code));return r;}
 // [VẤN ĐỀ] tồn kho hệ thống TÍNH ĐẾN 1 ngày cụ thể (dùng khi kiểm kê bị nhập trễ, VD đếm hôm qua nay mới nhập số) —
 // nếu chỉ lấy tồn hiện tại (đến hôm nay) để so với số đếm của hôm qua thì sẽ lệch vì đã cộng/trừ thêm giao dịch hôm nay.
 function stockOneAsOf(code,date){
-  return allTx.filter(t=>t.product_code===code&&!isSalesAdjust(t)&&!isSideKho(t)&&t.date<=date)
-    .reduce((s,t)=>s+(t.type==='Nhập'?(t.quantity||0):-(t.quantity||0)),0);
+  const ix=setIndex();if(ix.mergedInto[code])return stockOneAsOf(resolveCode(code),date);
+  if(ix.kids[code]&&ix.kids[code].length)return Math.min(...ix.kids[code].map(k=>stockOneAsOf(k,date)));
+  const par=ix.parentOf[code];
+  return ledgerOne(code,date)+(par?ledgerOne(par,date):0);
 }
 // [ĐÃ ĐỔI LOGIC] Trước đây đơn "Chờ gửi/Nợ hàng" chỉ giữ chỗ mềm (chưa trừ kho thật, trừ ở lúc Gửi).
 // Giờ trừ kho THẬT ngay lúc đơn được xác nhận vào "Cần gửi" (chotOrder / lúc tạo đơn Nợ hàng·Thái·Quốc tế),
@@ -961,7 +1036,7 @@ function txCategory(t){
   if(['popup_send','popup_in','popup_back','popup_recv'].includes(rt))return{label:'Pop Up',bg:'var(--pink-soft)',fg:'#993556'};
   if(['popup_adj_in','popup_adj_out'].includes(rt))return{label:'Chỉnh kho',bg:'var(--org-bg)',fg:'var(--org-fg)'};
   if(['po','po_kol','po_loi'].includes(rt))return{label:'Order hàng',bg:'var(--grn-bg)',fg:'var(--grn-fg)'};
-  if(['adjust','init','opening','sales_adjust','kol_out','loi_out'].includes(rt))return{label:'Chỉnh kho',bg:'var(--org-bg)',fg:'var(--org-fg)'};
+  if(['adjust','init','opening','sales_adjust','kol_out','loi_out','merge'].includes(rt))return{label:'Chỉnh kho',bg:'var(--org-bg)',fg:'var(--org-fg)'};
   return{label:'Khác',bg:'var(--bg)',fg:'var(--brown)'};
 }
 // Với các bút toán "Đi đơn", tìm ngược lại đúng đơn hàng đã sinh ra nó (ref_id luôn chứa order_code
@@ -992,7 +1067,14 @@ function txWarehouse(t){
   return'Quản lý kho';
 }
 /* CỔNG TRỪ KHO DUY NHẤT — có chống trùng theo mã đơn */
-async function postXuat({product_code,quantity,channel,ref_type,ref_id,is_kol,note,date}){
+async function postXuat(o){
+  if(o&&o.product_code&&o.ref_type!=='merge')o={...o,product_code:resolveCode(o.product_code)};
+  if(o&&isSetParent(o.product_code)){ // [SET] trừ 1 set = trừ 1 áo + 1 chân váy
+    let res='dup';for(const k of setIndex().kids[o.product_code]){if(await postXuatOne({...o,product_code:k})==='ok')res='ok';}return res;
+  }
+  return postXuatOne(o);
+}
+async function postXuatOne({product_code,quantity,channel,ref_type,ref_id,is_kol,note,date}){
   // 1) chặn trùng bằng snapshot cục bộ (nhanh)
   if(ref_id&&allTx.some(t=>t.type==='Xuất'&&t.ref_type===ref_type&&t.ref_id===ref_id&&t.product_code===product_code))return 'dup';
   // 2) chặn trùng phía SERVER ngay trước khi ghi — thu hẹp khe hở khi 2 máy thao tác cùng lúc
@@ -1016,6 +1098,13 @@ async function postXuat({product_code,quantity,channel,ref_type,ref_id,is_kol,no
   return 'ok';
 }
 async function postNhap(o){
+  if(o&&o.product_code&&o.ref_type!=='merge')o={...o,product_code:resolveCode(o.product_code)};
+  if(o&&isSetParent(o.product_code)){ // [SET] nhập 1 set = nhập 1 áo + 1 chân váy
+    let res='dup';for(const k of setIndex().kids[o.product_code]){if(await postNhapOne({...o,product_code:k})==='ok')res='ok';}return res;
+  }
+  return postNhapOne(o);
+}
+async function postNhapOne(o){
   const {ref_type,ref_id,product_code}=o;
   if(ref_id&&allTx.some(t=>t.type==='Nhập'&&t.ref_type===ref_type&&t.ref_id===ref_id&&t.product_code===product_code))return 'dup';
   if(ref_id&&ref_type){
@@ -1047,7 +1136,7 @@ async function loadAll(){
     ]);
     // tách phụ kiện (category='accessory') ra khỏi allProducts để KHÔNG lẫn vào Kho/Order hàng/QR/Thống kê apparel như cũ —
     // nếu bảng products chưa có cột category (chưa chạy SQL) thì coi tất cả là 'apparel' như trước, không vỡ trang nào.
-    allProducts=pr.filter(p=>(p.category||'apparel')!=='accessory');
+    allProducts=pr.filter(p=>(p.category||'apparel')!=='accessory');setParents=[];partitionSetParents();
     allAccProducts=pr.filter(p=>(p.category||'apparel')==='accessory');
     allTx=tx;allOrders=or.filter(o=>o.status!=='Đã xoá');deletedOrders=or.filter(o=>o.status==='Đã xoá');
     if(or.length)DUE_COL_MISSING=!('due_date' in or[0]); // chưa chạy SQL thêm cột → lưu ngày hẹn tạm trong ghi chú
@@ -1716,7 +1805,7 @@ function exportTongKhoAsOf(){
       ...arr.map(r=>[r.code,r.name,r.color,r.size,r.qty]),
       ['','','','Tổng cộng',total]],total};
   };
-  const kh=buildRows(allProducts);
+  const kh=buildRows(allProducts.filter(p=>!isSetParent(p.code)));
   const hasAcc=allAccProducts.length>0;
   const pk=hasAcc?buildRows(allAccProducts):null;
   const wb=XLSX.utils.book_new();
@@ -2471,10 +2560,8 @@ function normName(){
   allProducts.forEach(p=>{const k=(p.name||'').trim().toLowerCase();if(!map[k])map[k]=(p.name||'').trim();});
   return map;
 }
-function ddGroups(){ // canonical name -> [products]
-  const nm=normName();const g={};
-  allProducts.forEach(p=>{const key=nm[(p.name||'').trim().toLowerCase()];(g[key]=g[key]||[]).push(p);});
-  return g;
+function ddGroups(mode){ // canonical name -> [products] · mode giống groupByName ('side' = theo mã SET, mặc định = tách Áo/Chân váy)
+  return groupByName(mode);
 }
 let ddTab='ALL';
 let ddColorFocus={}; // [VẤN ĐỀ] nm -> màu đang lọc riêng ở trang Đi đơn để dễ xem, giống trang Kho
@@ -2506,6 +2593,13 @@ function poLotsInRange(from,to){
 }
 // tồn cuối mỗi ngày (running) cho 1 SKU
 function eodMap(code,from,days){
+  // [SET] mã con Áo/Chân váy = tồn cuối ngày của chính nó + của mã SET cha
+  const par=setIndex().parentOf[code];
+  const sumE=c=>{const r={};ownCodes(c).forEach(x=>{const e=eodMapRaw(x,from,days);days.forEach(d=>{r[d]=(r[d]||0)+(e[d]||0);});});return r;};
+  const own=sumE(code);if(!par)return own;
+  const pm=sumE(par);const r={};days.forEach(d=>{r[d]=(own[d]||0)+(pm[d]||0);});return r;
+}
+function eodMapRaw(code,from,days){
   let base=allTx.filter(t=>t.product_code===code&&!isSideKho(t)&&t.date<from).reduce((s,t)=>s+(t.type==='Nhập'?(t.quantity||0):-(t.quantity||0)),0);
   const dd={};allTx.filter(t=>t.product_code===code&&!isSideKho(t)&&t.date>=from).forEach(t=>{dd[t.date]=(dd[t.date]||0)+(t.type==='Nhập'?(t.quantity||0):-(t.quantity||0));});
   const r={};days.forEach(d=>{base+=dd[d]||0;r[d]=base;});return r;
@@ -2529,15 +2623,17 @@ function renderDiDon(){
   document.getElementById('ddv-sp').className='tab'+(ddView==='sp'?' on':'');
   document.getElementById('ddv-channel').className='tab'+(ddView==='channel'?' on':'');
   const groups=ddGroups();const names=Object.keys(groups);
-  if(ddView==='day'){document.getElementById('dd-tabs').innerHTML='';renderDiDonOverview(groups,names,days,sm);return;}
+  // bảng tổng quan theo ngày giữ theo mã SET (1 set bán = 1 đơn) để khớp đúng "Tổng đơn" ở trên
+  if(ddView==='day'){document.getElementById('dd-tabs').innerHTML='';renderDiDonOverview(groups,names,days,setInheritDayMap(sm));return;}
   if(ddView==='channel'){document.getElementById('dd-tabs').innerHTML='';renderDiDonChannel(from,to);return;}
   document.getElementById('dd-tabs').innerHTML=['ALL',...names].map(k=>`<div class="tab ${k===ddTab?'on':''}" onclick="ddTab='${jsq(k)}';renderDiDon()">${k==='ALL'?'Tất cả':escapeHtml(k)}</div>`).join('');
   const show=ddTab==='ALL'?names:[ddTab];
-  const nsm=newStockMap();const lots=poLotsInRange(from,to);
+  const nsm=setInheritDayMap(newStockMap());const lots=poLotsInRange(from,to);
+  const smS=setInheritDayMap(sm); // [SET] mã con Áo/Chân váy nhận thêm đơn đi của mã SET
   let html='';
   show.forEach(nm=>{
     const prods=(groups[nm]||[]);
-    const sold=prods.reduce((s,p)=>s+Object.entries(sm[p.code]||{}).filter(([d])=>d>=from&&d<=to).reduce((a,[,v])=>a+v,0),0);
+    const sold=prods.reduce((s,p)=>s+Object.entries(smS[p.code]||{}).filter(([d])=>d>=from&&d<=to).reduce((a,[,v])=>a+v,0),0);
     const newIn=prods.reduce((s,p)=>s+Object.entries(nsm[p.code]||{}).filter(([d])=>d>=from&&d<=to).reduce((a,[,v])=>a+v,0),0);
     const focus=ddColorFocus[nm]||null;
     const chips=colorGroupsOf(prods).map(cg=>`<button class="btn btn-sm" style="background:${focus===cg.color?colorBg(cg.color):'var(--bg)'};color:${focus===cg.color?'#fff':'var(--brown)'};border-color:${colorBg(cg.color)}" onclick="ddColorFocus['${jsq(nm)}']=ddColorFocus['${jsq(nm)}']==='${jsq(cg.color)}'?null:'${jsq(cg.color)}';renderDiDon()">${escapeHtml(cg.color)}</button>`).join('');
@@ -2547,7 +2643,7 @@ function renderDiDon(){
         <span style="font-size:12px;color:var(--brown)">Bán: <b>${sold}</b> · TB ${days.length?(sold/days.length).toFixed(1):0}/ngày</span></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;padding:9px 15px 0">${chips}${focus?`<button class="btn btn-sm" style="background:transparent;color:var(--brown);border-color:var(--border)" onclick="ddColorFocus['${jsq(nm)}']=null;renderDiDon()">✕ Xem tất cả màu</button>`:''}</div>
       <div style="padding:10px 12px 4px;font-size:11px;font-weight:700;color:var(--brown)">📤 ĐƠN ĐI MỖI NGÀY</div>
-      ${crossTable(prods,days,(code,d)=>(sm[code]||{})[d]||0,null,focus)}
+      ${crossTable(prods,days,(code,d)=>(smS[code]||{})[d]||0,null,focus)}
       <div style="padding:10px 12px 4px;font-size:11px;font-weight:700;color:var(--brown)">🏠 TỒN KHO CUỐI NGÀY</div>
       ${crossTable(prods,days,null,from,focus)}
       <div style="padding:10px 12px 4px;font-size:11px;font-weight:700;color:var(--brown)">🚚 HÀNG MỚI VỀ MỖI NGÀY (order NCC + đổi/trả) · tổng <b style="color:var(--dark)">${newIn}</b>${lots.length?` · đợt: ${lots.map(escapeHtml).join(', ')}`:''}</div>
@@ -2688,13 +2784,20 @@ function loiOutRefs(b){return b==='all'?['kol_out','loi_out']:[LOI_REF[b].out];}
 function loiShipMap(b){const refs=loiOutRefs(b);const m={};allTx.filter(t=>t.type==='Xuất'&&refs.includes(t.ref_type)).forEach(t=>{(m[t.product_code]=m[t.product_code]||{});m[t.product_code][t.date]=(m[t.product_code][t.date]||0)+(t.quantity||0);});return m;}
 function loiNewMap(b){const refs=loiInRefs(b);const m={};allTx.filter(t=>t.type==='Nhập'&&refs.includes(t.ref_type)).forEach(t=>{(m[t.product_code]=m[t.product_code]||{});m[t.product_code][t.date]=(m[t.product_code][t.date]||0)+(t.quantity||0);});return m;}
 function loiEodMap(code,from,days,b){
+  const par=setIndex().parentOf[code];
+  const sumE=c=>{const r={};ownCodes(c).forEach(x=>{const e=loiEodMapRaw(x,from,days,b);days.forEach(d=>{r[d]=(r[d]||0)+(e[d]||0);});});return r;};
+  const own=sumE(code);if(!par)return own;
+  const pm=sumE(par);const r={};days.forEach(d=>{r[d]=(own[d]||0)+(pm[d]||0);});return r;
+}
+function loiEodMapRaw(code,from,days,b){
   const inR=loiInRefs(b),outR=loiOutRefs(b);
   const rel=t=>t.product_code===code&&(inR.includes(t.ref_type)||outR.includes(t.ref_type));
   let base=allTx.filter(t=>rel(t)&&t.date<from).reduce((s,t)=>s+(t.type==='Nhập'?(t.quantity||0):-(t.quantity||0)),0);
   const dd={};allTx.filter(t=>rel(t)&&t.date>=from).forEach(t=>{dd[t.date]=(dd[t.date]||0)+(t.type==='Nhập'?(t.quantity||0):-(t.quantity||0));});
   const r={};days.forEach(d=>{base+=dd[d]||0;r[d]=base;});return r;
 }
-function loiStockOne(code,b){
+function loiStockOne(code,b){return setStockOf(c=>loiStockOneRaw(c,b),code);}
+function loiStockOneRaw(code,b){
   const inR=loiInRefs(b),outR=loiOutRefs(b);
   return allTx.filter(t=>t.product_code===code&&(inR.includes(t.ref_type)||outR.includes(t.ref_type)))
     .reduce((s,t)=>s+(t.type==='Nhập'?(t.quantity||0):-(t.quantity||0)),0);
@@ -2755,7 +2858,7 @@ function renderLoiKho(){
   const nm2=loiNewMap(loiBucket),sm2=loiShipMap(loiBucket);
   const inRange=(map)=>Object.values(map).reduce((s,byd)=>s+Object.entries(byd).filter(([d])=>d>=from&&d<=to).reduce((a,[,v])=>a+v,0),0);
   const totalIn=inRange(nm2),totalOut=inRange(sm2);
-  const stockNow=allProducts.reduce((s,p)=>s+loiStockOne(p.code,loiBucket),0);
+  const stockNow=allProducts.reduce((s,p)=>s+(isSetParent(p.code)?0:loiStockOne(p.code,loiBucket)),0);
   document.getElementById('lk-metrics').innerHTML=`
     <div class="metric"><div class="metric-v">${stockNow}</div><div class="metric-l">Tồn hiện tại</div></div>
     <div class="metric honey"><div class="metric-v">${totalIn}</div><div class="metric-l">Về kho (kỳ)</div></div>
@@ -2764,7 +2867,7 @@ function renderLoiKho(){
   if(loiBucket==='all'){xuatBox.innerHTML='';}
   else{
     const label=LOI_BUCKETS.find(b=>b.k===loiBucket).label;
-    const opts=allProducts.filter(p=>loiStockOne(p.code,loiBucket)>0)
+    const opts=allProducts.filter(p=>!isSetParent(p.code)&&loiStockOne(p.code,loiBucket)>0)
       .map(p=>`<option value="${p.code}">${escapeHtml(pname(p))} (còn ${loiStockOne(p.code,loiBucket)})</option>`).join('');
     xuatBox.innerHTML=`<div class="card" style="padding:12px 14px;margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <b style="font-size:12.5px;white-space:nowrap">📤 Ghi nhận xuất kho ${escapeHtml(label)}:</b>
@@ -2776,6 +2879,7 @@ function renderLoiKho(){
   }
   const groups=groupByName();const names=Object.keys(groups);
   const lots=loiLotsInRange(from,to,loiBucket);
+  const sm2S=setInheritDayMap(sm2),nm2S=setInheritDayMap(nm2); // [SET] mã con nhận thêm số của mã SET
   let html='';
   names.forEach(nm=>{
     const prods=(groups[nm]||[]);
@@ -2791,11 +2895,11 @@ function renderLoiKho(){
         <span style="font-size:12px;color:var(--brown)">Tồn hiện tại: <b>${stockSum}</b></span></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;padding:9px 15px 0">${chips}${focus?`<button class="btn btn-sm" style="background:transparent;color:var(--brown);border-color:var(--border)" onclick="loiColorFocus['${jsq(nm)}']=null;renderLoiKho()">✕ Xem tất cả màu</button>`:''}</div>
       <div style="padding:10px 12px 4px;font-size:11px;font-weight:700;color:var(--brown)">📤 HÀNG ĐI MỖI NGÀY</div>
-      ${crossTable(prods,days,(code,d)=>(sm2[code]||{})[d]||0,null,focus)}
+      ${crossTable(prods,days,(code,d)=>(sm2S[code]||{})[d]||0,null,focus)}
       <div style="padding:10px 12px 4px;font-size:11px;font-weight:700;color:var(--brown)">🏠 KHO HIỆN TẠI (cuối ngày)</div>
       ${crossTable(prods,days,null,from,focus,(code,f,d)=>loiEodMap(code,f,d,loiBucket))}
       <div style="padding:10px 12px 4px;font-size:11px;font-weight:700;color:var(--brown)">🚚 HÀNG MỚI VỀ MỖI NGÀY${lots.length?` · đợt: ${lots.map(escapeHtml).join(', ')}`:''}</div>
-      ${crossTable(prods,days,(code,d)=>(nm2[code]||{})[d]||0,null,focus)}
+      ${crossTable(prods,days,(code,d)=>(nm2S[code]||{})[d]||0,null,focus)}
     </div>`;
   });
   document.getElementById('lk-content').innerHTML=html||'<div class="card dim" style="text-align:center">Chưa có dữ liệu Kho hàng lỗi trong kỳ đã chọn.</div>';
@@ -2931,14 +3035,23 @@ function colorGroupsOf(prods){
   prods.forEach(p=>{const k=colorKeyOf(p.color);(map[k]=map[k]||{key:k,color:(p.color||'').trim()||'—',items:[]}).items.push(p);});
   return Object.values(map);
 }
-function groupByName(){
-  const nm=normName();const g={};
-  allProducts.forEach(p=>{const key=nm[(p.name||'').trim().toLowerCase()]||(p.name||'');(g[key]=g[key]||[]).push(p);});
+// mode: (mặc định) Kho/Order hàng/Đặt NCC — ẩn mã SET cha đã tách, hiện 2 mã con Áo/Chân váy
+//       'side' — Kho hàng lỗi / Pop Up: vẫn theo mã SET, ẩn mã con · 'all' — lấy hết
+function groupByName(mode){
+  const nm=normName();const g={};const ix=setIndex();
+  allProducts.forEach(p=>{
+    if(mode!=='all'){
+      if(mode==='side'&&ix.parentOf[p.code])return;
+      if(mode!=='side'&&ix.kids[p.code]&&ix.kids[p.code].length)return;
+    }
+    const key=nm[(p.name||'').trim().toLowerCase()]||(p.name||'');(g[key]=g[key]||[]).push(p);});
   return g;
 }
 // [VẤN ĐỀ 2] Bán N ngày = Xuất thật (loại kiểm kê & KOL) CỘNG/TRỪ bút toán "sửa số đã bán" nằm trong khoảng ngày đó.
 // type='Xuất' (sales_adjust) => cộng thêm vào số đã bán · type='Nhập' (sales_adjust) => trừ bớt số đã bán.
-function soldIn(code,days){const f=daysAgo(days-1),t=todayStr();
+// [SET] mã con Áo/Chân váy cộng thêm số bán của mã SET cha (bán 1 set = bán 1 áo + 1 chân váy)
+function soldIn(code,days){const par=setIndex().parentOf[code];const f=c=>ownCodes(c).reduce((s,x)=>s+soldInOwn(x,days),0);return f(code)+(par?f(par):0);}
+function soldInOwn(code,days){const f=daysAgo(days-1),t=todayStr();
   // [POP UP] chuyển hàng sang/về Pop Up & đếm kho Pop Up KHÔNG phải bán — loại ra; riêng popup_sold (bên ký gửi bán được) vẫn tính là bán
   return allTx.filter(x=>x.product_code===code&&!x.is_kol&&x.date>=f&&x.date<=t&&!POPUP_MOVE_REFS.includes(x.ref_type)&&((x.type==='Xuất'&&!isKK(x)&&!isSalesAdjust(x))||isSalesAdjust(x)))
     .reduce((s,x)=>{
@@ -2948,13 +3061,34 @@ function soldIn(code,days){const f=daysAgo(days-1),t=todayStr();
 }
 // Đang về = đã đặt xưởng, chưa về kho (chỉ để tham khảo — CHƯA tính vào tồn)
 function comingQty(){const m={};supplierRows.forEach(r=>{const remain=(r.qty||0)-(r.received||0);
-  if(remain>0)m[r.product_code]=(m[r.product_code]||0)+remain;});return m;}
+  if(remain>0)m[r.product_code]=(m[r.product_code]||0)+remain;});return setInheritMap(m);}
+// [SET] mã con Áo/Chân váy nhận thêm số của mã SET cha (lô đặt set cũ đang về / đơn nợ set → tính cho cả áo lẫn chân váy)
+function setInheritDayMap(m0){const ix=setIndex();const m={...m0};
+  Object.entries(ix.mergedInto).forEach(([o,k])=>{if(!m0[o])return;const x={...(m[k]||{})};Object.entries(m0[o]).forEach(([d,v])=>{x[d]=(x[d]||0)+v;});m[k]=x;});
+  const out={...m};
+  Object.entries(ix.parentOf).forEach(([kid,par])=>{if(!m[par])return;const o={...(m[kid]||{})};
+    Object.entries(m[par]).forEach(([d,v])=>{o[d]=(o[d]||0)+v;});out[kid]=o;});return out;}
+// tồn theo SET: mã con = của nó + của mã SET cha · mã SET cha (đã tách) = min(áo, chân váy)
+function setStockOf(rawFn,code){
+  const ix=setIndex();if(ix.mergedInto[code])return setStockOf(rawFn,resolveCode(code));
+  if(ix.kids[code]&&ix.kids[code].length)return Math.min(...ix.kids[code].map(k=>setStockOf(rawFn,k)));
+  const par=ix.parentOf[code];const f=c=>ownCodes(c).reduce((s,x)=>s+rawFn(x),0);
+  return f(code)+(par?f(par):0);
+}
+function setStockMapOf(raw){const out={};const codes=new Set([...Object.keys(raw),...allProducts.map(p=>p.code)]);
+  codes.forEach(c=>{const v=setStockOf(x=>raw[x]||0,c);if(v)out[c]=v;});return out;}
+// tổng tồn không cộng trùng: bỏ mã SET cha đã tách (đã nằm trong áo + chân váy)
+function totNoSetParent(m){return Object.entries(m).reduce((s,[c,v])=>s+(isSetParent(c)?0:v),0);}
+function setInheritMap(m0){const ix=setIndex();const m={...m0};
+  Object.entries(ix.mergedInto).forEach(([o,k])=>{if(m0[o])m[k]=(m[k]||0)+m0[o];}); // mã cũ đã gộp → cộng vào mã mới
+  const out={...m};
+  Object.entries(ix.parentOf).forEach(([kid,par])=>{if(m[par])out[kid]=(out[kid]||0)+m[par];});return out;}
 // [MỚI] Nợ đơn khách = tổng SL các đơn đang ở trạng thái "Nợ hàng" VÀ còn ở mục nội bộ "Cần gửi" (chưa local_sent) —
 // khớp đúng với số hiển thị ở badge tab "Nợ hàng" và panel "Chia theo sản phẩm" bên Quản lý đơn.
 // Đây là những đơn đã hứa với khách nhưng CHƯA trừ kho thật và CHƯA được xử lý gì thêm. Đơn đã đánh dấu
 // "Đã gửi" nội bộ (local_sent=true) coi như nhân viên đã xử lý xong phần đó (tự trừ kho thủ công riêng khi
 // hàng thật rời kho) nên KHÔNG tính vào đây nữa — tránh trừ trùng 2 lần khỏi Khả dụng.
-function noDonKhachMap(){const m={};allOrders.forEach(o=>{if(o.status==='Nợ hàng'&&!o.local_sent)m[o.product_code]=(m[o.product_code]||0)+(o.quantity||0);});return m;}
+function noDonKhachMap(){const m={};allOrders.forEach(o=>{if(o.status==='Nợ hàng'&&!o.local_sent)m[o.product_code]=(m[o.product_code]||0)+(o.quantity||0);});return setInheritMap(m);}
 function fmtN(n){return n===0?'—':n.toLocaleString('vi-VN');}
 
 // ===== Mức muốn giữ TỰ ĐỘNG theo tốc độ bán 7 ngày gần nhất (tính RIÊNG cho từng màu của 1 mã) =====
@@ -2989,6 +3123,180 @@ async function syncKhoAutoTargets(pending){
   }finally{khoAutoSyncBusy=false;}
 }
 
+/* ── [SET] nút tách mã SET thành 2 sản phẩm riêng: ÁO … và CHÂN VÁY … (chạy 1 lần cho mỗi SP set) ── */
+// mã SET của nhóm chưa tách
+function setUnsplitOf(nm){
+  const ix=setIndex();
+  return (groupByName()[nm]||[]).filter(p=>!ix.parentOf[p.code]&&!(ix.kids[p.code]||[]).length);
+}
+// mã con tạo theo kiểu cũ (vẫn mang tên SET, màu "Đen · Áo") → cần đổi tên sang sản phẩm riêng
+function setOldKidsOf(nm){
+  const ix=setIndex();
+  return (groupByName()[nm]||[]).filter(p=>{const par=ix.parentOf[p.code];const pp=par&&findProdAny(par);return pp&&(pp.name||'').trim()===(p.name||'').trim();});
+}
+function setPartNames(nm){
+  const base=nm.replace(/^\s*set\s+/i,'').trim()||nm;
+  const up=base===base.toUpperCase();
+  const ao=/^(áo|ao)\s/i.test(base)?base:(up?'ÁO ':'Áo ')+base;
+  const vay=(up?'CHÂN VÁY ':'Chân váy ')+(base.replace(/^(áo\s+)?(sơ\s*mi|so\s*mi)\s+/i,'').trim()||base);
+  return {'-AO':ao,'-CV':vay};
+}
+function setSplitBtn(nm){
+  // thẻ có mã Áo/Chân váy tách từ set → nút đổi tên / gộp vào SP có sẵn ngay trên thanh tiêu đề
+  if((groupByName()[nm]||[]).some(p=>isSetChild(p.code)))
+    return `<button class="btn btn-sm" style="background:var(--honey);color:var(--dark);border-color:var(--honey);font-weight:700" onclick="openRenameSetKids('${jsq(nm)}')">✏️ Đổi tên / gộp vào SP có sẵn</button>`;
+  if(!/\bset\b/i.test(nm))return '';
+  const n=setUnsplitOf(nm).length+setOldKidsOf(nm).length;if(!n)return '';
+  return `<button class="btn btn-sm" style="background:var(--honey);color:var(--dark);border-color:var(--honey);font-weight:700" onclick="openSetSplit('${jsq(nm)}')">✂️ Tách thành Áo + Chân váy</button>`;
+}
+function setSplitNote(prods){
+  if(!prods.some(p=>isSetChild(p.code)))return '';
+  const pairs=setDupPairs(prods);
+  return `<div style="background:var(--org-bg);color:var(--org-fg);padding:7px 16px;font-size:11.5px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:260px">✂️ Tách từ set — đơn ghi set (đơn sàn/SKU set cũ) tự đổi thành 1 áo + 1 chân váy. Số set cũ (tồn, đã bán, lô đang về) đã tính sẵn vào đây.</span></div>
+  ${pairs.length?`<div style="background:var(--red-bg);color:var(--red-fg);padding:8px 16px;font-size:11.5px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    ⚠ ${pairs.length} mã lẻ cũ đang trùng tên/màu/size với mã mới tách từ set.
+    <button class="btn btn-sm" style="background:var(--red-fg);color:#fff;border-color:var(--red-fg);font-weight:700" onclick="openMergeDup('${jsq(prods[0]?.name||'')}')">🔗 Gộp ${pairs.length} mã trùng</button></div>`:''}`;
+}
+// Đổi tên toàn bộ mã Áo/Chân váy tách từ set trong 1 thẻ — VD đổi "CHÂN VÁY LỤA" thành "Chân Váy Lụa Ngắn" (SP có sẵn)
+// để về chung 1 thẻ; mã nào trùng màu/size với mã có sẵn sẽ hiện nút "Gộp mã trùng" ngay sau đó.
+function openRenameSetKids(nm){
+  const kids=(groupByName()[nm]||[]).filter(p=>isSetChild(p.code));
+  if(!kids.length){toast('Thẻ này không có mã tách từ set',true);return;}
+  const names=Object.keys(groupByName()).filter(n=>n!==nm).sort((a,b)=>a.localeCompare(b,'vi'));
+  m_title('✏️ Đổi tên — '+nm);
+  document.getElementById('m-body').innerHTML=`
+    <div class="setup">Đổi tên ${kids.length} mã tách từ set. Chọn đúng tên 1 sản phẩm <b>đã có sẵn</b> (VD Chân Váy Lụa Ngắn) để về chung 1 thẻ — sau đó bấm <b>🔗 Gộp mã trùng</b> để gộp các màu/size bị trùng.</div>
+    <label class="fld"><span>Tên mới</span><input id="rk-name" list="rk-names" value="${escapeHtml(nm)}"></label>
+    <datalist id="rk-names">${names.map(n=>`<option value="${escapeHtml(n)}">`).join('')}</datalist>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${names.filter(n=>/v[aá]y|áo|ao |sơ mi/i.test(n)).map(n=>`<button class="btn btn-sm" onclick="document.getElementById('rk-name').value='${jsq(n)}'">${escapeHtml(n)}</button>`).join('')}</div>`;
+  m_foot(`<button class="btn" onclick="closeModal()">Huỷ</button><button class="btn btn-dark" onclick="confirmRenameSetKids('${jsq(nm)}')">Lưu tên</button>`);
+  openModal();
+}
+async function confirmRenameSetKids(nm){
+  const nv=(document.getElementById('rk-name')?.value||'').trim();
+  if(!nv){toast('Nhập tên mới',true);return;}
+  const kids=(groupByName()[nm]||[]).filter(p=>isSetChild(p.code));
+  showLoad(true);
+  try{
+    for(const p of kids){await PATCH(`products?code=eq.${encodeURIComponent(p.code)}`,{name:nv});p.name=nv;}
+    const canon=normName()[nv.toLowerCase()]||nv;
+    khoTab=canon;opTab='ALL';
+    toast(`✓ Đã đổi tên ${kids.length} mã → ${nv}`);closeModal();
+  }catch(e){toast('Lỗi: '+e.message,true);}
+  showLoad(false);renderAll();
+}
+/* ── [GỘP MÃ] mã lẻ cũ trùng tên/màu/size với mã Áo/Chân váy tách từ set → gộp vào mã mới.
+   KHÔNG xoá/sửa bút toán nào: chỉ ghi 1 bút toán đánh dấu (ref_type='merge', SL 0) rồi ẩn mã cũ. Từ đó mọi
+   số liệu của mã cũ (tồn, đã bán, nợ đơn, lô đang về, kho lỗi, Pop Up) tự cộng vào mã mới; đơn sàn/đơn chờ
+   ghi mã cũ khi lưu/trừ kho sẽ tự chuyển sang mã mới. ── */
+function setDupPairs(prods){
+  const out=[];const used=new Set();
+  (prods||allProducts).filter(p=>isSetChild(p.code)).forEach(k=>{
+    dupCodesOf(k).forEach(c=>{if(!isSetChild(c)&&!used.has(c)){used.add(c);out.push({from:c,to:k.code});}});
+  });
+  return out;
+}
+function openMergeDup(nm){
+  const prods=nm?(groupByName()[nm]||[]):allProducts;const pairs=setDupPairs(prods);
+  if(!pairs.length){toast('Không còn mã trùng');return;}
+  const stock=computeStock();window._mergePairs=pairs;
+  const P=c=>allProducts.find(x=>x.code===c);
+  m_title('🔗 Gộp mã trùng'+(nm?' — '+nm:''));
+  document.getElementById('m-body').innerHTML=`
+    <div class="setup">Mã lẻ cũ sẽ được gộp vào mã mới (tách từ set) rồi ẩn đi. Tồn kho, đã bán, nợ đơn, lô đang về, kho lỗi, Pop Up của mã cũ đều cộng vào mã mới.
+    Không xoá bút toán nào — đơn sàn ghi mã cũ vẫn tự chuyển sang mã mới.</div>
+    <table><thead><tr><th class="l">Màu · Size</th><th class="l">Mã cũ (ẩn)</th><th>Tồn cũ</th><th class="l">→ Gộp vào</th><th>Tồn mới</th><th>Sau gộp</th></tr></thead><tbody>
+    ${pairs.map(x=>{const p=P(x.to);const a=stock[x.from]||0,b=stock[x.to]||0;return `<tr><td class="l">${escapeHtml((p.color||'—')+' · '+(p.size||'—'))}</td>
+      <td class="l mono">${escapeHtml(x.from)}</td><td>${a}</td><td class="l mono">${escapeHtml(x.to)}</td><td>${b}</td><td style="font-weight:800">${a+b}</td></tr>`;}).join('')}
+    </tbody></table>`;
+  m_foot(`<button class="btn" onclick="closeModal()">Huỷ</button><button class="btn btn-dark" onclick="confirmMergeDup()">🔗 Gộp ${pairs.length} mã</button>`);
+  openModal();
+}
+async function confirmMergeDup(){
+  const pairs=window._mergePairs||[];if(!pairs.length){closeModal();return;}
+  showLoad(true);let ok=0;
+  try{
+    for(const x of pairs){
+      const base={product_code:x.to,channel:'Điều chỉnh',ref_type:'merge',ref_id:`MERGE:${x.from}>${x.to}`,is_kol:false,note:`[GỘP MÃ] ${x.from} → ${x.to} (trùng tên/màu/size với mã tách từ set)`};
+      try{await postNhap({...base,quantity:0});}
+      catch(e){ // phòng khi DB không cho SL 0 → ghi cặp Nhập 1 / Xuất 1 (cộng lại = 0, không đổi tồn)
+        await postNhap({...base,quantity:1});await postXuat({...base,quantity:1});
+      }
+      ok++;
+    }
+    partitionSetParents();
+    toast(`✓ Đã gộp ${ok} mã trùng`);closeModal();
+  }catch(e){toast('Lỗi gộp mã: '+e.message,true);partitionSetParents();}
+  showLoad(false);renderAll();
+}
+// Lô đặt NCC (supplier_orders) đang ghi mã SET đã tách: dòng cũ đổi sang mã Áo, thêm 1 dòng Chân váy y hệt
+// (cùng lô, SL đặt, SL đã về, trạng thái, giá...). Hàng set đã về trước đây vẫn tính cho cả 2 món qua sổ cái.
+async function splitSupplierRowsForSets(){
+  const ix=setIndex();let n=0;
+  for(const r of supplierRows.filter(x=>(ix.kids[x.product_code]||[]).length)){
+    const kids=ix.kids[r.product_code];
+    for(let i=0;i<kids.length;i++){
+      const kp=allProducts.find(x=>x.code===kids[i]);
+      const pn=kp?pname(kp):r.product_name;
+      if(i===0){await PATCH(`supplier_orders?id=eq.${r.id}`,{product_code:kids[i],product_name:pn});}
+      else{const {id,created_at,...rest}=r;await POST('supplier_orders',{...rest,product_code:kids[i],product_name:pn});}
+    }
+    n++;
+  }
+  if(n)await loadSupplier();
+  return n;
+}
+function openSetSplit(nm){
+  const left=sortPS(setUnsplitOf(nm)),old=setOldKidsOf(nm);const stock=computeStock();const nms=setPartNames(nm);
+  m_title('✂️ Tách set — '+nm);
+  document.getElementById('m-body').innerHTML=`
+    <div class="setup">Set sẽ được <b>bỏ khỏi mọi trang</b>, thay bằng 2 sản phẩm riêng (giữ nguyên màu & size). Tồn kho / Đang về / Nợ đơn / Đã bán của mỗi món lấy đúng bằng số set hiện tại.
+    Sau này đơn sàn hay đơn nào ghi set sẽ tự tách thành 1 áo + 1 chân váy.</div>
+    <div class="grid2">
+      <label class="fld"><span>Tên sản phẩm Áo</span><input id="ss-ao" value="${escapeHtml(nms['-AO'])}"></label>
+      <label class="fld"><span>Tên sản phẩm Chân váy</span><input id="ss-cv" value="${escapeHtml(nms['-CV'])}"></label>
+    </div>
+    ${left.length?`<table><thead><tr><th class="l">Mã SET</th><th class="l">Màu · Size</th><th>Tồn set</th><th class="l">Tạo mã</th></tr></thead><tbody>
+    ${left.map(p=>`<tr><td class="l" style="font-size:11.5px">${escapeHtml(p.code)}</td><td class="l">${escapeHtml((p.color||'—')+' · '+(p.size||'—'))}</td><td>${stock[p.code]||0}</td>
+      <td class="l" style="font-size:11px">${escapeHtml(p.code)}-AO (Áo)<br>${escapeHtml(p.code)}-CV (Chân váy)</td></tr>`).join('')}
+    </tbody></table>`:''}
+    ${old.length?`<div style="font-size:11.5px;margin-top:8px;color:var(--brown)">Đổi tên ${old.length} mã đã tách trước đó sang 2 sản phẩm riêng.</div>`:''}`;
+  m_foot(`<button class="btn" onclick="closeModal()">Huỷ</button><button class="btn btn-honey" onclick="confirmSetSplit('${jsq(nm)}')">✂️ Tách</button>`);
+  openModal();
+}
+async function confirmSetSplit(nm){
+  const nmAo=(document.getElementById('ss-ao')?.value||'').trim(),nmCv=(document.getElementById('ss-cv')?.value||'').trim();
+  if(!nmAo||!nmCv){toast('Nhập tên cho Áo và Chân váy',true);return;}
+  const nameOf={'-AO':nmAo,'-CV':nmCv};
+  const left=setUnsplitOf(nm),old=setOldKidsOf(nm);
+  showLoad(true);let made=0,renamed=0;
+  try{
+    // 1) đổi tên mã con kiểu cũ ("SET … · Đen · Áo") → sản phẩm riêng, màu gốc
+    for(const k of old){
+      const par=findProdAny(setIndex().parentOf[k.code]);const suf=SET_PARTS.find(x=>k.code.endsWith(x.suf)).suf;
+      const data={name:nameOf[suf],color:(par.color||'').trim()};
+      await PATCH(`products?code=eq.${encodeURIComponent(k.code)}`,data);Object.assign(k,data);renamed++;
+    }
+    // 2) tạo mã con cho các mã SET chưa tách
+    for(const p of left){
+      for(const part of SET_PARTS){
+        const code=p.code+part.suf;
+        if(allProducts.some(x=>x.code===code))continue;
+        const data={code,name:nameOf[part.suf],color:(p.color||'').trim(),size:p.size||'',
+          stock_initial:0,threshold:+p.threshold||0,image_url:p.image_url||''};
+        const rows=await POST('products',data);
+        allProducts.push(rows&&rows[0]?rows[0]:data);made++;
+      }
+    }
+    partitionSetParents(); // ẩn mã SET khỏi mọi trang
+    const lotRows=await splitSupplierRowsForSets(); // lô đặt NCC ghi set → 1 dòng Áo + 1 dòng Chân váy, cùng SL đặt/đã về
+    toast(`✓ Đã tách set → ${nmAo} + ${nmCv}${made?` (tạo ${made} mã)`:''}${renamed?` (đổi tên ${renamed} mã)`:''}${lotRows?` · tách ${lotRows} dòng lô đặt NCC`:''}`);
+    khoTab='ALL';opTab='ALL';
+    closeModal();
+  }catch(e){toast('Lỗi tách set: '+e.message,true);partitionSetParents();}
+  showLoad(false);
+  renderAll();
+}
 function renderKho(){
   renderPhuKienIfVisible(); // kho apparel đổi thường đi kèm đơn đổi → tiện đồng bộ luôn trang phụ kiện nếu đang mở
   document.getElementById('kt-kho').className='tab'+(khoMode==='kho'?' on':'');
@@ -3066,7 +3374,9 @@ function renderKho(){
     html+=`<div class="card" style="padding:0;margin-bottom:16px;overflow:hidden;border:none">
       <div style="display:flex;justify-content:space-between;align-items:center;background:#B5715C;color:#fff;padding:10px 16px">
         <div style="font-family:var(--f-head);font-weight:800;font-size:12.5px;letter-spacing:.12em;text-transform:uppercase">● ${escapeHtml(nm)}</div>
+        ${setSplitBtn(nm)}
       </div>
+      ${setSplitNote(prods)}
       <div style="display:flex;gap:6px;flex-wrap:wrap;padding:9px 16px 0;background:var(--dark)">
         ${colorGroups.map(cg=>{const auto=colorAutoMap[cg.key];const badge=auto.cut?'🚫 Cắt (0c)':`🎯${auto.target}c`;
           return `<button class="btn btn-sm" style="background:${focus===cg.color?colorBg(cg.color):'rgba(255,255,255,.08)'};color:#fff;border-color:${auto.cut?'#E7A5A4':colorBg(cg.color)}" onclick="khoColorFocus['${jsq(nm)}']=khoColorFocus['${jsq(nm)}']==='${jsq(cg.color)}'?null:'${jsq(cg.color)}';renderKho()">${escapeHtml(cg.color)} <span style="opacity:.85">· ${badge}</span></button>`;}).join('')}
@@ -3113,6 +3423,7 @@ function renderKhoAlerts(){
   const nmOf=p=>{const nm=normName();return nm[(p.name||'').trim().toLowerCase()]||(p.name||'');};
   const outList=[],lowList=[];
   allProducts.forEach(p=>{
+    if(isSetParent(p.code))return;
     const s=stock[p.code]||0;
     if(s<=0)outList.push({p,s});else if(s===1)lowList.push({p,s});
   });
@@ -3184,7 +3495,7 @@ async function saveSuaSoBan(code){
   showLoad(false);
 }
 function lastCount(nm){
-  const codes=(groupByName()[nm]||[]).map(p=>p.code);
+  const ix=setIndex();const codes=(groupByName()[nm]||[]).flatMap(p=>ix.parentOf[p.code]?[p.code,ix.parentOf[p.code]]:[p.code]);
   const kk=allTx.filter(t=>isKK(t)&&codes.includes(t.product_code)).sort((a,b)=>b.date.localeCompare(a.date))[0];
   return kk?fmtDate(kk.date):'Chưa đếm';
 }
@@ -3712,7 +4023,9 @@ function renderOrderPlan(){
     html+=`<div class="card" style="padding:0;margin-bottom:16px;overflow:hidden;border:none">
       <div style="display:flex;justify-content:space-between;align-items:center;background:#B5715C;color:#fff;padding:10px 16px">
         <div style="font-family:var(--f-head);font-weight:800;font-size:12.5px;letter-spacing:.12em;text-transform:uppercase">● ${escapeHtml(nm)}</div>
+        ${setSplitBtn(nm)}
       </div>
+      ${setSplitNote(prods)}
       ${colorChipsHtml}
       <div style="padding:10px">${colorBlocks}</div>
       <div style="background:#B5715C;color:#fff;font-weight:800;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;padding:8px 16px;font-size:12px;margin:0 10px 10px;border-radius:8px">
@@ -5244,20 +5557,28 @@ function shRuleMatch(line){
   };
   const col=pickColor(vColor)||pickColor(line.variation)||pickColor(line.prod)||(rd&&rd.color)||null;
   if(!col)return '';
-  let cands=allProducts.filter(p=>rule.kho.some(k=>shvNorm(p.name).includes(k)));
+  let cands=matchPool().filter(p=>rule.kho.some(k=>shvNorm(p.name).includes(k)));
   const bySize=cands.filter(p=>shNorm(p.size)===shNorm(size));
   const hit=bySize.filter(p=>shvNorm(p.color).split(' ').includes(col.kho));
   return hit.length===1?hit[0].code:'';
 }
+// [SET] khớp xong mà ra mã SET (đã tách) → thay bằng 2 dòng: 1 Áo + 1 Chân váy (cùng SL, tiền/COD để ở dòng Áo)
+function pushMatchedLine(arr,line){
+  line.code=shMatch(line);
+  if(line.code)line.code=resolveCode(line.code);
+  const kids=setIndex().kids[line.code];
+  if(kids&&kids.length){kids.forEach((k,i)=>arr.push({...line,code:k,price:i===0?line.price:0}));return;}
+  arr.push(line);
+}
 function shMatch(line){
-  if(line.skuVar){const p=allProducts.find(x=>x.code===line.skuVar);if(p)return p.code;}
-  if(line.skuProd){const p=allProducts.find(x=>x.code===line.skuProd);if(p)return p.code;}
+  if(line.skuVar){const p=findProdAny(line.skuVar);if(p)return p.code;}
+  if(line.skuProd){const p=findProdAny(line.skuProd);if(p)return p.code;}
   {const rc=shRuleMatch(line);if(rc)return rc;} // [MỚI] luật tên riêng (vd Midnight Muse / sườn xám đen-đỏ)
   const nm=shBracket(line.prod);const {color,size}=shParseVar(line.variation);
   if(!size)return ''; // thiếu Size từ text → không đủ dữ liệu, bắt buộc duyệt tay, không đoán
   // ưu tiên khớp CHÍNH XÁC tên trước (an toàn nhất); chỉ hạ xuống khớp mờ (chứa chuỗi con) nếu không có khớp chính xác nào
-  const exact=allProducts.filter(p=>shNorm(p.name)===shNorm(nm));
-  const cands=exact.length?exact:allProducts.filter(p=>{const a=shNorm(p.name),b=shNorm(nm);return a&&b&&(a.includes(b)||b.includes(a));});
+  const exact=matchPool().filter(p=>shNorm(p.name)===shNorm(nm));
+  const cands=exact.length?exact:matchPool().filter(p=>{const a=shNorm(p.name),b=shNorm(nm);return a&&b&&(a.includes(b)||b.includes(a));});
   const sizeCands=cands.filter(x=>shNorm(x.size)===shNorm(size));
   // Khớp đúng cả Màu + Size (an toàn nhất, khi "Phân loại hàng" trên Shopee có ghi rõ màu)
   let p=sizeCands.find(x=>shNorm(x.color)===shNorm(color));
@@ -5356,8 +5677,7 @@ function shopeeParse(input){
           qty,date:col.date>=0?shDate(r[col.date]):'',
           price:col.price>=0?(parseInt(String(r[col.price]).replace(/[^\d]/g,''))||0):0,
           buyer:col.buyer>=0?String(r[col.buyer]||''):'',addr:col.addr>=0?String(r[col.addr]||''):''};
-        line.code=shMatch(line);
-        shopeeLines.push(line);
+        pushMatchedLine(shopeeLines,line);
       }
       renderShopeePreview();
     }catch(err){document.getElementById('sh-summary').innerHTML='<div class="setup" style="background:var(--red-bg);color:var(--red-fg)">Lỗi đọc file: '+escapeHtml(err.message)+'</div>';}
@@ -5494,8 +5814,7 @@ async function shopeeParsePdf(file){
         tk.prods.forEach((pi,idx)=>{
           const line={sn:tk.order_code,buyer:tk.buyer,express:tk.express,tracking:tk.order_code,prod:pi.prod,variation:pi.variation,
             skuVar:'',skuProd:'',qty:pi.qty,date:'',price:idx===0?tk.cod:0,addr:tk.addr,phoneRaw:tk.phone,platform:'TikTok'};
-          line.code=shMatch(line);
-          shopeeLines.push(line);
+          pushMatchedLine(shopeeLines,line);
         });
         continue;
       }
@@ -5515,8 +5834,7 @@ async function shopeeParsePdf(file){
       prods.forEach((pi,idx)=>{
         const line={sn:order_code,buyer,express,tracking,prod:pi.prod,variation:pi.variation,
           skuVar:sku,skuProd:sku,qty:pi.qty,date:'',price:idx===0?cod:0,addr:rcv.addr,platform:'Shopee'};
-        line.code=shMatch(line);
-        shopeeLines.push(line);
+        pushMatchedLine(shopeeLines,line);
       });
     }
     if(!shopeeLines.length){sum.innerHTML='<div class="setup" style="background:var(--red-bg);color:var(--red-fg)">Không đọc được đơn nào từ PDF. Kiểm tra đúng file tem SPX/TikTok.</div>';return;}
@@ -5875,8 +6193,7 @@ async function ngoaiParse(type,input){
           // Trước đây đơn Đổi hàng chỉ ghi 1 sản phẩm (đọc từ tem = sản phẩm XUẤT đi cho khách), nên lúc
           // "Hàng đã về — xử lý" hệ thống lại cộng kho NHẦM đúng sản phẩm vừa gửi đi thay vì sản phẩm lấy về.
           kind:(g.tag&&/đổi/i.test(g.tag))?'doi':'khach',khoSrc:'main',retCode:'',retQty:it.qty};
-        line.code=shMatch(line);
-        ngLines[type].push(line);
+        pushMatchedLine(ngLines[type],line);
       });
     }
     if(!ngLines[type].length){
@@ -6307,7 +6624,8 @@ let puPartner='all',puTab='ALL',puColorFocus={};
 const kgNorm=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/g,'d').replace(/Đ/g,'d').trim().toLowerCase().replace(/\s+/g,' ');
 function puPartnerLabel(k){return k==='all'?'Tất cả bên':((POPUP_PARTNERS.find(p=>p.k===k)||{}).label||k);}
 function puTxOf(k){return allTx.filter(t=>isPopupKho(t)&&(k==='all'||popupPartnerOfTx(t)===k));}
-function puStockOne(code,k){
+function puStockOne(code,k){return setStockOf(c=>puStockOneRaw(c,k),code);}
+function puStockOneRaw(code,k){
   return puTxOf(k).filter(t=>t.product_code===code).reduce((s,t)=>s+(t.type==='Nhập'?(t.quantity||0):-(t.quantity||0)),0);
 }
 function puStockMap(k){const m={};puTxOf(k).forEach(t=>{m[t.product_code]=(m[t.product_code]||0)+(t.type==='Nhập'?(t.quantity||0):-(t.quantity||0));});return m;}
@@ -6339,8 +6657,8 @@ function kgDownloadTemplate(k){
     [],
     ['Mã SP','Sản phẩm','Màu','Size','Tồn Pop Up (lúc tải)','Tồn kho chính (lúc tải)','GỬI THÊM','ĐÃ BÁN','TRẢ VỀ KHO','Giá bán (đ/cái)','Ghi chú'],
   ];
-  sortPS(allProducts).forEach(p=>{
-    aoa.push([p.code,nm[(p.name||'').trim().toLowerCase()]||p.name||'',(p.color||'').trim(),p.size||'',pu[p.code]||0,stockOne(p.code),'','','',kgLastPrice(p.code,k),'']);
+  sortPS(allProducts.filter(p=>!isSetParent(p.code))).forEach(p=>{
+    aoa.push([p.code,nm[(p.name||'').trim().toLowerCase()]||p.name||'',(p.color||'').trim(),p.size||'',puStockOne(p.code,k),stockOne(p.code),'','','',kgLastPrice(p.code,k),'']);
   });
   const ws=XLSX.utils.aoa_to_sheet(aoa);
   ws['!cols']=[{wch:12},{wch:22},{wch:14},{wch:8},{wch:12},{wch:12},{wch:11},{wch:11},{wch:12},{wch:13},{wch:22}];
@@ -6434,7 +6752,7 @@ function kgRenderPreview(){
   const pu=puStockMap(k);const nm=normName();
   const rows=lines.map(l=>{
     const p=allProducts.find(x=>x.code===l.code);
-    const puB=pu[l.code]||0,puA=puB+l.send-l.sold-l.back;
+    const puB=puStockOne(l.code,k),puA=puB+l.send-l.sold-l.back;
     const mB=stockOne(l.code),mA=mB-(kgData.noMain?0:l.send)+l.back;
     return{...l,p,prod:p?(nm[(p.name||'').trim().toLowerCase()]||p.name):l.code,color:(p&&(p.color||'').trim())||'—',size:(p&&p.size)||'—',puB,puA,mB,mA,rev:l.sold*(l.price||0)};
   }).sort((a,b)=>a.prod.localeCompare(b.prod,'vi')||colorKeyOf(a.color).localeCompare(colorKeyOf(b.color),'vi')||sizeRank(a.size)-sizeRank(b.size));
@@ -6531,21 +6849,22 @@ function puSetPartner(k){puPartner=k;renderPopup();}
 function renderPopup(){
   const tabs=document.getElementById('pu-tabs');if(!tabs)return;
   tabs.innerHTML=[{k:'all',label:'Tổng'},...POPUP_PARTNERS].map(p=>{
-    const n=allProducts.reduce((s,x)=>s+puStockOne(x.code,p.k),0);
+    const n=allProducts.reduce((s,x)=>s+(isSetParent(x.code)?0:puStockOne(x.code,p.k)),0);
     return `<div class="tab ${p.k===puPartner?'on':''}" onclick="puSetPartner('${p.k}')">${p.k==='all'?'Tổng':'🏬 '+escapeHtml(p.label)}<span class="c">${n}</span></div>`;}).join('');
   const dl=document.getElementById('pu-dl-btn');if(dl){dl.disabled=puPartner==='all';dl.textContent=puPartner==='all'?'📥 Chọn 1 bên để tải file mẫu':`📥 Tải file mẫu (${puPartnerLabel(puPartner)})`;}
   const{from,to}=puRange();
-  const stock=puStockMap(puPartner);
-  const sendM=puSumMap(puPartner,['popup_in'],from,to),soldM=puSumMap(puPartner,['popup_sold'],from,to),backM=puSumMap(puPartner,['popup_back'],from,to);
-  const undoM=puSumMap(puPartner,['popup_undo'],from,to);
-  const tot=m=>Object.values(m).reduce((a,b)=>a+b,0);
+  const stock=setStockMapOf(puStockMap(puPartner)); // [SET] mã con Áo/Chân váy = của nó + của mã SET
+  const sendR=puSumMap(puPartner,['popup_in'],from,to),soldR=puSumMap(puPartner,['popup_sold'],from,to),backR=puSumMap(puPartner,['popup_back'],from,to);
+  const undoR=puSumMap(puPartner,['popup_undo'],from,to);
+  const sendM=setInheritMap(sendR),soldM=setInheritMap(soldR),backM=setInheritMap(backR),undoM=setInheritMap(undoR);
+  const tot=m=>m===stock?totNoSetParent(m):Object.values(m).reduce((a,b)=>a+b,0);
   const rev=puOrdersOf(puPartner).filter(o=>{const d=sentDateOf(o);return d>=from&&d<=to;}).reduce((s,o)=>s+(o.amount_due||0),0);
-  const soldNet=tot(soldM)-tot(undoM);
+  const soldNet=tot(soldR)-tot(undoR);
   document.getElementById('pu-metrics').innerHTML=`
     <div class="metric"><div class="metric-v">${tot(stock)}</div><div class="metric-l">Tồn Pop Up hiện tại</div></div>
-    <div class="metric honey"><div class="metric-v">${tot(sendM)}</div><div class="metric-l">Đã gửi sang (kỳ)</div></div>
+    <div class="metric honey"><div class="metric-v">${tot(sendR)}</div><div class="metric-l">Đã gửi sang (kỳ)</div></div>
     <div class="metric pink"><div class="metric-v">${soldNet}</div><div class="metric-l">Đã bán (kỳ)</div></div>
-    <div class="metric"><div class="metric-v">${tot(backM)}</div><div class="metric-l">Trả về kho (kỳ)</div></div>
+    <div class="metric"><div class="metric-v">${tot(backR)}</div><div class="metric-l">Trả về kho (kỳ)</div></div>
     <div class="metric"><div class="metric-v" style="font-size:17px">${rev.toLocaleString('vi-VN')}₫</div><div class="metric-l">Doanh thu bán (kỳ)</div></div>`;
   const groups=groupByName();
   const active=nm=>(groups[nm]||[]).some(p=>(stock[p.code]||0)!==0||sendM[p.code]||soldM[p.code]||backM[p.code]);
@@ -6553,7 +6872,7 @@ function renderPopup(){
   if(puTab!=='ALL'&&!names.includes(puTab))puTab='ALL';
   document.getElementById('pu-prod-tabs').innerHTML=names.length?['ALL',...names].map(k=>`<div class="tab ${k===puTab?'on':''}" onclick="puTab='${jsq(k)}';renderPopup()">${k==='ALL'?'Tất cả':escapeHtml(k)}</div>`).join(''):'';
   const show=puTab==='ALL'?names:[puTab];
-  const perPartner=puPartner==='all'?POPUP_PARTNERS.map(p=>({...p,m:puStockMap(p.k)})):[];
+  const perPartner=puPartner==='all'?POPUP_PARTNERS.map(p=>({...p,m:setStockMapOf(puStockMap(p.k))})):[];
   let html='';
   show.forEach(nm=>{
     const prods=groups[nm]||[];const focus=puColorFocus[nm]||null;
@@ -7004,7 +7323,9 @@ function renderDupSkuCheckInto(boxId){
   const dups=findDupSKUs();
   if(!dups.length){box.innerHTML='';return;}
   const stock=computeStock();
+  const sp=setDupPairs();
   box.innerHTML=`<div class="setup" style="background:var(--red-bg);color:var(--red-fg);border-color:#E08A8A">
+    ${sp.length?`<div style="margin-bottom:8px"><button class="btn btn-sm" style="background:var(--red-fg);color:#fff;border-color:var(--red-fg);font-weight:700" onclick="openMergeDup('')">🔗 Gộp ${sp.length} mã trùng với Áo/Chân váy tách từ set</button></div>`:''}
     ⚠️ Phát hiện <b>${dups.length}</b> nhóm màu/size bị trùng — 2 mã SP khác nhau nhưng cùng tên/màu/size, khiến tồn kho của cùng 1 loại hàng bị tách ra 2 nơi (cộng lại mới ra đúng tổng thật). Nên gộp về 1 mã (đổi tồn từ mã thừa sang mã đúng bằng Kiểm kho, rồi xoá mã thừa).
     <table style="margin-top:8px;width:100%"><thead><tr><th class="l">Tên · Màu · Size</th><th class="l">Mã SP</th><th>Tồn kho</th></tr></thead><tbody>
     ${dups.map(arr=>arr.map((p,i)=>`<tr>${i===0?`<td class="l" rowspan="${arr.length}" style="font-weight:700">${escapeHtml(p.name)} · ${escapeHtml(p.color||'—')} · ${escapeHtml(p.size||'—')}</td>`:''}
