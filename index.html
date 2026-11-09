@@ -282,6 +282,7 @@ body:not(.owner) .owner-only{display:none!important}
       <div class="nav-grp">Vận hành kho</div>
       <div class="nav-i" data-pg="kho"><span class="nav-ico">📦</span><span class="nav-t">Quản Lý Kho</span></div>
       <div class="nav-i" data-pg="loikho"><span class="nav-ico">🚫</span><span class="nav-t">Kho hàng lỗi</span></div>
+      <div class="nav-i" data-pg="popup"><span class="nav-ico">🏬</span><span class="nav-t">Kho Pop Up (ký gửi)</span></div>
       <div class="nav-i" data-pg="order"><span class="nav-ico">🛒</span><span class="nav-t">Order Hàng</span></div>
       <div class="nav-i owner-only" data-pg="congno"><span class="nav-ico">💰</span><span class="nav-t">Công nợ xưởng</span><span class="nav-b" id="b-congno" style="display:none">0</span></div>
       <div class="nav-i" data-pg="phukien"><span class="nav-ico">🧵</span><span class="nav-t">Kiểm kho phụ kiện</span></div>
@@ -304,6 +305,21 @@ body:not(.owner) .owner-only{display:none!important}
         <div class="tab on" id="taomode-san" onclick="setTaoMode('san')">🛍️ Đơn Sàn</div>
         <div class="tab" id="taomode-ngoai" onclick="setTaoMode('ngoai')">📮 Ngoại Sàn</div>
         <div class="tab" id="taomode-tay" onclick="setTaoMode('tay')">✍️ Tạo Tay</div>
+        <div class="tab" id="taomode-kygui" onclick="setTaoMode('kygui')">🏬 Ký gửi Pop Up</div>
+      </div>
+
+      <!-- KÝ GỬI POP UP: tải phiếu ký gửi (.xlsx) → trừ/cộng kho Pop Up theo từng bên -->
+      <div id="tao-kygui" style="display:none">
+        <div class="pg-s">Phiếu ký gửi của <b>từng bên</b> (Thái / Olive / Girl Hood). 1 file làm được 3 việc: <b>GỬI THÊM</b> (kho chính → Pop Up) · <b>ĐÃ BÁN</b> (trừ kho Pop Up + tạo đơn "Ký gửi") · <b>TRẢ VỀ KHO</b> (Pop Up → kho chính). Ô nào để trống = không làm gì.</div>
+        <div class="setup">📥 <b>Bước 1:</b> chọn bên → bấm <b>Tải file mẫu</b> (file có sẵn toàn bộ mã SP + tồn Pop Up hiện tại, chỉ cần điền số). <b>Bước 2:</b> điền số → tải lên ô bên dưới → kiểm tra bảng → bấm xác nhận.</div>
+        <div class="card" style="max-width:680px">
+          <div style="font-size:11px;font-weight:700;color:var(--brown);letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px">Bên ký gửi</div>
+          <div class="tabs" id="kg-partner-tabs" style="margin-bottom:10px"></div>
+          <div class="row" style="margin-bottom:12px"><button class="btn btn-honey btn-sm" onclick="kgDownloadTemplate(kgPartner)">📥 Tải file mẫu (<span id="kg-partner-lbl"></span>)</button></div>
+          <label class="fld" style="margin:0"><span>File phiếu ký gửi (.xlsx)</span><input type="file" id="kg-file" accept=".xlsx,.xls,.csv" onchange="kgParse(this)"></label>
+          <div id="kg-summary" style="margin-top:12px"></div>
+        </div>
+        <div id="kg-preview" style="margin-top:16px"></div>
       </div>
 
       <!-- ĐƠN SÀN: Shopee + TikTok -->
@@ -498,6 +514,35 @@ body:not(.owner) .owner-only{display:none!important}
         <div class="tabs" id="lk-kh-tabs"></div>
         <div id="lk-kh-content"></div>
       </div>
+    </section>
+
+    <!-- KHO POP UP (KÝ GỬI) -->
+    <section class="pg" id="pg-popup">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+        <div>
+          <div class="pg-t">🏬 Kho Pop Up (hàng ký gửi)</div>
+          <div class="pg-s">Kho riêng theo từng bên ký gửi — tách khỏi Quản Lý Kho chính. Hàng vào/ra qua <b>phiếu ký gửi</b> ở Lên đơn ▸ 🏬 Ký gửi Pop Up. Bán ở Pop Up vẫn được tính vào tốc độ bán (7D/30D) để order hàng.</div>
+        </div>
+        <div class="row">
+          <button class="btn btn-honey" onclick="goToPage('tao');setTaoMode('kygui')">🧾 Lên phiếu ký gửi</button>
+        </div>
+      </div>
+      <div class="tabs" id="pu-tabs"></div>
+      <div class="card" style="margin:6px 0 14px">
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+          <label class="fld" style="margin:0"><span>Từ</span><input id="pu-from" type="date" onchange="renderPopup()"></label>
+          <label class="fld" style="margin:0"><span>đến</span><input id="pu-to" type="date" onchange="renderPopup()"></label>
+          <button class="btn btn-sm" onclick="puQuick(7)">7 ngày</button>
+          <button class="btn btn-sm" onclick="puQuick(30)">30 ngày</button>
+          <button class="btn btn-sm" onclick="puFromMonth()">Từ đầu tháng</button>
+          <span style="flex:1"></span>
+          <button class="btn btn-sm" id="pu-dl-btn" onclick="kgDownloadTemplate(puPartner)">📥 Tải file mẫu</button>
+          <button class="btn btn-sm btn-dark" onclick="puExportReport()">📊 Xuất Excel đối soát</button>
+        </div>
+      </div>
+      <div class="metrics" id="pu-metrics"></div>
+      <div class="tabs" id="pu-prod-tabs"></div>
+      <div id="pu-content"></div>
     </section>
 
     <!-- ORDER HÀNG -->
@@ -849,15 +894,30 @@ function isSalesAdjust(t){return t.ref_type==='sales_adjust';}
 // [MỚI] bút toán vào/ra "Kho hàng lỗi" (Dành cho KOL / Lỗi không chỉnh được) — đây là KHO RIÊNG, tách hẳn khỏi
 // Quản Lý Kho chính, nên phải loại khỏi mọi phép tính tồn kho chính (stockOne/eodMap...).
 function isLoiKho(t){return t.ref_type==='po_kol'||t.ref_type==='po_loi'||t.ref_type==='kol_out'||t.ref_type==='loi_out';}
+/* [MỚI] KHO POP UP (hàng ký gửi) — kho riêng THEO TỪNG BÊN ký gửi, tách khỏi Quản Lý Kho chính như Kho hàng lỗi.
+   Bút toán thuộc kho Pop Up (bị loại khỏi tồn kho chính):
+     popup_in (Nhập: nhận hàng gửi từ kho chính) · popup_adj_in (Nhập: đếm kho dư) · popup_undo (Nhập: xoá đơn bán ký gửi lên sai)
+     popup_sold (Xuất: bên ký gửi BÁN được → có đơn "Ký gửi · …") · popup_back (Xuất: trả hàng về kho chính) · popup_adj_out (Xuất: đếm kho thiếu)
+   Bút toán phía KHO CHÍNH (vẫn tính vào tồn kho chính, nhưng KHÔNG tính là "đã bán"):
+     popup_send (Xuất: kho chính gửi hàng sang Pop Up) · popup_recv (Nhập: Pop Up trả hàng về kho chính)
+   Bên ký gửi nhận biết qua channel có chứa "Pop Up · <tên bên>". Thêm bên mới: thêm 1 dòng vào POPUP_PARTNERS. */
+const POPUP_PARTNERS=[{k:'thai',label:'Thái'},{k:'olive',label:'Olive'},{k:'girlhood',label:'Girl Hood'}];
+const POPUP_IN_REFS=['popup_in','popup_adj_in','popup_undo'];
+const POPUP_OUT_REFS=['popup_sold','popup_back','popup_adj_out'];
+const POPUP_MOVE_REFS=['popup_send','popup_recv','popup_back','popup_adj_out','popup_adj_in','popup_in','popup_undo'];
+function isPopupKho(t){return POPUP_IN_REFS.includes(t.ref_type)||POPUP_OUT_REFS.includes(t.ref_type);}
+function isSideKho(t){return isLoiKho(t)||isPopupKho(t);}
+function popupChan(k){const p=POPUP_PARTNERS.find(x=>x.k===k);return 'Pop Up · '+(p?p.label:k);}
+function popupPartnerOfTx(t){const ch=String(t.channel||'');const p=POPUP_PARTNERS.find(x=>ch.includes('Pop Up · '+x.label)||ch.includes('Pop Up trả về · '+x.label));return p?p.k:'';}
 function stockOne(code){
-  return allTx.filter(t=>t.product_code===code&&!isSalesAdjust(t)&&!isLoiKho(t))
+  return allTx.filter(t=>t.product_code===code&&!isSalesAdjust(t)&&!isSideKho(t))
     .reduce((s,t)=>s+(t.type==='Nhập'?(t.quantity||0):-(t.quantity||0)),0);
 }
 function computeStock(){const r={};allProducts.forEach(p=>r[p.code]=stockOne(p.code));return r;}
 // [VẤN ĐỀ] tồn kho hệ thống TÍNH ĐẾN 1 ngày cụ thể (dùng khi kiểm kê bị nhập trễ, VD đếm hôm qua nay mới nhập số) —
 // nếu chỉ lấy tồn hiện tại (đến hôm nay) để so với số đếm của hôm qua thì sẽ lệch vì đã cộng/trừ thêm giao dịch hôm nay.
 function stockOneAsOf(code,date){
-  return allTx.filter(t=>t.product_code===code&&!isSalesAdjust(t)&&!isLoiKho(t)&&t.date<=date)
+  return allTx.filter(t=>t.product_code===code&&!isSalesAdjust(t)&&!isSideKho(t)&&t.date<=date)
     .reduce((s,t)=>s+(t.type==='Nhập'?(t.quantity||0):-(t.quantity||0)),0);
 }
 // [ĐÃ ĐỔI LOGIC] Trước đây đơn "Chờ gửi/Nợ hàng" chỉ giữ chỗ mềm (chưa trừ kho thật, trừ ở lúc Gửi).
@@ -896,7 +956,9 @@ function renderStaffPickerOptions(){
 // Đi đơn (khách/KOL/hoàn đơn) · Order hàng (về từ xưởng/NCC) · Chỉnh kho (kiểm kê/mở sổ/hàng lỗi/sửa số bán/tồn đầu kỳ).
 function txCategory(t){
   const rt=t.ref_type||'';
-  if(['order','order-acc','order_del','order-acc-refund','return'].includes(rt))return{label:'Đi đơn',bg:'var(--blue-bg)',fg:'var(--blue-fg)'};
+  if(['order','order-acc','order_del','order-acc-refund','return','popup_sold','popup_undo'].includes(rt))return{label:'Đi đơn',bg:'var(--blue-bg)',fg:'var(--blue-fg)'};
+  if(['popup_send','popup_in','popup_back','popup_recv'].includes(rt))return{label:'Pop Up',bg:'var(--pink-soft)',fg:'#993556'};
+  if(['popup_adj_in','popup_adj_out'].includes(rt))return{label:'Chỉnh kho',bg:'var(--org-bg)',fg:'var(--org-fg)'};
   if(['po','po_kol','po_loi'].includes(rt))return{label:'Order hàng',bg:'var(--grn-bg)',fg:'var(--grn-fg)'};
   if(['adjust','init','opening','sales_adjust','kol_out','loi_out'].includes(rt))return{label:'Chỉnh kho',bg:'var(--org-bg)',fg:'var(--org-fg)'};
   return{label:'Khác',bg:'var(--bg)',fg:'var(--brown)'};
@@ -924,6 +986,7 @@ function txChannelLabel(t){
 // trang "Kiểm kê & Lịch sử" thành trang con theo kho, dưới mỗi tab loại biến động (Tất cả/Đi đơn/Order hàng/Chỉnh kho/Khác).
 function txWarehouse(t){
   if(isLoiKho(t))return'Kho hàng lỗi';
+  if(isPopupKho(t))return'Kho Pop Up';
   if(allAccProducts.some(p=>p.code===t.product_code))return'Phụ kiện';
   return'Quản lý kho';
 }
@@ -1064,8 +1127,9 @@ function confirmShortfall(items,action){
 function renderAll(){renderToday();renderDiDon();renderDonTabs();renderDon();renderKol();renderKho();renderLoiKho();renderOrderPlan();buildOProdSelect();renderOrderPage();renderLog();updateBadges();renderLines();
   if(document.getElementById('pg-qr')?.classList.contains('on'))renderQR(allProducts);
   if(document.getElementById('pg-products')?.classList.contains('on'))renderProductsTable();
-  renderPhuKienIfVisible();
+  renderPhuKienIfVisible();renderPopupIfVisible();
 }
+function renderPopupIfVisible(){if(document.getElementById('pg-popup')?.classList.contains('on'))renderPopup();}
 // gọi lại trang Kiểm kho phụ kiện nếu đang mở — dùng ở mọi chỗ vốn đã gọi renderKho() sau khi kho đổi số
 function renderPhuKienIfVisible(){
   if(document.getElementById('pg-phukien')?.classList.contains('on'))renderPhuKien();
@@ -1089,6 +1153,7 @@ function goToPage(pg){
   if(pg==='phukien'){renderPhuKien();}
   if(pg==='congno'){if(!S_SAL_UNLOCKED){goToPage('tao');return;}renderCongNo();}
   if(pg==='loikho'){renderLoiKho();}
+  if(pg==='popup'){renderPopup();}
   toggleSidebar(false); // mobile: đóng menu sau khi chọn trang
 }
 document.querySelectorAll('.nav-i').forEach(n=>n.onclick=()=>goToPage(n.dataset.pg));
@@ -1442,6 +1507,8 @@ const DON_FILTERS=[
   // [MỚI] đơn lên từ file (Đơn Sàn Shopee/TikTok, Ngoại Sàn GHN/SPX) mà nhân viên KHÔNG tích chọn lúc nhập —
   // chưa trừ kho ngay, gom về đây chờ chốt xong với khách rồi mới chọn SP để xuất thật.
   {k:'Chờ xác nhận',f:o=>o.status==='Chờ xác nhận'},
+  // [POP UP] đơn bán hàng ký gửi (Thái/Olive/Girl Hood) — sinh ra từ phiếu ký gửi ở Lên đơn, đã trừ kho Pop Up (không đụng kho chính)
+  {k:'Ký gửi Pop Up',f:o=>String(o.channel||'').startsWith('Ký gửi')},
   {k:'Đổi/trả',f:o=>o.status==='Chờ hàng về'||['Đã hoàn','Đã đổi'].includes(o.status),badgeF:o=>o.status==='Chờ hàng về'}, // chỉ đếm phần CHỜ HÀNG VỀ (chưa giải quyết xong), không đếm Đã hoàn/Đã đổi (đã xong)
   // [MỚI] đơn đã bấm "Xoá đơn" — KHÔNG xoá hẳn khỏi hệ thống nữa mà chuyển sang trạng thái "Đã xoá" để
   // xem lại/đối chiếu khi cần. Dữ liệu tab này lấy từ mảng riêng `deletedOrders` (không lẫn vào allOrders)
@@ -1912,6 +1979,9 @@ function orderCard(g,actions,emphTime){
               <button class="btn btn-grn btn-sm" onclick="shipOrder('${code}','Thường')">📤 Gửi thường</button>
               <button class="btn btn-honey btn-sm" onclick="shipOrder('${code}','Grab')">🛵 Gửi Grab</button>`;
       }
+    }else if(['Đã gửi','Đã giao'].includes(o.status)&&String(o.channel||'').startsWith('Ký gửi')){
+      // [POP UP] đơn ký gửi: hàng trả về thì ghi cột "TRẢ VỀ KHO" ở phiếu ký gửi; lên sai thì "Xoá đơn" (tự cộng lại kho Pop Up)
+      btns=`<span class="pill" style="background:var(--pink-soft);color:#993556">🏬 Đã trừ kho Pop Up · sai thì Xoá đơn để hoàn lại</span>`;
     }else if(['Đã gửi','Đã giao'].includes(o.status)){
       btns=`<button class="btn btn-red btn-sm" onclick="openReturn('${code}')">↩️ Huỷ / Hoàn / Đổi</button>`;
     }else if(o.status==='Chờ hàng về'){
@@ -1964,7 +2034,13 @@ async function deleteOrderAsk(code){
   const g=allOrders.filter(o=>o.order_code===code);
   if(!g.length){toast('Không tìm thấy đơn '+code,true);return;}
   const touchedTx=allTx.filter(t=>t.type==='Xuất'&&t.ref_type==='order'&&String(t.ref_id||'').startsWith(code+'#'));
-  if(touchedTx.length){
+  // [POP UP] đơn bán ký gửi trừ kho Pop Up (popup_sold) — xoá đơn thì cộng lại đúng kho Pop Up của bên đó
+  const popTx=allTx.filter(t=>t.type==='Xuất'&&t.ref_type==='popup_sold'&&String(t.ref_id||'').startsWith(code+'#'));
+  const alreadyUndone=new Set(allTx.filter(t=>t.ref_type==='popup_undo').map(t=>t.ref_id));
+  const popTodo=popTx.filter(t=>!alreadyUndone.has(`${t.ref_id}-huy`));
+  if(popTodo.length){
+    if(!confirm(`Đơn ký gửi ${code} đã trừ kho Pop Up.\n\nXoá đơn sẽ CỘNG LẠI đúng số lượng vào kho Pop Up của bên ký gửi (dùng khi lên phiếu sai). Kho chính không bị ảnh hưởng.\n\nVẫn xoá đơn ${code}?`))return;
+  }else if(touchedTx.length){
     if(!confirm(`Đơn ${code} đã trừ kho (đã ghi sổ xuất hàng).\n\nXoá đơn này sẽ TỰ ĐỘNG CỘNG LẠI đúng số lượng đã trừ vào kho (coi như đơn chưa từng xuất) — dùng cho trường hợp LÊN ĐƠN SAI, chưa thực giao cho khách. Đơn vẫn được GIỮ LẠI để xem ở tab "Đã xoá", không mất dữ liệu.\n\n⚠️ Nếu đơn đã THỰC SỰ giao cho khách và khách trả/đổi hàng thật, hãy dùng nút "Huỷ / Hoàn / Đổi" thay vì xoá ở đây.\n\nVẫn xoá & hoàn kho đơn ${code}?`))return;
   }else{
     if(!confirm(`Xoá đơn ${code}?\n\nĐơn này chưa phát sinh xuất/nhập kho nên xoá an toàn. Đơn sẽ được chuyển vào tab "Đã xoá" để xem lại khi cần, không mất dữ liệu.`))return;
@@ -1976,13 +2052,17 @@ async function deleteOrderAsk(code){
       await postNhap({product_code:t.product_code,quantity:t.quantity,channel:'Xoá đơn lên sai',
         ref_type:'order_del',ref_id:`${t.ref_id}-huy`,note:`[HOÀN KHO] Xoá đơn lên sai ${code} (đảo bút toán ${t.ref_id})`});
     }
+    for(const t of popTodo){
+      await postNhap({product_code:t.product_code,quantity:t.quantity,channel:t.channel,date:t.date,
+        ref_type:'popup_undo',ref_id:`${t.ref_id}-huy`,note:`[HOÀN KHO POP UP] Xoá đơn ký gửi lên sai ${code}`});
+    }
     // [SỬA] Xoá MỀM: chuyển status sang "Đã xoá" thay vì DEL hẳn khỏi Supabase — giữ lại dữ liệu để xem/đối
     // chiếu sau này ở tab "Đã xoá" (Quản lý đơn). note giữ lại trạng thái gốc để biết đơn này trước đó ở đâu.
     await PATCH(`orders?order_code=eq.${encodeURIComponent(code)}`,{status:'Đã xoá',note:`[ĐÃ XOÁ · trước: ${g[0].status}] ${g[0].note||''}`.trim()});
     allOrders=allOrders.filter(o=>o.order_code!==code);
     g.forEach(o=>deletedOrders.unshift({...o,status:'Đã xoá',note:`[ĐÃ XOÁ · trước: ${o.status}] ${o.note||''}`.trim()}));
-    toast(`✓ Đã xoá đơn ${code}${touchedTx.length?' · đã hoàn lại kho':''} · xem lại ở tab "Đã xoá"`);
-    renderDonTabs();renderDon();renderToday();updateBadges();renderKho();
+    toast(`✓ Đã xoá đơn ${code}${touchedTx.length?' · đã hoàn lại kho':''}${popTodo.length?' · đã cộng lại kho Pop Up':''} · xem lại ở tab "Đã xoá"`);
+    renderDonTabs();renderDon();renderToday();updateBadges();renderKho();renderPopupIfVisible();
   }catch(e){toast('Lỗi xoá: '+e.message,true);}
   showLoad(false);
 }
@@ -2425,8 +2505,8 @@ function poLotsInRange(from,to){
 }
 // tồn cuối mỗi ngày (running) cho 1 SKU
 function eodMap(code,from,days){
-  let base=allTx.filter(t=>t.product_code===code&&!isLoiKho(t)&&t.date<from).reduce((s,t)=>s+(t.type==='Nhập'?(t.quantity||0):-(t.quantity||0)),0);
-  const dd={};allTx.filter(t=>t.product_code===code&&!isLoiKho(t)&&t.date>=from).forEach(t=>{dd[t.date]=(dd[t.date]||0)+(t.type==='Nhập'?(t.quantity||0):-(t.quantity||0));});
+  let base=allTx.filter(t=>t.product_code===code&&!isSideKho(t)&&t.date<from).reduce((s,t)=>s+(t.type==='Nhập'?(t.quantity||0):-(t.quantity||0)),0);
+  const dd={};allTx.filter(t=>t.product_code===code&&!isSideKho(t)&&t.date>=from).forEach(t=>{dd[t.date]=(dd[t.date]||0)+(t.type==='Nhập'?(t.quantity||0):-(t.quantity||0));});
   const r={};days.forEach(d=>{base+=dd[d]||0;r[d]=base;});return r;
 }
 function renderDiDon(){
@@ -2858,7 +2938,8 @@ function groupByName(){
 // [VẤN ĐỀ 2] Bán N ngày = Xuất thật (loại kiểm kê & KOL) CỘNG/TRỪ bút toán "sửa số đã bán" nằm trong khoảng ngày đó.
 // type='Xuất' (sales_adjust) => cộng thêm vào số đã bán · type='Nhập' (sales_adjust) => trừ bớt số đã bán.
 function soldIn(code,days){const f=daysAgo(days-1),t=todayStr();
-  return allTx.filter(x=>x.product_code===code&&!x.is_kol&&x.date>=f&&x.date<=t&&((x.type==='Xuất'&&!isKK(x)&&!isSalesAdjust(x))||isSalesAdjust(x)))
+  // [POP UP] chuyển hàng sang/về Pop Up & đếm kho Pop Up KHÔNG phải bán — loại ra; riêng popup_sold (bên ký gửi bán được) vẫn tính là bán
+  return allTx.filter(x=>x.product_code===code&&!x.is_kol&&x.date>=f&&x.date<=t&&!POPUP_MOVE_REFS.includes(x.ref_type)&&((x.type==='Xuất'&&!isKK(x)&&!isSalesAdjust(x))||isSalesAdjust(x)))
     .reduce((s,x)=>{
       if(isSalesAdjust(x))return s+(x.type==='Xuất'?(x.quantity||0):-(x.quantity||0));
       return s+(x.quantity||0);
@@ -4932,7 +5013,7 @@ function logSumRange(){
 }
 function renderLog(){
   const tabsEl=document.getElementById('log-tabs');
-  const cats=['all','Đi đơn','Order hàng','Chỉnh kho','Khác'];
+  const cats=['all','Đi đơn','Order hàng','Chỉnh kho','Pop Up','Khác'];
   if(tabsEl){
     tabsEl.innerHTML=cats.map(k=>{
       const n=k==='all'?allTx.length:allTx.filter(t=>txCategory(t).label===k).length;
@@ -4942,7 +5023,7 @@ function renderLog(){
   // lọc theo loại biến động trước — sub-tab kho bên dưới đếm SỐ TRONG ĐÚNG PHẠM VI này để luôn khớp bảng
   const byCat=logFilter==='all'?allTx:allTx.filter(t=>txCategory(t).label===logFilter);
   const whEl=document.getElementById('log-wh-tabs');
-  const whs=['all','Quản lý kho','Kho hàng lỗi','Phụ kiện'];
+  const whs=['all','Quản lý kho','Kho hàng lỗi','Kho Pop Up','Phụ kiện'];
   if(whEl){
     whEl.innerHTML=whs.map(w=>{
       const n=w==='all'?byCat.length:byCat.filter(t=>txWarehouse(t)===w).length;
@@ -5054,7 +5135,10 @@ function setTaoMode(m){
   document.getElementById('taomode-tay').className='tab'+(m==='tay'?' on':'');
   document.getElementById('taomode-san').className='tab'+(m==='san'?' on':'');
   document.getElementById('taomode-ngoai').className='tab'+(m==='ngoai'?' on':'');
+  document.getElementById('tao-kygui').style.display=m==='kygui'?'':'none';
+  document.getElementById('taomode-kygui').className='tab'+(m==='kygui'?' on':'');
   if(m==='san')renderShopeePending();
+  if(m==='kygui')kgRenderPartnerTabs();
 }
 let shopeeLines=[];
 // [MỚI] các mã đơn (sn) mà nhân viên BỎ TÍCH ở bước preview — những đơn này khi nhập sẽ KHÔNG trừ kho ngay,
@@ -6206,6 +6290,362 @@ function stageExcel(key){
   const d=st.doneAt||new Date();
   const safe=stageBaseName(st).replace(/[\\/:*?"<>|]+/g,'_').slice(0,80);
   XLSX.writeFile(wb,`Phieu soan hang - ${safe} - ${todayStr()}.xlsx`);
+}
+
+/* ══════════ [MỚI] KÝ GỬI POP UP — phiếu ký gửi (.xlsx) + Kho Pop Up theo từng bên ══════════
+   Luồng: Kho Pop Up / Lên đơn ▸ "Tải file mẫu" (app tự sinh từ Danh mục SP — luôn đủ mã, không phải gõ mã)
+   → bên ký gửi / nhân viên điền 3 cột GỬI THÊM · ĐÃ BÁN · TRẢ VỀ KHO → tải lên Lên đơn ▸ 🏬 Ký gửi Pop Up
+   → xem bảng tồn trước/sau → xác nhận. Mỗi lần xác nhận = 1 "phiếu" có mã KG-<BÊN>-<yymmdd>-xxxx:
+     • GỬI THÊM  : Xuất kho chính (popup_send) + Nhập kho Pop Up (popup_in)
+     • ĐÃ BÁN    : tạo đơn "Ký gửi · <bên>" (status Đã giao, mã đơn = mã phiếu) + Xuất kho Pop Up (popup_sold)
+     • TRẢ VỀ KHO: Xuất kho Pop Up (popup_back) + Nhập kho chính (popup_recv)
+   Không có cột/bảng mới trên Supabase — dùng đúng bảng transactions + orders sẵn có. */
+let kgPartner=POPUP_PARTNERS[0].k;
+let kgData=null;
+let puPartner='all',puTab='ALL',puColorFocus={};
+const kgNorm=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/g,'d').replace(/Đ/g,'d').trim().toLowerCase().replace(/\s+/g,' ');
+function puPartnerLabel(k){return k==='all'?'Tất cả bên':((POPUP_PARTNERS.find(p=>p.k===k)||{}).label||k);}
+function puTxOf(k){return allTx.filter(t=>isPopupKho(t)&&(k==='all'||popupPartnerOfTx(t)===k));}
+function puStockOne(code,k){
+  return puTxOf(k).filter(t=>t.product_code===code).reduce((s,t)=>s+(t.type==='Nhập'?(t.quantity||0):-(t.quantity||0)),0);
+}
+function puStockMap(k){const m={};puTxOf(k).forEach(t=>{m[t.product_code]=(m[t.product_code]||0)+(t.type==='Nhập'?(t.quantity||0):-(t.quantity||0));});return m;}
+// tổng SL theo loại bút toán trong khoảng ngày → {code: qty}
+function puSumMap(k,refs,from,to){const m={};puTxOf(k).filter(t=>refs.includes(t.ref_type)&&t.date>=from&&t.date<=to).forEach(t=>{m[t.product_code]=(m[t.product_code]||0)+(t.quantity||0);});return m;}
+function puOrdersOf(k){
+  const labels=k==='all'?POPUP_PARTNERS.map(p=>p.label):[puPartnerLabel(k)];
+  return allOrders.filter(o=>labels.some(l=>o.channel==='Ký gửi · '+l));
+}
+// giá bán ký gửi gần nhất của 1 mã ở 1 bên (để điền sẵn vào file mẫu)
+function kgLastPrice(code,k){
+  const o=puOrdersOf(k).filter(x=>x.product_code===code&&x.quantity>0&&x.amount_due>0).sort((a,b)=>String(b.created_at||b.date).localeCompare(String(a.created_at||a.date)))[0];
+  return o?Math.round(o.amount_due/o.quantity):'';
+}
+
+/* ── File mẫu ── */
+function kgDownloadTemplate(k){
+  if(!k||k==='all'){toast('Chọn 1 bên ký gửi (Thái / Olive / Girl Hood) trước khi tải file mẫu',true);return;}
+  if(!allProducts.length){toast('Chưa tải được danh mục sản phẩm',true);return;}
+  const label=puPartnerLabel(k);
+  const nm=normName();
+  const pu=puStockMap(k);
+  const d=todayStr();
+  const aoa=[
+    ['LÀSILK · PHIẾU KÝ GỬI POP UP'],
+    ['Bên ký gửi',label,'','← KHÔNG sửa ô này. Mỗi bên 1 file riêng.'],
+    ['Ngày',`${d.slice(8,10)}/${d.slice(5,7)}/${d.slice(0,4)}`,'','← Ngày bán / ngày gửi thực tế (dd/mm/yyyy). Mỗi ngày nên 1 phiếu.'],
+    ['Hướng dẫn','Chỉ điền SỐ vào 3 cột GỬI THÊM / ĐÃ BÁN / TRẢ VỀ KHO. Ô trống = 0. KHÔNG sửa cột Mã SP. Giá bán dùng để tính doanh thu đối soát (bỏ trống cũng được).'],
+    [],
+    ['Mã SP','Sản phẩm','Màu','Size','Tồn Pop Up (lúc tải)','Tồn kho chính (lúc tải)','GỬI THÊM','ĐÃ BÁN','TRẢ VỀ KHO','Giá bán (đ/cái)','Ghi chú'],
+  ];
+  sortPS(allProducts).forEach(p=>{
+    aoa.push([p.code,nm[(p.name||'').trim().toLowerCase()]||p.name||'',(p.color||'').trim(),p.size||'',pu[p.code]||0,stockOne(p.code),'','','',kgLastPrice(p.code,k),'']);
+  });
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=[{wch:12},{wch:22},{wch:14},{wch:8},{wch:12},{wch:12},{wch:11},{wch:11},{wch:12},{wch:13},{wch:22}];
+  ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:10}},{s:{r:3,c:1},e:{r:3,c:10}}];
+  ws['!autofilter']={ref:`A6:K${aoa.length}`};
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Ky gui');
+  XLSX.writeFile(wb,`Phieu ky gui - ${kgNorm(label).toUpperCase()} - ${d}.xlsx`);
+}
+
+/* ── Lên đơn ▸ Ký gửi Pop Up ── */
+function kgRenderPartnerTabs(){
+  const box=document.getElementById('kg-partner-tabs');if(!box)return;
+  box.innerHTML=POPUP_PARTNERS.map(p=>`<div class="tab ${p.k===kgPartner?'on':''}" onclick="kgSetPartner('${p.k}')">🏬 ${escapeHtml(p.label)}</div>`).join('');
+  const l=document.getElementById('kg-partner-lbl');if(l)l.textContent=puPartnerLabel(kgPartner);
+}
+function kgSetPartner(k){
+  kgPartner=k;kgRenderPartnerTabs();
+  if(kgData&&kgData.partner!==k){kgData.partner=k;kgData.partnerFromFile=false;kgRenderPreview();}
+}
+function kgParse(input){
+  const f=input.files&&input.files[0];if(!f)return;
+  const sum=document.getElementById('kg-summary');
+  const rd=new FileReader();
+  rd.onload=e=>{
+    try{
+      const wb=/\.csv$/i.test(f.name)?XLSX.read(e.target.result,{type:'string'}):XLSX.read(e.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const aoa=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      // đọc "Bên ký gửi" + "Ngày" ở phần đầu file
+      let partner='',date='';
+      for(let i=0;i<Math.min(aoa.length,12);i++){
+        const r=aoa[i]||[];const k0=kgNorm(r[0]);
+        const val=r.slice(1).find(c=>String(c).trim()!=='');
+        if(k0.startsWith('ben ky gui')&&val!==undefined){const p=POPUP_PARTNERS.find(x=>kgNorm(x.label)===kgNorm(val));if(p)partner=p.k;}
+        if(k0==='ngay'&&val!==undefined)date=shDate(val);
+      }
+      const hi=aoa.findIndex(r=>r.some(c=>kgNorm(c)==='ma sp'));
+      if(hi<0){sum.innerHTML='<div class="setup" style="background:var(--red-bg);color:var(--red-fg)">Không thấy cột <b>Mã SP</b>. Dùng đúng file mẫu tải từ nút "📥 Tải file mẫu".</div>';return;}
+      const h=aoa[hi].map(kgNorm);
+      const ci=(...keys)=>h.findIndex(x=>keys.some(k=>x.includes(k)));
+      const col={code:h.indexOf('ma sp'),name:ci('san pham'),color:h.indexOf('mau'),size:h.indexOf('size'),
+        send:ci('gui them'),sold:ci('da ban'),back:ci('tra ve'),price:ci('gia ban'),note:ci('ghi chu')};
+      if(col.sold<0&&col.send<0&&col.back<0){sum.innerHTML='<div class="setup" style="background:var(--red-bg);color:var(--red-fg)">Không thấy cột <b>GỬI THÊM / ĐÃ BÁN / TRẢ VỀ KHO</b>.</div>';return;}
+      const num=v=>{const n=parseInt(String(v).replace(/[^\d-]/g,''));return isNaN(n)?0:n;};
+      const lines=[],unknown=[];let neg=0;
+      for(let i=hi+1;i<aoa.length;i++){
+        const r=aoa[i]||[];
+        const send=col.send>=0?num(r[col.send]):0,sold=col.sold>=0?num(r[col.sold]):0,back=col.back>=0?num(r[col.back]):0;
+        if(send<0||sold<0||back<0){neg++;continue;}
+        if(!send&&!sold&&!back)continue;
+        const rawCode=String(r[col.code]||'').trim();
+        let p=allProducts.find(x=>x.code===rawCode);
+        if(!p&&col.name>=0){ // dự phòng: khớp theo Tên + Màu + Size nếu mã bị sửa/xoá
+          const n=kgNorm(r[col.name]),c=kgNorm(col.color>=0?r[col.color]:''),s=kgNorm(col.size>=0?r[col.size]:'');
+          const c2=allProducts.filter(x=>kgNorm(x.name)===n&&kgNorm(x.color)===c&&kgNorm(x.size)===s);
+          if(c2.length===1)p=c2[0];
+        }
+        const line={row:i+1,code:p?p.code:'',raw:rawCode||String(r[col.name]||''),send,sold,back,
+          price:col.price>=0?num(r[col.price]):0,note:col.note>=0?String(r[col.note]||'').trim():''};
+        (p?lines:unknown).push(line);
+      }
+      // gộp nếu 1 mã xuất hiện nhiều dòng
+      const byCode={};lines.forEach(l=>{const a=byCode[l.code];if(!a)byCode[l.code]={...l};else{a.send+=l.send;a.sold+=l.sold;a.back+=l.back;a.price=a.price||l.price;a.note=[a.note,l.note].filter(Boolean).join('; ');}});
+      const fileHasPartner=!!partner;
+      if(partner&&partner!==kgPartner){kgPartner=partner;kgRenderPartnerTabs();}
+      kgData={partner:partner||kgPartner,partnerFromFile:fileHasPartner,date:date||todayStr(),dateFromFile:!!date,
+        fileName:f.name,lines:Object.values(byCode),unknown,neg};
+      kgRenderPreview();
+    }catch(err){sum.innerHTML='<div class="setup" style="background:var(--red-bg);color:var(--red-fg)">Lỗi đọc file: '+escapeHtml(err.message)+'</div>';}
+  };
+  if(/\.csv$/i.test(f.name))rd.readAsText(f);else rd.readAsArrayBuffer(f);
+}
+// các phiếu ĐÃ nhập trước đó cho cùng bên + cùng ngày (để cảnh báo nhập trùng)
+// kinds: các loại việc của phiếu đang nhập ('send'/'sold'/'back') — chỉ cảnh báo khi phiếu cũ CÙNG loại việc
+// (VD sáng gửi hàng, tối báo bán cùng ngày là bình thường, không cảnh báo)
+function kgPrevBatches(k,date,kinds){
+  const pre=`KG-${k.toUpperCase()}-${date.slice(2,4)}${date.slice(5,7)}${date.slice(8,10)}-`;
+  const undone=new Set(allTx.filter(t=>t.ref_type==='popup_undo').map(t=>String(t.ref_id).replace(/-huy$/,'')));
+  const kindOf={popup_in:'send',popup_sold:'sold',popup_back:'back'};
+  const s=new Set();
+  allTx.forEach(t=>{const id=String(t.ref_id||'');const kd=kindOf[t.ref_type];
+    if(kd&&(!kinds||kinds.includes(kd))&&id.startsWith(pre)&&!undone.has(id))s.add(id.split(/[#]|-SEND-|-BACK-/)[0]);});
+  return [...s];
+}
+function kgKinds(rows){const k=[];if(rows.some(r=>r.send))k.push('send');if(rows.some(r=>r.sold))k.push('sold');if(rows.some(r=>r.back))k.push('back');return k;}
+function kgSetDate(v){if(kgData&&v){kgData.date=v;kgData.dateFromFile=true;kgRenderPreview();}}
+function kgRenderPreview(){
+  const sum=document.getElementById('kg-summary'),box=document.getElementById('kg-preview');
+  if(!kgData){sum.innerHTML='';box.innerHTML='';return;}
+  const {partner:k,lines,unknown}=kgData;const label=puPartnerLabel(k);
+  const pu=puStockMap(k);const nm=normName();
+  const rows=lines.map(l=>{
+    const p=allProducts.find(x=>x.code===l.code);
+    const puB=pu[l.code]||0,puA=puB+l.send-l.sold-l.back;
+    const mB=stockOne(l.code),mA=mB-l.send+l.back;
+    return{...l,p,prod:p?(nm[(p.name||'').trim().toLowerCase()]||p.name):l.code,color:(p&&(p.color||'').trim())||'—',size:(p&&p.size)||'—',puB,puA,mB,mA,rev:l.sold*(l.price||0)};
+  }).sort((a,b)=>a.prod.localeCompare(b.prod,'vi')||colorKeyOf(a.color).localeCompare(colorKeyOf(b.color),'vi')||sizeRank(a.size)-sizeRank(b.size));
+  kgData.rows=rows;
+  const T=rows.reduce((s,r)=>({send:s.send+r.send,sold:s.sold+r.sold,back:s.back+r.back,rev:s.rev+r.rev}),{send:0,sold:0,back:0,rev:0});
+  const negPu=rows.filter(r=>r.puA<0).length,negMain=rows.filter(r=>r.send>0&&r.mA<0).length;
+  const prev=kgPrevBatches(k,kgData.date,kgKinds(rows));
+  const warn=[];
+  if(!kgData.partnerFromFile)warn.push(`File không ghi "Bên ký gửi" — đang tính cho bên <b>${escapeHtml(label)}</b> (đang chọn ở trên).`);
+  if(!kgData.dateFromFile)warn.push('File không có ngày — đang lấy <b>hôm nay</b>. Sửa ngày ở ô bên dưới nếu cần.');
+  if(prev.length)warn.push(`<b>Ngày ${fmtDate(kgData.date)} đã có ${prev.length} phiếu ${escapeHtml(label)} cùng loại (gửi/bán/trả)</b> (${prev.map(escapeHtml).join(', ')}). Kiểm tra kỹ để không nhập trùng — muốn sửa phiếu cũ thì vào Quản lý đơn ▸ Ký gửi Pop Up ▸ Xoá đơn, rồi nhập lại.`);
+  if(unknown.length)warn.push(`<b style="color:var(--red-fg)">${unknown.length} dòng không khớp mã SP sẽ bị bỏ qua:</b> ${unknown.slice(0,8).map(u=>`dòng ${u.row} (${escapeHtml(u.raw||'trống')})`).join(', ')}${unknown.length>8?'…':''}`);
+  if(kgData.neg)warn.push(`<b style="color:var(--red-fg)">${kgData.neg} dòng có số âm bị bỏ qua</b> — chỉ điền số dương.`);
+  if(negPu)warn.push(`<b style="color:var(--red-fg)">${negPu} mã bị ÂM kho Pop Up</b> sau phiếu này (bán/trả nhiều hơn số đang có ở ${escapeHtml(label)}) — kiểm tra lại hoặc ghi thêm cột GỬI THÊM.`);
+  if(negMain)warn.push(`<b style="color:var(--red-fg)">${negMain} mã bị ÂM kho chính</b> khi gửi sang Pop Up.`);
+  sum.innerHTML=`<div class="setup" style="background:var(--grn-bg);color:var(--grn-fg);border-color:#97C459">📄 <b>${escapeHtml(kgData.fileName)}</b> · bên <b>${escapeHtml(label)}</b> · ${rows.length} mã · Gửi thêm <b>${T.send}</b> · Đã bán <b>${T.sold}</b> · Trả về <b>${T.back}</b>${T.rev?` · Doanh thu <b>${T.rev.toLocaleString('vi-VN')}₫</b>`:''}</div>
+    ${warn.length?`<div class="setup" style="background:var(--org-bg);color:var(--org-fg);border-color:#E8C84A;margin-top:8px">${warn.map(w=>'• '+w).join('<br>')}</div>`:''}`;
+  if(!rows.length){box.innerHTML='<div class="card dim" style="text-align:center">Không có dòng nào có số — điền số vào GỬI THÊM / ĐÃ BÁN / TRẢ VỀ KHO rồi tải lại.</div>';return;}
+  let body='',lastP='';
+  rows.forEach(r=>{
+    if(r.prod!==lastP){lastP=r.prod;body+=`<tr class="stg-prod"><td colspan="10">● ${escapeHtml(r.prod)}</td></tr>`;}
+    body+=`<tr>
+      <td class="l" style="border-left:5px solid ${colorBg(r.color)};font-weight:600">${escapeHtml(r.color)}</td>
+      <td class="l">${escapeHtml(r.size)} <span class="dim mono" style="font-size:10px">${escapeHtml(r.code)}</span></td>
+      <td style="font-weight:800">${r.send||'—'}</td><td style="font-weight:800">${r.sold||'—'}</td><td style="font-weight:800">${r.back||'—'}</td>
+      <td>${r.puB}</td><td style="font-weight:700;${r.puA<0?'background:var(--red-bg);color:var(--red-fg)':''}">${r.puA}</td>
+      <td>${r.send||r.back?r.mB:'<span class="dim">—</span>'}</td><td style="font-weight:700;${r.send&&r.mA<0?'background:var(--red-bg);color:var(--red-fg)':''}">${r.send||r.back?r.mA:'<span class="dim">—</span>'}</td>
+      <td>${r.rev?r.rev.toLocaleString('vi-VN'):'—'}</td></tr>`;
+  });
+  box.innerHTML=`<div class="stg">
+    <div class="stg-hd"><div><b>🏬 Phiếu ký gửi · ${escapeHtml(label)}</b><div style="font-size:11.5px;opacity:.7;margin-top:2px">Tồn tính theo số hiện tại · chưa ghi gì vào kho</div></div>
+      <span class="pill" style="background:var(--honey);color:var(--dark)">Chờ xác nhận</span></div>
+    <div style="padding:10px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--bg)">
+      <label style="font-size:12px;font-weight:600">Ngày của phiếu: <input type="date" value="${kgData.date}" onchange="kgSetDate(this.value)" style="width:auto;display:inline-block;padding:5px 8px"></label>
+      <span style="font-size:11.5px;color:var(--brown)">Đơn bán ký gửi sẽ ghi vào đúng ngày này (thống kê Đi đơn / Đã gửi).</span></div>
+    <div style="overflow:auto"><table>
+      <thead><tr><th class="l">Màu</th><th class="l">Size</th><th>Gửi thêm</th><th>Đã bán</th><th>Trả về</th><th>Pop Up trước</th><th>Pop Up sau</th><th>Kho chính trước</th><th>Kho chính sau</th><th>Doanh thu</th></tr></thead>
+      <tbody>${body}<tr class="tot"><td colspan="2" class="l">TỔNG</td><td>${T.send}</td><td>${T.sold}</td><td>${T.back}</td><td colspan="4"></td><td>${T.rev?T.rev.toLocaleString('vi-VN'):'—'}</td></tr></tbody>
+    </table></div>
+    <div class="stg-foot">
+      <button class="btn btn-sm" onclick="kgData=null;document.getElementById('kg-file').value='';kgRenderPreview()">✕ Huỷ</button>
+      <button class="btn btn-dark" onclick="kgConfirm()">✅ Xác nhận — ghi kho Pop Up</button>
+    </div></div>`;
+}
+async function kgConfirm(){
+  if(!kgData||!kgData.rows||!kgData.rows.length)return;
+  const {partner:k,date}=kgData;const label=puPartnerLabel(k);const rows=kgData.rows;
+  const T=rows.reduce((s,r)=>({send:s.send+r.send,sold:s.sold+r.sold,back:s.back+r.back}),{send:0,sold:0,back:0});
+  const prev=kgPrevBatches(k,date,kgKinds(rows));
+  if(!confirm(`Ghi phiếu ký gửi ${label} · ngày ${fmtDate(date)}?\n\n• Gửi thêm: ${T.send} (trừ kho chính → cộng Pop Up)\n• Đã bán: ${T.sold} (trừ Pop Up · tạo đơn "Ký gửi · ${label}")\n• Trả về kho: ${T.back} (trừ Pop Up → cộng kho chính)${prev.length?`\n\n⚠️ Ngày này ĐÃ CÓ ${prev.length} phiếu ${label} — chắc chắn không nhập trùng?`:''}`))return;
+  const yymmdd=date.slice(2,4)+date.slice(5,7)+date.slice(8,10);
+  const batch=`KG-${k.toUpperCase()}-${yymmdd}-${Date.now().toString(36).slice(-4).toUpperCase()}`;
+  const ch=popupChan(k);const noteBase=`[PHIẾU ${batch}] Ký gửi ${label} ${fmtDate(date)}`;
+  showLoad(true);let done=0;
+  try{
+    for(const r of rows.filter(r=>r.send>0)){
+      await postXuat({product_code:r.code,quantity:r.send,channel:'Gửi '+ch,ref_type:'popup_send',ref_id:`${batch}-SEND-${r.code}`,is_kol:false,note:`${noteBase} · gửi thêm${r.note?' · '+r.note:''}`,date});
+      await postNhap({product_code:r.code,quantity:r.send,channel:ch,ref_type:'popup_in',ref_id:`${batch}-SEND-${r.code}`,note:`${noteBase} · nhận hàng${r.note?' · '+r.note:''}`,date});
+      done++;
+    }
+    for(const r of rows.filter(r=>r.sold>0)){
+      const ord=await POST('orders',{order_code:batch,date,customer_name:'Pop Up '+label,phone:'',address:'',
+        product_code:r.code,product_name:r.p?pname(r.p):r.code,quantity:r.sold,channel:'Ký gửi · '+label,status:'Đã giao',
+        tracking_code:'',staff:'',note:`Bán ký gửi ${label} ngày ${fmtDate(date)}${r.note?' · '+r.note:''}`,amount_due:r.sold*(r.price||0),is_paid:false,shipping_fee:0,
+        payment_method:'Ký gửi',ship_method:'',sent_date:date});
+      if(ord&&ord[0])allOrders.unshift(ord[0]);
+      await postXuat({product_code:r.code,quantity:r.sold,channel:ch,ref_type:'popup_sold',ref_id:`${batch}#${r.code}`,is_kol:false,note:`${noteBase} · đã bán`,date});
+      done++;
+    }
+    for(const r of rows.filter(r=>r.back>0)){
+      await postXuat({product_code:r.code,quantity:r.back,channel:ch,ref_type:'popup_back',ref_id:`${batch}-BACK-${r.code}`,is_kol:false,note:`${noteBase} · trả về kho${r.note?' · '+r.note:''}`,date});
+      await postNhap({product_code:r.code,quantity:r.back,channel:'Pop Up trả về · '+label,ref_type:'popup_recv',ref_id:`${batch}-BACK-${r.code}`,note:`${noteBase} · nhận lại từ Pop Up`,date});
+      done++;
+    }
+    toast(`✅ Đã ghi phiếu ${batch} · gửi ${T.send} · bán ${T.sold} · trả ${T.back}`);
+    kgData=null;document.getElementById('kg-file').value='';kgRenderPreview();
+    renderAll();
+  }catch(e){
+    toast(`Lỗi sau ${done} dòng: ${e.message} — các dòng đã ghi vẫn giữ, tải lại trang rồi kiểm tra ở Kho Pop Up`,true);
+  }
+  showLoad(false);
+}
+
+/* ── Trang Kho Pop Up ── */
+function puRange(){
+  const f=document.getElementById('pu-from'),t=document.getElementById('pu-to');
+  if(t&&!t.value){t.value=todayStr();f.value=daysAgo(29);}
+  return{from:f?.value||daysAgo(29),to:t?.value||todayStr()};
+}
+function puQuick(n){document.getElementById('pu-to').value=todayStr();document.getElementById('pu-from').value=daysAgo(n-1);renderPopup();}
+function puFromMonth(){const d=new Date();document.getElementById('pu-from').value=`${d.getFullYear()}-${p2(d.getMonth()+1)}-01`;document.getElementById('pu-to').value=todayStr();renderPopup();}
+function puSetPartner(k){puPartner=k;renderPopup();}
+function renderPopup(){
+  const tabs=document.getElementById('pu-tabs');if(!tabs)return;
+  tabs.innerHTML=[{k:'all',label:'Tổng'},...POPUP_PARTNERS].map(p=>{
+    const n=allProducts.reduce((s,x)=>s+puStockOne(x.code,p.k),0);
+    return `<div class="tab ${p.k===puPartner?'on':''}" onclick="puSetPartner('${p.k}')">${p.k==='all'?'Tổng':'🏬 '+escapeHtml(p.label)}<span class="c">${n}</span></div>`;}).join('');
+  const dl=document.getElementById('pu-dl-btn');if(dl){dl.disabled=puPartner==='all';dl.textContent=puPartner==='all'?'📥 Chọn 1 bên để tải file mẫu':`📥 Tải file mẫu (${puPartnerLabel(puPartner)})`;}
+  const{from,to}=puRange();
+  const stock=puStockMap(puPartner);
+  const sendM=puSumMap(puPartner,['popup_in'],from,to),soldM=puSumMap(puPartner,['popup_sold'],from,to),backM=puSumMap(puPartner,['popup_back'],from,to);
+  const undoM=puSumMap(puPartner,['popup_undo'],from,to);
+  const tot=m=>Object.values(m).reduce((a,b)=>a+b,0);
+  const rev=puOrdersOf(puPartner).filter(o=>{const d=sentDateOf(o);return d>=from&&d<=to;}).reduce((s,o)=>s+(o.amount_due||0),0);
+  const soldNet=tot(soldM)-tot(undoM);
+  document.getElementById('pu-metrics').innerHTML=`
+    <div class="metric"><div class="metric-v">${tot(stock)}</div><div class="metric-l">Tồn Pop Up hiện tại</div></div>
+    <div class="metric honey"><div class="metric-v">${tot(sendM)}</div><div class="metric-l">Đã gửi sang (kỳ)</div></div>
+    <div class="metric pink"><div class="metric-v">${soldNet}</div><div class="metric-l">Đã bán (kỳ)</div></div>
+    <div class="metric"><div class="metric-v">${tot(backM)}</div><div class="metric-l">Trả về kho (kỳ)</div></div>
+    <div class="metric"><div class="metric-v" style="font-size:17px">${rev.toLocaleString('vi-VN')}₫</div><div class="metric-l">Doanh thu bán (kỳ)</div></div>`;
+  const groups=groupByName();
+  const active=nm=>(groups[nm]||[]).some(p=>(stock[p.code]||0)!==0||sendM[p.code]||soldM[p.code]||backM[p.code]);
+  const names=Object.keys(groups).filter(active);
+  if(puTab!=='ALL'&&!names.includes(puTab))puTab='ALL';
+  document.getElementById('pu-prod-tabs').innerHTML=names.length?['ALL',...names].map(k=>`<div class="tab ${k===puTab?'on':''}" onclick="puTab='${jsq(k)}';renderPopup()">${k==='ALL'?'Tất cả':escapeHtml(k)}</div>`).join(''):'';
+  const show=puTab==='ALL'?names:[puTab];
+  const perPartner=puPartner==='all'?POPUP_PARTNERS.map(p=>({...p,m:puStockMap(p.k)})):[];
+  let html='';
+  show.forEach(nm=>{
+    const prods=groups[nm]||[];const focus=puColorFocus[nm]||null;
+    let rows='',sT=0,sS=0,sB=0,sR=0;
+    colorGroupsOf(prods).forEach(cg=>{
+      if(focus&&focus!==cg.color)return;
+      const sizes=cg.items.slice().sort((a,b)=>sizeRank(a.size)-sizeRank(b.size));
+      sizes.forEach((p,si)=>{
+        const ton=stock[p.code]||0,s=sendM[p.code]||0,b=(soldM[p.code]||0)-(undoM[p.code]||0),r=backM[p.code]||0;
+        sT+=ton;sS+=s;sB+=b;sR+=r;
+        rows+=`<tr style="${ton<0?'background:var(--red-bg)':''}">
+          ${si===0?`<td rowspan="${sizes.length}" style="background:${colorBg(cg.color)};color:#fff;font-weight:700;font-size:10px;writing-mode:vertical-rl;transform:rotate(180deg);text-align:center;padding:6px 2px;width:26px">${escapeHtml(cg.color)}</td>`:''}
+          <td class="l" style="font-weight:600;padding-left:12px">${p.size||'—'}</td>
+          ${perPartner.map(pp=>`<td>${pp.m[p.code]||'—'}</td>`).join('')}
+          <td style="font-weight:800;background:var(--bg);color:${ton<0?'var(--red-fg)':'inherit'}">${ton||'—'}</td>
+          <td>${s||'—'}</td><td style="font-weight:700">${b||'—'}</td><td>${r||'—'}</td></tr>`;
+      });
+    });
+    html+=`<div class="card" style="padding:0;margin-bottom:16px;overflow:hidden;border:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;background:#B5715C;color:#fff;padding:10px 16px">
+        <div style="font-family:var(--f-head);font-weight:800;font-size:12.5px;letter-spacing:.12em;text-transform:uppercase">● ${escapeHtml(nm)}</div>
+        <div style="font-size:11px">Tồn Pop Up (${escapeHtml(puPartnerLabel(puPartner))}): <b>${sT}</b> · bán kỳ: <b>${sB}</b></div></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;padding:9px 16px 0;background:var(--dark)">
+        ${colorGroupsOf(prods).map(cg=>`<button class="btn btn-sm" style="background:${focus===cg.color?colorBg(cg.color):'rgba(255,255,255,.08)'};color:#fff;border-color:${colorBg(cg.color)}" onclick="puColorFocus['${jsq(nm)}']=puColorFocus['${jsq(nm)}']==='${jsq(cg.color)}'?null:'${jsq(cg.color)}';renderPopup()">${escapeHtml(cg.color)}</button>`).join('')}
+        ${focus?`<button class="btn btn-sm" style="background:transparent;color:var(--honey);border-color:rgba(255,255,255,.3)" onclick="puColorFocus['${jsq(nm)}']=null;renderPopup()">✕ Xem tất cả màu</button>`:''}</div>
+      <div style="overflow:auto"><table>
+        <thead><tr><th style="width:26px"></th><th class="l" style="padding-left:12px">Size</th>${perPartner.map(pp=>`<th>Tồn ${escapeHtml(pp.label)}</th>`).join('')}<th style="background:var(--dark);color:var(--honey)">Tồn Pop Up</th><th>Gửi sang (kỳ)</th><th>Đã bán (kỳ)</th><th>Trả về (kỳ)</th></tr></thead>
+        <tbody>${rows}<tr style="background:#B5715C;color:#fff;font-weight:800"><td colspan="${2+perPartner.length}" class="l" style="padding-left:12px">TỔNG${focus?' (đang lọc màu)':''}</td><td>${sT}</td><td>${sS}</td><td>${sB}</td><td>${sR}</td></tr></tbody>
+      </table></div>
+      <div style="background:var(--dark);padding:9px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <button class="btn btn-honey btn-sm" ${puPartner==='all'?'disabled':''} onclick="puOpenKiemKe('${jsq(nm)}')">✏️ Đếm kho Pop Up</button>
+        <span style="font-size:11px;color:rgba(255,255,255,.5)">${puPartner==='all'?'Chọn 1 bên ở trên để đếm kho':'Đếm hàng thực tế tại '+escapeHtml(puPartnerLabel(puPartner))+' — chỉnh đúng kho Pop Up của bên này'}</span></div>
+    </div>`;
+  });
+  document.getElementById('pu-content').innerHTML=html||`<div class="card dim" style="text-align:center;padding:24px">Chưa có hàng ký gửi${puPartner!=='all'?' ở '+escapeHtml(puPartnerLabel(puPartner)):''}.<br>Vào <b>Lên đơn ▸ 🏬 Ký gửi Pop Up</b> → tải file mẫu → điền cột <b>GỬI THÊM</b> để chuyển hàng sang.</div>`;
+}
+function puOpenKiemKe(nm){
+  if(puPartner==='all'){toast('Chọn 1 bên ký gửi để đếm kho',true);return;}
+  const prods=sortPS(groupByName()[nm]||[]);const label=puPartnerLabel(puPartner);
+  const sys=prods.reduce((s,p)=>s+puStockOne(p.code,puPartner),0);
+  m_title(`Đếm kho Pop Up — ${nm} · ${label}`);
+  document.getElementById('m-body').innerHTML=`
+    <div style="font-size:12px;color:var(--brown);margin-bottom:10px">Nhập số đếm thực tế tại <b>${escapeHtml(label)}</b>. Chênh lệch chỉ chỉnh kho Pop Up của bên này, không đụng kho chính.</div>
+    <table><thead><tr><th class="l">Mã · Màu · Size</th><th>Tồn HT</th><th>Đếm thực tế</th></tr></thead><tbody>
+    ${prods.map(p=>{const cur=puStockOne(p.code,puPartner);return `<tr><td class="l" style="font-size:12px">${p.code}<br><span style="font-size:11px;color:var(--brown)">${escapeHtml((p.color||'')+' '+(p.size||''))}</span></td>
+      <td style="font-weight:700">${cur}</td><td><input type="number" min="0" value="${cur}" class="puk-inp" data-code="${p.code}" style="width:80px;margin:0 auto"></td></tr>`;}).join('')}
+    </tbody><tfoot><tr style="background:#B5715C;color:#fff;font-weight:800"><td class="l">TỔNG HỆ THỐNG</td><td>${sys}</td><td></td></tr></tfoot></table>
+    <label class="fld" style="margin-top:12px"><span>Lý do chênh lệch</span>
+      <select id="puk-reason"><option>Bán chưa báo</option><option>Thất thoát</option><option>Đếm sai</option><option>Hàng hỏng/tặng</option><option>Khác</option></select></label>`;
+  m_foot(`<button class="btn" onclick="closeModal()">Đóng</button><button class="btn btn-honey" onclick="puSaveKiemKe()">💾 Lưu điều chỉnh</button>`);
+  openModal();
+}
+async function puSaveKiemKe(){
+  const reason=document.getElementById('puk-reason').value;const label=puPartnerLabel(puPartner);const ch=popupChan(puPartner);
+  showLoad(true);
+  try{
+    let n=0;
+    for(const inp of document.querySelectorAll('.puk-inp')){
+      const code=inp.dataset.code,counted=intv(inp.value,0),system=puStockOne(code,puPartner),delta=counted-system;
+      if(!delta)continue;
+      const p=allProducts.find(x=>x.code===code);
+      const row=await POST('transactions',{date:todayStr(),type:delta<0?'Xuất':'Nhập',product_code:code,product_name:p?pname(p):'',
+        quantity:Math.abs(delta),channel:'Điều chỉnh · '+ch,ref_type:delta<0?'popup_adj_out':'popup_adj_in',
+        ref_id:`PUKK-${puPartner}-${code}-${Date.now()}`,system_qty:system,counted_qty:counted,reason,staff_name:currentStaffName||'',
+        note:`[KIỂM KÊ POP UP · ${label}] HT=${system}·Đếm=${counted}·Δ${delta>0?'+':''}${delta}·${reason}`});
+      if(row&&row[0])allTx.push(row[0]);n++;
+    }
+    closeModal();renderPopup();renderLog();
+    toast(n?`✓ Đã chỉnh ${n} mã ở Pop Up ${label}`:'Khớp, không cần điều chỉnh');
+  }catch(e){toast('Lỗi: '+e.message,true);}
+  showLoad(false);
+}
+// Excel đối soát với bên ký gửi: tổng hợp theo mã + danh sách bán theo ngày
+function puExportReport(){
+  const{from,to}=puRange();
+  const parts=puPartner==='all'?POPUP_PARTNERS:[POPUP_PARTNERS.find(p=>p.k===puPartner)];
+  const wb=XLSX.utils.book_new();
+  const r1=[['Bên','Sản phẩm','Màu','Size','Mã SP','Gửi sang','Đã bán','Trả về','Tồn Pop Up hiện tại','Doanh thu']];
+  const r2=[['Bên','Ngày','Mã phiếu','Sản phẩm','Mã SP','SL','Thành tiền']];
+  parts.forEach(pp=>{
+    const st=puStockMap(pp.k),s=puSumMap(pp.k,['popup_in'],from,to),b=puSumMap(pp.k,['popup_sold'],from,to),u=puSumMap(pp.k,['popup_undo'],from,to),r=puSumMap(pp.k,['popup_back'],from,to);
+    const ords=puOrdersOf(pp.k).filter(o=>{const d=sentDateOf(o);return d>=from&&d<=to;});
+    const revM={};ords.forEach(o=>{revM[o.product_code]=(revM[o.product_code]||0)+(o.amount_due||0);});
+    sortPS(allProducts).forEach(p=>{
+      const c=p.code,sold=(b[c]||0)-(u[c]||0);
+      if(!(st[c]||s[c]||sold||r[c]))return;
+      r1.push([pp.label,p.name,p.color||'',p.size||'',c,s[c]||0,sold,r[c]||0,st[c]||0,revM[c]||0]);
+    });
+    ords.sort((a,b)=>sentDateOf(a).localeCompare(sentDateOf(b))).forEach(o=>r2.push([pp.label,fmtDate(sentDateOf(o)),o.order_code,o.product_name,o.product_code,o.quantity,o.amount_due||0]));
+  });
+  const w1=XLSX.utils.aoa_to_sheet(r1);w1['!cols']=[{wch:8},{wch:22},{wch:14},{wch:7},{wch:11},{wch:9},{wch:9},{wch:9},{wch:12},{wch:12}];
+  const w2=XLSX.utils.aoa_to_sheet(r2);w2['!cols']=[{wch:8},{wch:11},{wch:22},{wch:34},{wch:11},{wch:6},{wch:12}];
+  XLSX.utils.book_append_sheet(wb,w1,'Tong hop');XLSX.utils.book_append_sheet(wb,w2,'Ban theo ngay');
+  XLSX.writeFile(wb,`Doi soat ky gui - ${kgNorm(puPartnerLabel(puPartner)).toUpperCase()} - ${from} den ${to}.xlsx`);
 }
 
 /* ══════════ INIT ══════════ */
