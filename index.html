@@ -525,6 +525,7 @@ body:not(.owner) .owner-only{display:none!important}
         </div>
         <div class="row">
           <button class="btn btn-honey" onclick="goToPage('tao');setTaoMode('kygui')">🧾 Lên phiếu ký gửi</button>
+          <button class="btn btn-dark" onclick="puSeedOpen()" title="Cộng tồn Pop Up Thái theo đợt gửi đã trừ kho chính từ trước — KHÔNG trừ kho chính lần nữa">📦 Nhập tồn Thái (kho chính đã trừ)</button>
         </div>
       </div>
       <div class="tabs" id="pu-tabs"></div>
@@ -6434,12 +6435,12 @@ function kgRenderPreview(){
   const rows=lines.map(l=>{
     const p=allProducts.find(x=>x.code===l.code);
     const puB=pu[l.code]||0,puA=puB+l.send-l.sold-l.back;
-    const mB=stockOne(l.code),mA=mB-l.send+l.back;
+    const mB=stockOne(l.code),mA=mB-(kgData.noMain?0:l.send)+l.back;
     return{...l,p,prod:p?(nm[(p.name||'').trim().toLowerCase()]||p.name):l.code,color:(p&&(p.color||'').trim())||'—',size:(p&&p.size)||'—',puB,puA,mB,mA,rev:l.sold*(l.price||0)};
   }).sort((a,b)=>a.prod.localeCompare(b.prod,'vi')||colorKeyOf(a.color).localeCompare(colorKeyOf(b.color),'vi')||sizeRank(a.size)-sizeRank(b.size));
   kgData.rows=rows;
   const T=rows.reduce((s,r)=>({send:s.send+r.send,sold:s.sold+r.sold,back:s.back+r.back,rev:s.rev+r.rev}),{send:0,sold:0,back:0,rev:0});
-  const negPu=rows.filter(r=>r.puA<0).length,negMain=rows.filter(r=>r.send>0&&r.mA<0).length;
+  const negPu=rows.filter(r=>r.puA<0).length,negMain=kgData.noMain?0:rows.filter(r=>r.send>0&&r.mA<0).length;
   const prev=kgPrevBatches(k,kgData.date,kgKinds(rows));
   const warn=[];
   if(!kgData.partnerFromFile)warn.push(`File không ghi "Bên ký gửi" — đang tính cho bên <b>${escapeHtml(label)}</b> (đang chọn ở trên).`);
@@ -6468,7 +6469,8 @@ function kgRenderPreview(){
       <span class="pill" style="background:var(--honey);color:var(--dark)">Chờ xác nhận</span></div>
     <div style="padding:10px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--bg)">
       <label style="font-size:12px;font-weight:600">Ngày của phiếu: <input type="date" value="${kgData.date}" onchange="kgSetDate(this.value)" style="width:auto;display:inline-block;padding:5px 8px"></label>
-      <span style="font-size:11.5px;color:var(--brown)">Đơn bán ký gửi sẽ ghi vào đúng ngày này (thống kê Đi đơn / Đã gửi).</span></div>
+      <span style="font-size:11.5px;color:var(--brown)">Đơn bán ký gửi sẽ ghi vào đúng ngày này (thống kê Đi đơn / Đã gửi).</span>
+      <label style="font-size:12px;font-weight:700;display:flex;gap:6px;align-items:center;cursor:pointer;color:${kgData.noMain?'var(--red-fg)':'inherit'}"><input type="checkbox" style="width:auto" ${kgData.noMain?'checked':''} onchange="kgData.noMain=this.checked;kgRenderPreview()"> Kho chính ĐÃ TRỪ SẴN — cột GỬI THÊM chỉ cộng Pop Up, KHÔNG trừ kho chính</label></div>
     <div style="overflow:auto"><table>
       <thead><tr><th class="l">Màu</th><th class="l">Size</th><th>Gửi thêm</th><th>Đã bán</th><th>Trả về</th><th>Pop Up trước</th><th>Pop Up sau</th><th>Kho chính trước</th><th>Kho chính sau</th><th>Doanh thu</th></tr></thead>
       <tbody>${body}<tr class="tot"><td colspan="2" class="l">TỔNG</td><td>${T.send}</td><td>${T.sold}</td><td>${T.back}</td><td colspan="4"></td><td>${T.rev?T.rev.toLocaleString('vi-VN'):'—'}</td></tr></tbody>
@@ -6483,15 +6485,15 @@ async function kgConfirm(){
   const {partner:k,date}=kgData;const label=puPartnerLabel(k);const rows=kgData.rows;
   const T=rows.reduce((s,r)=>({send:s.send+r.send,sold:s.sold+r.sold,back:s.back+r.back}),{send:0,sold:0,back:0});
   const prev=kgPrevBatches(k,date,kgKinds(rows));
-  if(!confirm(`Ghi phiếu ký gửi ${label} · ngày ${fmtDate(date)}?\n\n• Gửi thêm: ${T.send} (trừ kho chính → cộng Pop Up)\n• Đã bán: ${T.sold} (trừ Pop Up · tạo đơn "Ký gửi · ${label}")\n• Trả về kho: ${T.back} (trừ Pop Up → cộng kho chính)${prev.length?`\n\n⚠️ Ngày này ĐÃ CÓ ${prev.length} phiếu ${label} — chắc chắn không nhập trùng?`:''}`))return;
+  if(!confirm(`Ghi phiếu ký gửi ${label} · ngày ${fmtDate(date)}?\n\n• Gửi thêm: ${T.send} ${kgData.noMain?'(CHỈ cộng Pop Up — kho chính đã trừ sẵn, KHÔNG trừ nữa)':'(trừ kho chính → cộng Pop Up)'}\n• Đã bán: ${T.sold} (trừ Pop Up · tạo đơn "Ký gửi · ${label}")\n• Trả về kho: ${T.back} (trừ Pop Up → cộng kho chính)${prev.length?`\n\n⚠️ Ngày này ĐÃ CÓ ${prev.length} phiếu ${label} — chắc chắn không nhập trùng?`:''}`))return;
   const yymmdd=date.slice(2,4)+date.slice(5,7)+date.slice(8,10);
   const batch=`KG-${k.toUpperCase()}-${yymmdd}-${Date.now().toString(36).slice(-4).toUpperCase()}`;
   const ch=popupChan(k);const noteBase=`[PHIẾU ${batch}] Ký gửi ${label} ${fmtDate(date)}`;
   showLoad(true);let done=0;
   try{
     for(const r of rows.filter(r=>r.send>0)){
-      await postXuat({product_code:r.code,quantity:r.send,channel:'Gửi '+ch,ref_type:'popup_send',ref_id:`${batch}-SEND-${r.code}`,is_kol:false,note:`${noteBase} · gửi thêm${r.note?' · '+r.note:''}`,date});
-      await postNhap({product_code:r.code,quantity:r.send,channel:ch,ref_type:'popup_in',ref_id:`${batch}-SEND-${r.code}`,note:`${noteBase} · nhận hàng${r.note?' · '+r.note:''}`,date});
+      if(!kgData.noMain)await postXuat({product_code:r.code,quantity:r.send,channel:'Gửi '+ch,ref_type:'popup_send',ref_id:`${batch}-SEND-${r.code}`,is_kol:false,note:`${noteBase} · gửi thêm${r.note?' · '+r.note:''}`,date});
+      await postNhap({product_code:r.code,quantity:r.send,channel:ch,ref_type:'popup_in',ref_id:`${batch}-SEND-${r.code}`,note:`${noteBase} · nhận hàng${kgData.noMain?' · kho chính đã trừ sẵn':''}${r.note?' · '+r.note:''}`,date});
       done++;
     }
     for(const r of rows.filter(r=>r.sold>0)){
@@ -6646,6 +6648,101 @@ function puExportReport(){
   const w2=XLSX.utils.aoa_to_sheet(r2);w2['!cols']=[{wch:8},{wch:11},{wch:22},{wch:34},{wch:11},{wch:6},{wch:12}];
   XLSX.utils.book_append_sheet(wb,w1,'Tong hop');XLSX.utils.book_append_sheet(wb,w2,'Ban theo ngay');
   XLSX.writeFile(wb,`Doi soat ky gui - ${kgNorm(puPartnerLabel(puPartner)).toUpperCase()} - ${from} den ${to}.xlsx`);
+}
+
+/* ── [MỚI] NHẬP TỒN BAN ĐẦU POP UP THÁI ──
+   Đợt hàng gửi Thái đã được trừ kho chính TỪ TRƯỚC khi có trang Kho Pop Up → chỉ cần CỘNG vào kho Pop Up Thái
+   (bút toán popup_in, KHÔNG ghi popup_send nên kho chính không bị trừ lần 2). ref_id cố định theo mã SP nên bấm
+   xác nhận 2 lần cũng không cộng trùng. Danh sách lấy theo tin nhắn "Sl gửi đơn thái". */
+const PU_SEED_PARTNER='thai';
+const PU_SEED_SPEC=[
+  // name: cụm có trong tên SP (không dấu) · color: các từ màu (không dấu) · prefer: ưu tiên nếu nhiều ứng viên · q: số lượng theo size
+  ...['hong','vang',['xanh duong','xanh da troi'],'xanh la'].map(c=>({grp:'Sweet Talk có lót',name:['sweet talk','st '],color:c,prefer:['lot'],noGam:true,q:{S:2,M:2,L:1}})),
+  ...[['xanh duong','xanh da troi'],'xanh la','den'].map(c=>({grp:'Sweet Talk gấm có lót',name:['sweet talk','st '],color:c,gam:true,prefer:['lot'],q:{S:2,M:2,L:1}})),
+  {grp:'Amber',name:['amber'],color:'',q:{S:2,M:2,L:1}},
+  {grp:'Macaroon',name:['macaroon'],color:'trang bac',q:{S:2,M:2,L:1}},
+  {grp:'Macaroon',name:['macaroon'],color:'tim',q:{S:2,M:2}},
+  {grp:'Macaroon',name:['macaroon'],color:'do cherry',q:{S:2,M:2,L:1}},
+  {grp:'Sườn xám',name:['suon xam','midnight muse'],color:'den',q:{S:2,M:2,L:1}},
+  {grp:'Đầm Jenni',name:['jenni'],color:'do',q:{S:2,M:2,L:1}},
+  {grp:'Dream Girl',name:['dream girl','dreamgirl'],color:'vang hong',prefer:['dam'],q:{M:2,L:1}},
+  {grp:'Dream Girl',name:['dream girl','dreamgirl'],color:'nau den',q:{S:2}},
+  {grp:'Túi Knot bag',name:['knot'],color:'den',q:{'':3}},
+  {grp:'Túi Knot bag',name:['knot'],color:'xanh la',q:{'':3}},
+  {grp:'Túi gấm',name:['tui gam','gam'],bag:true,color:'trang',q:{'':3}},
+  {grp:'Túi gấm',name:['tui gam','gam'],bag:true,color:'do cherry',q:{'':3}},
+];
+let puSeedRows=[];
+const puTok=s=>kgNorm(s).replace(/[^a-z0-9]+/g,' ').trim().split(' ').filter(Boolean);
+function puSeedCands(sp){
+  const nmHit=p=>{const n=' '+puTok(p.name).join(' ')+' ';return sp.name.some(k=>n.includes(' '+k.trim()+' ')||n.includes(' '+k.trim()));};
+  let c=allProducts.filter(nmHit);
+  if(sp.bag)c=c.filter(p=>/tui|bag/.test(kgNorm(p.name)));
+  else if(sp.name.includes('gam'))c=c.filter(p=>!/sweet|suon|macaroon|jenni|dream|amber/.test(kgNorm(p.name)));
+  return c;
+}
+function puSeedPick(sp,size,cands){
+  const alts=(Array.isArray(sp.color)?sp.color:[sp.color]);
+  let c=cands.filter(p=>!size||String(p.size||'').trim().toUpperCase()===size);
+  if(alts[0]){
+    c=c.filter(p=>{const t=puTok(p.color);return alts.some(a=>puTok(a).every(w=>t.includes(w)));});
+  }
+  const full=p=>puTok(p.name+' '+p.color);
+  if(sp.gam)c=c.filter(p=>full(p).includes('gam'));
+  if(sp.noGam)c=c.filter(p=>!full(p).includes('gam'));
+  if(c.length>1&&alts[0]){ // ưu tiên màu khớp ĐÚNG (VD "hồng" không lấy nhầm "hồng-vàng")
+    const core=p=>puTok(p.color).filter(w=>!['gam','co','lot','dam','nhat'].includes(w)).sort().join(' ');
+    const f=c.filter(p=>alts.some(a=>puTok(a).sort().join(' ')===core(p)));if(f.length)c=f;}
+  if(c.length>1&&sp.prefer){const f=c.filter(p=>sp.prefer.some(w=>full(p).includes(w)));if(f.length)c=f;}
+  return c.length===1?c[0].code:'';
+}
+function puSeedOpen(){
+  if(!allProducts.length){toast('Chưa tải được danh mục sản phẩm',true);return;}
+  const label=puPartnerLabel(PU_SEED_PARTNER);
+  puSeedRows=[];
+  PU_SEED_SPEC.forEach(sp=>{
+    const cands=puSeedCands(sp);
+    Object.entries(sp.q).forEach(([size,qty])=>{
+      const colorTxt=(Array.isArray(sp.color)?sp.color[0]:sp.color)||'';
+      puSeedRows.push({want:`${sp.grp}${colorTxt?' · '+colorTxt:''}${size?' · '+size:''}`,qty,code:puSeedPick(sp,size,cands),cands:sortPS(cands.length?cands:allProducts)});
+    });
+  });
+  const opts=(r)=>`<option value="">— chọn mã SP —</option>`+r.cands.map(p=>`<option value="${escapeHtml(p.code)}" ${p.code===r.code?'selected':''}>${escapeHtml(pname(p))} (${escapeHtml(p.code)})</option>`).join('');
+  const miss=puSeedRows.filter(r=>!r.code).length;
+  m_title(`📦 Nhập tồn Pop Up ${label} — đợt gửi đã trừ kho chính`);
+  document.getElementById('m-body').innerHTML=`
+    <div style="font-size:12px;color:var(--brown);margin-bottom:8px">Chỉ <b>cộng vào kho Pop Up ${escapeHtml(label)}</b> — <b>KHÔNG trừ kho chính</b> (vì đã trừ từ trước). Hệ thống tự dò mã theo tên/màu/size; dòng nào <b style="color:var(--red-fg)">tô đỏ</b> là chưa dò ra, chọn tay giúp. Số lượng sửa được (VD túi: đang hiểu "3 cái" là 3 cái MỖI màu).</div>
+    ${miss?`<div class="setup" style="background:var(--org-bg);color:var(--org-fg);border-color:#E8C84A;margin-bottom:8px">⚠️ ${miss} dòng chưa khớp mã — chọn tay trước khi xác nhận (để trống = bỏ qua dòng đó).</div>`:''}
+    <label class="fld" style="margin-bottom:8px"><span>Ngày ghi nhận</span><input type="date" id="pus-date" value="${todayStr()}"></label>
+    <div style="max-height:55vh;overflow:auto"><table><thead><tr><th class="l">Theo danh sách</th><th class="l">Mã SP trong kho</th><th>SL</th><th>Tồn ${escapeHtml(label)} hiện tại</th></tr></thead><tbody>
+    ${puSeedRows.map((r,i)=>`<tr style="${r.code?'':'background:var(--red-bg)'}"><td class="l" style="font-size:12px;font-weight:600">${escapeHtml(r.want)}</td>
+      <td class="l"><select class="pus-sel" data-i="${i}" style="max-width:340px;font-size:12px" onchange="puSeedRows[${i}].code=this.value;this.closest('tr').style.background=this.value?'':'var(--red-bg)';document.getElementById('pus-cur-${i}').textContent=this.value?puStockOne(this.value,PU_SEED_PARTNER):'—'">${opts(r)}</select></td>
+      <td><input type="number" min="0" value="${r.qty}" style="width:60px;margin:0 auto" onchange="puSeedRows[${i}].qty=intv(this.value,0)"></td>
+      <td id="pus-cur-${i}">${r.code?puStockOne(r.code,PU_SEED_PARTNER):'—'}</td></tr>`).join('')}
+    </tbody></table></div>
+    <div style="font-size:12px;margin-top:8px">Tổng theo danh sách: <b>${puSeedRows.reduce((s,r)=>s+r.qty,0)}</b> cái</div>`;
+  m_foot(`<button class="btn" onclick="closeModal()">Đóng</button><button class="btn btn-honey" onclick="puSeedSave()">✅ Xác nhận — cộng kho Pop Up ${escapeHtml(label)}</button>`);
+  openModal();
+}
+async function puSeedSave(){
+  const label=puPartnerLabel(PU_SEED_PARTNER);const ch=popupChan(PU_SEED_PARTNER);
+  const date=document.getElementById('pus-date').value||todayStr();
+  const by={};puSeedRows.filter(r=>r.code&&r.qty>0).forEach(r=>{by[r.code]=(by[r.code]||0)+r.qty;});
+  const codes=Object.keys(by);const tot=codes.reduce((s,c)=>s+by[c],0);
+  const skip=puSeedRows.filter(r=>!r.code&&r.qty>0).length;
+  if(!codes.length){toast('Chưa có dòng nào có mã SP',true);return;}
+  if(!confirm(`Cộng ${tot} cái (${codes.length} mã) vào kho Pop Up ${label}, ngày ${fmtDate(date)}?\nKho chính KHÔNG bị trừ thêm.${skip?`\n\n⚠️ ${skip} dòng chưa chọn mã sẽ bị bỏ qua.`:''}`))return;
+  showLoad(true);let ok=0,dup=0;
+  try{
+    for(const c of codes){
+      const r=await postNhap({product_code:c,quantity:by[c],channel:ch,ref_type:'popup_in',ref_id:`KG-${PU_SEED_PARTNER.toUpperCase()}-TONDAU-${c}`,
+        note:`[TỒN ĐẦU POP UP · ${label}] Đợt gửi đã trừ kho chính trước khi có trang Kho Pop Up — chỉ cộng Pop Up`,date});
+      if(r==='dup')dup++;else ok++;
+    }
+    closeModal();renderAll();renderPopup();
+    toast(`✅ Đã cộng ${ok} mã vào Pop Up ${label}${dup?` · ${dup} mã đã nhập trước đó nên bỏ qua (chống trùng)`:''}`);
+  }catch(e){toast(`Lỗi sau ${ok} mã: ${e.message}`,true);}
+  showLoad(false);
 }
 
 /* ══════════ INIT ══════════ */
