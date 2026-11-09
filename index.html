@@ -1723,7 +1723,8 @@ function renderDonDateBar(){
     box.innerHTML=`<div class="tabs" style="margin-bottom:0">
       <div class="tab${sendSubTab==='cangui'?' on':''}" onclick="donSetSendSubTab('cangui')">📤 Cần gửi${cCanGui?`<span class="c">${cCanGui}</span>`:''}</div>
       <div class="tab${sendSubTab==='daGui'?' on':''}" onclick="donSetSendSubTab('daGui')">✅ Đã gửi${cDaGui?`<span class="c">${cDaGui}</span>`:''}</div>
-    </div>${donFilter==='Nợ hàng'&&sendSubTab==='cangui'?dueStripHtml():''}`;
+    </div>${donFilter==='Nợ hàng'&&sendSubTab==='cangui'?dueStripHtml():''}
+    ${donFilter==='Nợ hàng'?`<div class="row" style="margin-top:8px"><button class="btn btn-honey btn-sm" onclick="exportNoHangExcel()">📊 Xuất Excel đơn nợ</button></div>`:''}`;
     return;
   }
   // [MỚI] tab "Chờ xác nhận" — chia 4 sub-tab theo nguồn: Sàn Shopee / Sàn TikTok / Đơn GHN / Đơn Shopee Express
@@ -1789,6 +1790,66 @@ function exportDonGuiExcel(){
   const label=dr&&dr.from&&dr.to?(dr.from===dr.to?dr.from:`${dr.from}_${dr.to}`):'tatca';
   XLSX.writeFile(wb,`bao_cao_da_gui_${label}.xlsx`);
   toast(`✅ Đã xuất ${list.length} dòng đơn`);
+}
+/* ── [MỚI] Xuất Excel đơn NỢ HÀNG — theo đúng mục đang xem (Cần gửi / Đã gửi) + bộ lọc mức hẹn, tìm kiếm, lọc SP.
+   Sheet 1 "Đơn nợ": mỗi dòng 1 sản phẩm, có Ngày khách đặt, Ngày hẹn giao, tình trạng hẹn, số lần dời hẹn, khách chờ bao lâu…
+   Sheet 2 "Tổng theo SP": tổng SL đang nợ từng mã, tồn kho hiện tại và số còn thiếu (để đặt xưởng). ── */
+function exportNoHangExcel(){
+  const isCanGui=sendSubTab==='cangui';
+  let list=allOrders.filter(o=>o.status==='Nợ hàng'&&(isCanGui?!o.local_sent:!!o.local_sent));
+  if(isCanGui&&dueBucket!=='all'){
+    const ok=new Set(groupOrders(list).filter(g=>dueBucketOf(dueOfGroup(g))===dueBucket).map(g=>g[0].order_code));
+    list=list.filter(o=>ok.has(o.order_code));
+  }
+  const q=(document.getElementById('don-search')?.value||'').trim().toLowerCase();
+  if(q)list=list.filter(o=>[o.order_code,o.customer_name,o.phone,o.tracking_code].some(v=>String(v||'').toLowerCase().includes(q)));
+  if(donProd!=='ALL'){
+    const nameOf=o=>{const p=allProducts.find(x=>x.code===o.product_code);return p?p.name:(o.product_name||'');};
+    const codes=new Set(list.filter(o=>nameOf(o)===donProd).map(o=>o.order_code));
+    list=list.filter(o=>codes.has(o.order_code));
+  }
+  if(donVariantFilter)list=list.filter(o=>donVariantFilter.codes.has(o.order_code));
+  if(!list.length){toast('Không có đơn nợ nào trong mục đang xem',true);return;}
+  const groups=sortDueGroups(groupOrders(list)); // xếp giống màn hình (mặc định: hẹn gần nhất trước)
+  const today=todayStr();
+  const fmtD=d=>{const m=String(d||'').slice(0,10).match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?`${m[3]}/${m[2]}/${m[1]}`:'';};
+  const HEAD=['STT','Mã đơn','Ngày khách đặt','Giờ đặt','Ngày hẹn giao','Thứ','Tình trạng hẹn','Số lần dời hẹn','Khách đã chờ (ngày)',
+    'Tên khách','Số điện thoại','Địa chỉ','Mã KH','Tên sản phẩm','Màu','Size','Mã SP','SL','Tồn kho hiện tại','Đủ hàng?',
+    'Tiền cần thu','Thanh toán','Kênh','Mục','Ghi chú'];
+  const rows=[HEAD];let stt=0;
+  groups.forEach(g=>{
+    stt++;
+    const o=g[0];const due=dueOfGroup(g);const created=String(o.created_at||o.date||'');
+    const cDay=created.slice(0,10);
+    const time=created.includes('T')?(dt=>isNaN(dt)?'':`${p2(dt.getHours())}:${p2(dt.getMinutes())}`)(new Date(created)):'';
+    const status=o.local_sent?'Đã gửi':!due?'Chưa hẹn ngày':dueRelText(due).replace(/^./,c=>c.toUpperCase());
+    const waited=cDay?Math.max(0,daysBetween(cDay,today)):'';
+    const note=stripDueTag(o.note);
+    g.forEach(r=>{
+      const p=allProducts.find(x=>x.code===r.product_code)||{};
+      const have=stockOne(r.product_code);
+      rows.push([stt,o.order_code,fmtD(cDay),time,fmtD(due),due?WD_FULL[wdIdx(due)]:'',status,dueMoves(g)||0,waited,
+        o.customer_name||'',o.phone||'',o.address||'',o.customer_code||'',r.product_name||p.name||'',p.color||'',p.size||'',r.product_code||'',
+        r.quantity||0,have,have>=(r.quantity||0)?'Đủ':'Thiếu',r.amount_due||0,o.payment_method||'',o.channel||'',o.local_sent?'Đã gửi':'Cần gửi',note]);
+    });
+  });
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:5},{wch:14},{wch:13},{wch:7},{wch:13},{wch:10},{wch:18},{wch:9},{wch:10},{wch:20},{wch:13},{wch:34},{wch:10},
+    {wch:24},{wch:10},{wch:6},{wch:14},{wch:5},{wch:9},{wch:8},{wch:12},{wch:12},{wch:10},{wch:9},{wch:40}];
+  ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:rows.length-1,c:HEAD.length-1}})};
+  // Sheet 2 — tổng theo mã SP
+  const agg={};list.forEach(o=>{const a=agg[o.product_code]=agg[o.product_code]||{qty:0,codes:new Set(),name:o.product_name};a.qty+=o.quantity||0;a.codes.add(o.order_code);});
+  const r2=[['Tên sản phẩm','Màu','Size','Mã SP','SL đang nợ','Số đơn','Tồn kho hiện tại','Còn thiếu']];
+  Object.entries(agg).map(([code,a])=>{const p=allProducts.find(x=>x.code===code)||{};return{code,a,p,name:p.name||a.name||code};})
+    .sort((x,y)=>x.name.localeCompare(y.name,'vi')||String(x.p.color||'').localeCompare(String(y.p.color||''),'vi')||sizeRank(x.p.size)-sizeRank(y.p.size))
+    .forEach(({code,a,p,name})=>{const have=stockOne(code);r2.push([name,p.color||'',p.size||'',code,a.qty,a.codes.size,have,Math.max(0,a.qty-have)]);});
+  const ws2=XLSX.utils.aoa_to_sheet(r2);
+  ws2['!cols']=[{wch:24},{wch:10},{wch:6},{wch:14},{wch:10},{wch:8},{wch:14},{wch:10}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Đơn nợ');
+  XLSX.utils.book_append_sheet(wb,ws2,'Tổng theo SP');
+  XLSX.writeFile(wb,`no_hang_${isCanGui?'can_gui':'da_gui'}_${today}.xlsx`);
+  toast(`✅ Đã xuất ${groups.length} đơn nợ (${rows.length-1} dòng SP)`);
 }
 /* ── [MỚI] Xuất Excel "Tổng kho cuối ngày" — tồn kho TÍNH ĐẾN HẾT 1 ngày bất kỳ, dùng đúng công thức
    stockOneAsOf() đã có sẵn (sổ cái, đã loại sales_adjust & Kho hàng lỗi) — vì vậy số khớp 100% với app,
