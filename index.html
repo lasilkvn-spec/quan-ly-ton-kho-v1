@@ -929,7 +929,11 @@ function popupPartnerOfTx(t){const ch=String(t.channel||'');const p=POPUP_PARTNE
      - Tồn của mã SET cha = min(tồn Áo, tồn Chân váy) → số set còn ghép đủ bộ để bán
    Mọi trang (Kho, Order hàng, Đặt NCC, Kho hàng lỗi, Pop Up, Đi đơn) chỉ hiện 2 mã con, ẩn mã SET cha.
    Riêng bảng tổng quan theo ngày ở Đi đơn và các số tổng/metric vẫn đếm theo đơn thật (1 set = 1). */
-const SET_PARTS=[{suf:'-AO',label:'Áo'},{suf:'-CV',label:'Chân váy'}];
+const SET_PART_B=[{suf:'-CV',label:'Chân váy'},{suf:'-Q',label:'Quần'}]; // món thứ 2 của set: Chân váy HOẶC Quần
+const SET_PARTS=[{suf:'-AO',label:'Áo'},...SET_PART_B];
+// set sơ mi tự tách khi up file đơn sàn (tên SP chứa "set ... sơ mi"); có chữ "váy" → Chân váy, còn lại → Quần
+const SET_AUTO_RE=/\bset\b[^\n]*(sơ\s*mi|so\s*mi)/i;
+function setDefaultPartB(nm){return /v[aáàạảã]y/i.test(nm)?SET_PART_B[0]:SET_PART_B[1];}
 let _setIdx=null,_setIdxSrc=null;
 function setIndex(){
   if(_setIdx&&_setIdxSrc===allProducts&&_setIdx.n===allProducts.length&&_setIdx.np===setParents.length&&_setIdx.nt===allTx.length)return _setIdx;
@@ -952,7 +956,7 @@ function ownCodes(code){const mf=setIndex().mergedFrom[code];return mf?[code,...
 // đưa mã SET đã có đủ mã con ra khỏi allProducts (ẩn khỏi mọi trang/danh sách chọn), cất vào setParents
 function partitionSetParents(){
   const all=[...allProducts,...setParents];const codes=new Set(all.map(p=>p.code));
-  const isPar=p=>SET_PARTS.every(x=>codes.has(p.code+x.suf));
+  const isPar=p=>codes.has(p.code+'-AO')&&SET_PART_B.some(x=>codes.has(p.code+x.suf));
   _setIdx=null;const mi=setIndex().mergedInto;
   const hide=p=>isPar(p)||!!mi[p.code];
   setParents=all.filter(hide);allProducts=all.filter(p=>!hide(p));_setIdx=null;
@@ -3199,8 +3203,10 @@ function setPartNames(nm){
   const base=nm.replace(/^\s*set\s+/i,'').trim()||nm;
   const up=base===base.toUpperCase();
   const ao=/^(áo|ao)\s/i.test(base)?base:(up?'ÁO ':'Áo ')+base;
-  const vay=(up?'CHÂN VÁY ':'Chân váy ')+(base.replace(/^(áo\s+)?(sơ\s*mi|so\s*mi)\s+/i,'').trim()||base);
-  return {'-AO':ao,'-CV':vay};
+  const rest=(base.replace(/^(áo\s+)?(sơ\s*mi|so\s*mi)\s+/i,'').trim()||base);
+  const vay=(up?'CHÂN VÁY ':'Chân váy ')+rest;
+  const quan=(up?'QUẦN ':'Quần ')+rest;
+  return {'-AO':ao,'-CV':vay,'-Q':quan};
 }
 function setSplitBtn(nm){
   // thẻ có mã Áo/Chân váy tách từ set → nút đổi tên / gộp vào SP có sẵn ngay trên thanh tiêu đề
@@ -3208,7 +3214,7 @@ function setSplitBtn(nm){
     return `<button class="btn btn-sm" style="background:var(--honey);color:var(--dark);border-color:var(--honey);font-weight:700" onclick="openRenameSetKids('${jsq(nm)}')">✏️ Đổi tên / gộp vào SP có sẵn</button>`;
   if(!/\bset\b/i.test(nm))return '';
   const n=setUnsplitOf(nm).length+setOldKidsOf(nm).length;if(!n)return '';
-  return `<button class="btn btn-sm" style="background:var(--honey);color:var(--dark);border-color:var(--honey);font-weight:700" onclick="openSetSplit('${jsq(nm)}')">✂️ Tách thành Áo + Chân váy</button>`;
+  return `<button class="btn btn-sm" style="background:var(--honey);color:var(--dark);border-color:var(--honey);font-weight:700" onclick="openSetSplit('${jsq(nm)}')">✂️ Tách thành Áo + Quần/Chân váy</button>`;
 }
 function setSplitNote(prods){
   if(!prods.some(p=>isSetChild(p.code)))return '';
@@ -3308,50 +3314,61 @@ async function splitSupplierRowsForSets(){
   return n;
 }
 function openSetSplit(nm){
-  const left=sortPS(setUnsplitOf(nm)),old=setOldKidsOf(nm);const stock=computeStock();const nms=setPartNames(nm);
+  const left=sortPS(setUnsplitOf(nm)),old=setOldKidsOf(nm);const stock=computeStock();const nms=setPartNames(nm);const pb=setDefaultPartB(nm);
   m_title('✂️ Tách set — '+nm);
   document.getElementById('m-body').innerHTML=`
-    <div class="setup">Set sẽ được <b>bỏ khỏi mọi trang</b>, thay bằng 2 sản phẩm riêng (giữ nguyên màu & size). Tồn kho / Đang về / Nợ đơn / Đã bán của mỗi món lấy đúng bằng số set hiện tại.
-    Sau này đơn sàn hay đơn nào ghi set sẽ tự tách thành 1 áo + 1 chân váy.</div>
+    <div class="setup">Set sẽ được <b>bỏ khỏi mọi trang</b>, thay bằng 2 sản phẩm riêng: <b>Áo</b> + <b>Quần</b> (hoặc Chân váy) — giữ nguyên màu & size. Tồn kho / Đang về / Nợ đơn / Đã bán của mỗi món lấy đúng bằng số set hiện tại.
+    Sau này đơn sàn hay đơn nào ghi set sẽ tự tách thành 1 áo + 1 quần/chân váy.</div>
+    <label class="fld"><span>Món thứ 2 của set là</span><select id="ss-b" onchange="ssPartBChange('${jsq(nm)}')">${SET_PART_B.map(x=>`<option value="${x.suf}" ${x.suf===pb.suf?'selected':''}>${x.label}</option>`).join('')}</select></label>
     <div class="grid2">
       <label class="fld"><span>Tên sản phẩm Áo</span><input id="ss-ao" value="${escapeHtml(nms['-AO'])}"></label>
-      <label class="fld"><span>Tên sản phẩm Chân váy</span><input id="ss-cv" value="${escapeHtml(nms['-CV'])}"></label>
+      <label class="fld"><span id="ss-b-lbl">Tên sản phẩm ${pb.label}</span><input id="ss-cv" value="${escapeHtml(nms[pb.suf])}"></label>
     </div>
     ${left.length?`<table><thead><tr><th class="l">Mã SET</th><th class="l">Màu · Size</th><th>Tồn set</th><th class="l">Tạo mã</th></tr></thead><tbody>
     ${left.map(p=>`<tr><td class="l" style="font-size:11.5px">${escapeHtml(p.code)}</td><td class="l">${escapeHtml((p.color||'—')+' · '+(p.size||'—'))}</td><td>${stock[p.code]||0}</td>
-      <td class="l" style="font-size:11px">${escapeHtml(p.code)}-AO (Áo)<br>${escapeHtml(p.code)}-CV (Chân váy)</td></tr>`).join('')}
+      <td class="l" style="font-size:11px">${escapeHtml(p.code)}-AO (Áo)<br>${escapeHtml(p.code)}${pb.suf} (${pb.label})</td></tr>`).join('')}
     </tbody></table>`:''}
     ${old.length?`<div style="font-size:11.5px;margin-top:8px;color:var(--brown)">Đổi tên ${old.length} mã đã tách trước đó sang 2 sản phẩm riêng.</div>`:''}`;
   m_foot(`<button class="btn" onclick="closeModal()">Huỷ</button><button class="btn btn-honey" onclick="confirmSetSplit('${jsq(nm)}')">✂️ Tách</button>`);
   openModal();
 }
+function ssPartBChange(nm){
+  const suf=document.getElementById('ss-b').value;const part=SET_PART_B.find(x=>x.suf===suf)||SET_PART_B[0];
+  document.getElementById('ss-cv').value=setPartNames(nm)[suf];
+  document.getElementById('ss-b-lbl').textContent='Tên sản phẩm '+part.label;
+}
+// tạo mã con (Áo + Quần/Chân váy) cho các mã SET chưa tách — dùng chung cho nút "Tách" và tự tách khi up file đơn sàn
+async function setCreateKids(left,nameOf,partB){
+  let made=0;
+  for(const p of left){
+    for(const part of [SET_PARTS[0],partB]){
+      const code=p.code+part.suf;
+      if(allProducts.some(x=>x.code===code))continue;
+      const data={code,name:nameOf[part.suf],color:(p.color||'').trim(),size:p.size||'',
+        stock_initial:0,threshold:+p.threshold||0,image_url:p.image_url||''};
+      const rows=await POST('products',data);
+      allProducts.push(rows&&rows[0]?rows[0]:data);made++;
+    }
+  }
+  return made;
+}
 async function confirmSetSplit(nm){
-  const nmAo=(document.getElementById('ss-ao')?.value||'').trim(),nmCv=(document.getElementById('ss-cv')?.value||'').trim();
-  if(!nmAo||!nmCv){toast('Nhập tên cho Áo và Chân váy',true);return;}
-  const nameOf={'-AO':nmAo,'-CV':nmCv};
+  const nmAo=(document.getElementById('ss-ao')?.value||'').trim(),nmB=(document.getElementById('ss-cv')?.value||'').trim();
+  const partB=SET_PART_B.find(x=>x.suf===(document.getElementById('ss-b')?.value||'-CV'))||SET_PART_B[0];
+  if(!nmAo||!nmB){toast('Nhập tên cho Áo và '+partB.label,true);return;}
+  const nameOf={...setPartNames(nm),'-AO':nmAo,[partB.suf]:nmB};
   const left=setUnsplitOf(nm),old=setOldKidsOf(nm);
   showLoad(true);let made=0,renamed=0;
   try{
-    // 1) đổi tên mã con kiểu cũ ("SET … · Đen · Áo") → sản phẩm riêng, màu gốc
     for(const k of old){
       const par=findProdAny(setIndex().parentOf[k.code]);const suf=SET_PARTS.find(x=>k.code.endsWith(x.suf)).suf;
       const data={name:nameOf[suf],color:(par.color||'').trim()};
       await PATCH(`products?code=eq.${encodeURIComponent(k.code)}`,data);Object.assign(k,data);renamed++;
     }
-    // 2) tạo mã con cho các mã SET chưa tách
-    for(const p of left){
-      for(const part of SET_PARTS){
-        const code=p.code+part.suf;
-        if(allProducts.some(x=>x.code===code))continue;
-        const data={code,name:nameOf[part.suf],color:(p.color||'').trim(),size:p.size||'',
-          stock_initial:0,threshold:+p.threshold||0,image_url:p.image_url||''};
-        const rows=await POST('products',data);
-        allProducts.push(rows&&rows[0]?rows[0]:data);made++;
-      }
-    }
-    partitionSetParents(); // ẩn mã SET khỏi mọi trang
-    const lotRows=await splitSupplierRowsForSets(); // lô đặt NCC ghi set → 1 dòng Áo + 1 dòng Chân váy, cùng SL đặt/đã về
-    toast(`✓ Đã tách set → ${nmAo} + ${nmCv}${made?` (tạo ${made} mã)`:''}${renamed?` (đổi tên ${renamed} mã)`:''}${lotRows?` · tách ${lotRows} dòng lô đặt NCC`:''}`);
+    made=await setCreateKids(left,nameOf,partB);
+    partitionSetParents();
+    const lotRows=await splitSupplierRowsForSets();
+    toast(`✓ Đã tách set → ${nmAo} + ${nmB}${made?` (tạo ${made} mã)`:''}${renamed?` (đổi tên ${renamed} mã)`:''}${lotRows?` · tách ${lotRows} dòng lô đặt NCC`:''}`);
     khoTab='ALL';opTab='ALL';
     closeModal();
   }catch(e){toast('Lỗi tách set: '+e.message,true);partitionSetParents();}
@@ -5624,12 +5641,82 @@ function shRuleMatch(line){
   return hit.length===1?hit[0].code:'';
 }
 // [SET] khớp xong mà ra mã SET (đã tách) → thay bằng 2 dòng: 1 Áo + 1 Chân váy (cùng SL, tiền/COD để ở dòng Áo)
+/* ══ [MỚI] SET = ÁO + VÁY/QUẦN — trong kho chỉ có "Áo sơ mi" và "Váy sơ mi" (không có mã SET) ══
+   Dòng đơn sàn có chữ "set" → tách thành 2 dòng: 1 Áo + 1 Váy/Quần (cùng SL, tiền COD để ở dòng Áo), tự khớp
+   theo Size + Màu. Món nào không khớp chắc chắn thì để "— chưa khớp —" để nhân viên tự chọn (ô Áo chỉ liệt kê
+   áo, ô Váy chỉ liệt kê váy/quần). Khi xác nhận → trừ kho cả áo lẫn váy. */
+function shIsSetLine(line){return /(^|\s)set(\s|$)/.test(shvNorm((line.prod||'')+' '+(line.variation||'')));}
+function shPartKind(p){const t=shvNorm(p.name).split(' ');if(t.includes('vay')||t.includes('quan'))return 'b';if(t.includes('ao'))return 'ao';return '';}
+function shMatchSetPart(line,kind){
+  const txt=shvNorm((line.prod||'')+' '+(line.variation||''));const tt=new Set(txt.split(' '));
+  let size='',color='';
+  String(line.variation||'').split(',').map(x=>x.trim()).filter(Boolean).forEach(x=>{
+    const t=shvNorm(x).split(' ');if(t.includes('set')||t.includes('ao')||t.includes('vay')||t.includes('quan'))return;
+    if(!size&&sizeRank(x)!==99)size=x;else if(!color)color=x;});
+  if(!size)return '';
+  let pool=allProducts.filter(p=>shPartKind(p)===kind);
+  if(/(^|\s)so mi(\s|$)/.test(txt)){const f=pool.filter(p=>/(^|\s)so mi(\s|$)/.test(shvNorm(p.name)));if(f.length)pool=f;}
+  pool=pool.filter(p=>shNorm(p.size)===shNorm(size));
+  if(!pool.length)return '';
+  const col=p=>shvNorm(p.color);let byColor=[];
+  if(color){const cn=shvNorm(color),ct=cn.split(' ');
+    byColor=pool.filter(p=>col(p)===cn);
+    if(!byColor.length){const al=shColorAlias(color);if(al)byColor=pool.filter(p=>col(p)===shvNorm(al));}
+    if(!byColor.length)byColor=pool.filter(p=>col(p)&&col(p).split(' ').every(t=>ct.includes(t)));
+    if(!byColor.length&&pool.length>1)return '';
+  }else byColor=pool.filter(p=>col(p)&&col(p).split(' ').every(t=>tt.has(t)));
+  if(byColor.length)pool=byColor;
+  if(pool.length===1)return pool[0].code;
+  const stop=new Set(['set','ao','vay','quan','chan','so','mi','lasilk','cao','cap','phong','cach','hang','thanh','lich']);
+  const sc=pool.map(p=>({p,s:shvNorm(p.name).split(' ').filter(t=>t.length>=3&&!stop.has(t)&&tt.has(t)).length}));
+  const mx=Math.max(...sc.map(x=>x.s));const top=sc.filter(x=>x.s===mx);
+  return (mx>0&&top.length===1)?top[0].p.code:'';
+}
+// danh sách chọn riêng cho ô Áo / ô Váy của dòng set
+function shSetOpts(part,cur){
+  let list=allProducts.filter(p=>shPartKind(p)===part);
+  if(cur&&!list.some(p=>p.code===cur)){const c=allProducts.find(p=>p.code===cur);if(c)list=[c,...list];}
+  if(!list.length)list=allProducts;
+  return sortPS(list).map(p=>`<option value="${p.code}"${p.code===cur?' selected':''}>${escapeHtml(pname(p))}</option>`).join('');
+}
+function shSetPill(l){return l.setPart?`<br><span class="pill" style="background:var(--honey);color:var(--dark);margin-top:3px">🧩 set → ${l.setPart==='ao'?'Áo':'Váy/Quần'}</span>`:'';}
+// [SET] khớp xong mà ra mã SET (đã tách) → thay bằng 2 dòng: 1 Áo + 1 Chân váy/Quần (cùng SL, tiền/COD để ở dòng Áo)
 function pushMatchedLine(arr,line){
   line.code=shMatch(line);
   if(line.code)line.code=resolveCode(line.code);
   const kids=setIndex().kids[line.code];
   if(kids&&kids.length){kids.forEach((k,i)=>arr.push({...line,code:k,price:i===0?line.price:0}));return;}
+  if(shIsSetLine(line)){
+    const mp=line.code&&allProducts.find(x=>x.code===line.code);
+    const hit=mp?shPartKind(mp):''; // SKU trỏ đúng 1 món → món còn lại tự dò theo size/màu
+    const a=hit==='ao'?line.code:shMatchSetPart(line,'ao');
+    const b=hit==='b'?line.code:shMatchSetPart(line,'b');
+    arr.push({...line,code:a,setPart:'ao'});
+    arr.push({...line,code:b,setPart:'b',price:0});
+    return;
+  }
   arr.push(line);
+}
+// [MỚI] up file đơn sàn / ngoại sàn: dòng nào khớp SP tên "Set … sơ mi" mà chưa tách → TỰ TÁCH thành Áo + Quần
+// (có chữ "váy" trong tên thì Chân váy), rồi đổi dòng đó thành 2 dòng lẻ (cùng SL, tiền/COD để ở dòng Áo).
+async function autoSplitSetLines(arr){
+  try{
+    const prods=[...new Set(arr.map(l=>l.code).filter(Boolean))].map(c=>allProducts.find(x=>x.code===c))
+      .filter(p=>p&&SET_AUTO_RE.test(p.name||'')&&!isSetParent(p.code)&&!isSetChild(p.code));
+    if(!prods.length)return;
+    const byName={};prods.forEach(p=>{(byName[p.name]=byName[p.name]||[]).push(p);});
+    let made=0;
+    for(const [nm,list] of Object.entries(byName)){
+      made+=await setCreateKids(list,setPartNames(nm),setDefaultPartB(nm));
+    }
+    partitionSetParents();
+    await splitSupplierRowsForSets();
+    for(let i=arr.length-1;i>=0;i--){
+      const l=arr[i],kids=setIndex().kids[l.code];
+      if(kids&&kids.length)arr.splice(i,1,...kids.map((k,j)=>({...l,code:k,price:j===0?l.price:0})));
+    }
+    if(made){toast(`✂️ Tự tách ${Object.keys(byName).join(', ')} → Áo + Quần/Chân váy (tạo ${made} mã)`);renderAll();}
+  }catch(e){toast('Lỗi tự tách set: '+e.message,true);}
 }
 function shMatch(line){
   if(line.skuVar){const p=findProdAny(line.skuVar);if(p)return p.code;}
@@ -5716,7 +5803,7 @@ function shopeeParse(input){
   const f=input.files&&input.files[0];if(!f)return;
   if(/\.pdf$/i.test(f.name)){shopeeParsePdf(f);return;}
   const rd=new FileReader();
-  rd.onload=e=>{
+  rd.onload=async e=>{
     try{
       const wb=/\.csv$/i.test(f.name)?XLSX.read(e.target.result,{type:'string'}):XLSX.read(e.target.result,{type:'array'});
       const ws=wb.Sheets[wb.SheetNames[0]];
@@ -5740,6 +5827,7 @@ function shopeeParse(input){
           buyer:col.buyer>=0?String(r[col.buyer]||''):'',addr:col.addr>=0?String(r[col.addr]||''):''};
         pushMatchedLine(shopeeLines,line);
       }
+      await autoSplitSetLines(shopeeLines);
       renderShopeePreview();
     }catch(err){document.getElementById('sh-summary').innerHTML='<div class="setup" style="background:var(--red-bg);color:var(--red-fg)">Lỗi đọc file: '+escapeHtml(err.message)+'</div>';}
   };
@@ -5899,6 +5987,7 @@ async function shopeeParsePdf(file){
       });
     }
     if(!shopeeLines.length){sum.innerHTML='<div class="setup" style="background:var(--red-bg);color:var(--red-fg)">Không đọc được đơn nào từ PDF. Kiểm tra đúng file tem SPX/TikTok.</div>';return;}
+    await autoSplitSetLines(shopeeLines);
     renderShopeePreview();
   }catch(err){sum.innerHTML='<div class="setup" style="background:var(--red-bg);color:var(--red-fg)">Lỗi đọc PDF: '+escapeHtml(err.message)+'</div>';}
 }
@@ -5965,10 +6054,10 @@ function renderShopeePreview(){
       <td class="l mono" style="font-size:10.5px;font-weight:700">${escapeHtml(l.sn)}</td>
       <td class="l" style="font-size:11px">${tag}${pickSel}</td>
       <td class="l" style="font-size:11px">${l.buyer?escapeHtml(l.buyer):'<span class="dim">—</span>'}${l.express?' <span class="pill" style="background:var(--red-bg);color:var(--red-fg)">🔥 Hỏa Tốc</span>':''}</td>
-      <td class="l" style="font-size:11px;max-width:200px">${(()=>{const d=shRuleDisplay(l);return d?`${escapeHtml(d.name)}${d.variation?` <span class="dim">(${escapeHtml(d.variation)})</span>`:''}`:`${escapeHtml(shBracket(l.prod))}${l.variation?` <span class="dim">(${escapeHtml(l.variation)})</span>`:''}`;})()}</td>
+      <td class="l" style="font-size:11px;max-width:200px">${(()=>{const d=shRuleDisplay(l);return d?`${escapeHtml(d.name)}${d.variation?` <span class="dim">(${escapeHtml(d.variation)})</span>`:''}`:`${escapeHtml(shBracket(l.prod))}${l.variation?` <span class="dim">(${escapeHtml(l.variation)})</span>`:''}`;})()}${shSetPill(l)}</td>
       <td style="font-weight:700">${l.qty}</td>
       <td class="l mono" style="font-size:10px">${l.tracking?escapeHtml(l.tracking):'<span class="dim">— (hoả tốc)</span>'}</td>
-      <td class="l">${k==='new'||k==='nomatch'?`<select onchange="shopeeLines[${i}].code=this.value;renderShopeePreview()" style="font-size:11px;padding:5px 8px"><option value="">— chưa khớp —</option>${opts}</select>`:'<span class="dim" style="font-size:11px">không cần</span>'}</td>
+      <td class="l">${k==='new'||k==='nomatch'?`<select onchange="shopeeLines[${i}].code=this.value;renderShopeePreview()" style="font-size:11px;padding:5px 8px"><option value="">— chưa khớp —</option>${l.setPart?shSetOpts(l.setPart,l.code):opts}</select>`:'<span class="dim" style="font-size:11px">không cần</span>'}</td>
       <td>${chk}</td>
     </tr>`;}).join('')}</tbody></table></div>
     <div class="row" style="margin-top:14px"><button class="btn btn-honey" onclick="stageOpen('sh')">🧾 Xem bảng số lượng để kiểm tra (${newN} đơn mới${linkN+updN?` · ${linkN+updN} mã VĐ`:''}${sameN?` · ${sameN} đã có`:''})</button></div>`;
@@ -6264,6 +6353,7 @@ async function ngoaiParse(type,input){
         +'<textarea readonly onclick="this.select()" style="width:100%;margin-top:8px;height:220px;font-family:monospace;font-size:11px;padding:8px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--dark)">'+dbg+'</textarea></div>';
       return;
     }
+    await autoSplitSetLines(ngLines[type]);
     renderNgoaiPreview(type);
   }catch(e){sum.innerHTML='<div class="setup" style="background:var(--red-bg);color:var(--red-fg)">Lỗi đọc PDF: '+escapeHtml(e.message)+'</div>';}
 }
@@ -6284,9 +6374,9 @@ function renderNgoaiPreview(type){
       return `<tr style="${already?'opacity:.4':''}">
         <td class="l mono" style="font-size:10.5px">${first?escapeHtml(sn):''}${first?` <span class="pill" style="background:var(--blue-bg);color:var(--blue-fg)">${NG_LABEL[type]}</span>`:''}${first&&already?' <span class="pill" style="background:var(--bg)">đã nhập</span>':''}</td>
         <td class="l" style="font-size:11px">${first?escapeHtml(l.buyer||'—')+(l.phone?'<br><span class="dim">'+escapeHtml(l.phone)+'</span>':''):''}</td>
-        <td class="l" style="font-size:11px">${escapeHtml(l.prod)}${l.variation?' <span class="dim">('+escapeHtml(l.variation)+')</span>':''}</td>
+        <td class="l" style="font-size:11px">${escapeHtml(l.prod)}${l.variation?' <span class="dim">('+escapeHtml(l.variation)+')</span>':''}${shSetPill(l)}</td>
         <td style="font-weight:700">${l.qty}</td>
-        <td class="l">${l.code?`<span class="pill" style="background:var(--grn-bg);color:var(--grn-fg)">${l.code}</span>`:`<select onchange="ngLines.${type}[${gi}].code=this.value;renderNgoaiPreview('${type}')" style="font-size:11px;padding:4px 6px"><option value="">— chưa khớp —</option>${opts}</select>`}</td>
+        <td class="l">${l.code&&!l.setPart?`<span class="pill" style="background:var(--grn-bg);color:var(--grn-fg)">${l.code}</span>`:`<select onchange="ngLines.${type}[${gi}].code=this.value;renderNgoaiPreview('${type}')" style="font-size:11px;padding:4px 6px"><option value="">— chưa khớp —</option>${l.setPart?shSetOpts(l.setPart,l.code):opts}</select>`}</td>
         <td class="l">${first?`<select onchange="ngoaiSetKind('${type}','${sn}',this.value)" style="font-size:11px;padding:5px 8px">
           <option value="khach" ${l.kind==='khach'?'selected':''}>👤 Khách</option>
           <option value="kol" ${l.kind==='kol'?'selected':''}>⭐ KOL</option>
