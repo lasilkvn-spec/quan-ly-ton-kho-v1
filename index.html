@@ -4376,6 +4376,100 @@ async function reverseAndDeletePO(po,lotLabel,nhapTx){
   }catch(e){toast('Lỗi xoá: '+e.message,true);}
   showLoad(false);
 }
+/* ══════════ [MỚI] NGỪNG LÀM VỚI 1 XƯỞNG (NCC) ══════════
+   Bỏ hẳn phần CHƯA VỀ của mọi lô thuộc xưởng đó, để không còn tính vào "Đang về" / Khả dụng.
+   KHÁC nút "🗑 Xoá đơn" từng lô: KHÔNG ghi xuất hoàn ngược — hàng đã về là hàng thật, vẫn giữ nguyên trong kho.
+     - Dòng chưa về cái nào (received = 0) → xoá hẳn dòng đó khỏi supplier_orders (lô không còn dòng nào thì biến mất).
+     - Dòng đã về 1 phần → chốt SL đặt = SL đã về (status 'Đã về') + ghi chú lại số đặt gốc, nên lịch sử đợt về,
+       công nợ tiền hàng đã nhận của xưởng vẫn còn để đối chiếu (lô chuyển sang tab "Đã về").
+   Dòng đã về đủ không bị đụng tới. */
+let _stopSup=null;
+function stopSupplierRows(sup){return supplierRows.filter(r=>(r.supplier_name||'').trim()===sup&&(r.qty||0)>(r.received||0));}
+function openStopSupplier(sup){
+  const rows=stopSupplierRows(sup);
+  if(!rows.length){toast('Xưởng này không còn lô nào đang chờ về');return;}
+  _stopSup=sup;
+  const nPo=new Set(rows.map(r=>r.po_code)).size;
+  const tot=rows.reduce((s,r)=>s+(r.qty||0)-(r.received||0),0);
+  const sorted=rows.slice().sort((a,b)=>String(b.po_code).localeCompare(String(a.po_code))||sizeRank(rowColorSize(a).size)-sizeRank(rowColorSize(b).size));
+  m_title('⛔ Ngừng làm với xưởng: '+sup);
+  document.getElementById('m-body').innerHTML=`
+    <div class="setup">Bỏ toàn bộ phần <b>chưa về</b> của <b>${nPo} lô</b> (tổng <b>${tot} cái</b>) — các số này sẽ không còn tính vào "Đang về" / Khả dụng nữa.<br>
+    ✅ Hàng <b>đã về</b> vẫn giữ nguyên trong kho, lịch sử các đợt về & công nợ tiền hàng đã nhận vẫn còn.<br>
+    • Dòng chưa về cái nào → xoá khỏi lô · Dòng đã về 1 phần → chốt lại SL đặt = SL đã về.<br>
+    ⚠️ Không khôi phục lại được.</div>
+    <div style="max-height:50vh;overflow:auto"><table><thead><tr><th class="l">Lô</th><th class="l">Sản phẩm (theo mã)</th><th>Đã về / Đặt</th><th>Bỏ</th></tr></thead><tbody>
+    ${sorted.map(r=>{const p=allProducts.find(x=>x.code===r.product_code)||findProdAny(r.product_code);
+      return `<tr><td class="l"><b>${escapeHtml(r.name||'')}</b><div class="mono dim" style="font-size:10.5px">${escapeHtml(r.po_code)}</div></td>
+      <td class="l">${escapeHtml(p?pname(p):(r.product_name||r.product_code))}</td>
+      <td>${r.received||0}/${r.qty||0}</td><td style="font-weight:800;color:var(--red-fg)">${(r.qty||0)-(r.received||0)}</td></tr>`;}).join('')}
+    </tbody></table></div>`;
+  m_foot(`<button class="btn" onclick="closeModal()">Huỷ</button><button class="btn" style="background:var(--red-fg);color:#fff;border-color:var(--red-fg);font-weight:700" onclick="confirmStopSupplier()">⛔ Bỏ ${tot} cái chưa về</button>`);
+  openModal();
+}
+async function confirmStopSupplier(){
+  const sup=_stopSup;if(!sup){closeModal();return;}
+  const rows=stopSupplierRows(sup);if(!rows.length){closeModal();return;}
+  const toDel=rows.filter(r=>!(r.received>0)),toClose=rows.filter(r=>r.received>0);
+  showLoad(true);
+  try{
+    for(const r of toClose){
+      const tag=`[Ngừng làm xưởng ${fmtDate(todayStr())}] đặt ${r.qty}, chốt ${r.received}`;
+      await PATCH(`supplier_orders?id=eq.${r.id}`,{qty:r.received,status:'Đã về',note:(r.note?r.note+' · ':'')+tag});
+    }
+    if(toDel.length){
+      const resp=await fetch(`${SB_URL}/rest/v1/supplier_orders?id=in.(${toDel.map(r=>r.id).join(',')})`,
+        {method:'DELETE',headers:{...H,'Prefer':'return=representation'}});
+      if(!resp.ok)throw new Error(`${resp.status} ${await resp.text()}`);
+      const deleted=await resp.json();
+      if(!deleted||!deleted.length)toast('⚠️ Không xoá được các dòng chưa về — có thể tài khoản chưa được cấp quyền DELETE bảng supplier_orders trên Supabase (kiểm tra RLS policy)',true);
+    }
+    _stopSup=null;closeModal();
+    toast(`✓ Đã ngừng xưởng ${sup} — bỏ ${rows.reduce((s,r)=>s+(r.qty||0)-(r.received||0),0)} cái chưa về, hàng đã về giữ nguyên`);
+    orderNccFilter=null;
+    await loadSupplier(); // tải lại supplier_orders → tự vẽ lại Order hàng, Kho, Order dự báo, Công nợ
+  }catch(e){toast('Lỗi: '+e.message,true);}
+  showLoad(false);
+}
+/* [MỚI] ✓ HOÀN THÀNH 1 LÔ — xưởng không giao thêm nữa: chốt SL đặt = SL đã về cho mọi dòng còn thiếu của lô
+   (kể cả dòng chưa về cái nào → đặt 0). Không xoá dòng, không đụng kho; phần thiếu thôi tính vào "Đang về"/Khả dụng,
+   lô chuyển sang tab "Đã về". Ghi chú lại số đặt gốc trên từng dòng để đối chiếu với xưởng. */
+let _finishPo=null;
+function openFinishLot(po){
+  const rows=supplierRows.filter(r=>r.po_code===po&&(r.qty||0)>(r.received||0));
+  if(!rows.length){toast('Lô này đã về đủ');return;}
+  _finishPo=po;
+  const lotName=(supplierRows.find(x=>x.po_code===po)||{}).name||po;
+  const tot=rows.reduce((s,r)=>s+(r.qty||0)-(r.received||0),0);
+  const sorted=rows.slice().sort((a,b)=>sizeRank(rowColorSize(a).size)-sizeRank(rowColorSize(b).size));
+  m_title('✓ Hoàn thành lô: '+lotName);
+  document.getElementById('m-body').innerHTML=`
+    <div class="setup">Xưởng không giao thêm cho lô này nữa → bỏ <b>${tot} cái</b> còn thiếu khỏi "Đang về" / Khả dụng, lô chuyển sang tab <b>Đã về</b>.<br>
+    ✅ Hàng đã về giữ nguyên trong kho · lịch sử đợt về & công nợ vẫn còn · ghi chú lại số đặt gốc trên từng dòng.</div>
+    <div style="max-height:50vh;overflow:auto"><table><thead><tr><th class="l">Sản phẩm (theo mã)</th><th>Đã về / Đặt</th><th>Bỏ</th></tr></thead><tbody>
+    ${sorted.map(r=>{const p=allProducts.find(x=>x.code===r.product_code)||findProdAny(r.product_code);
+      return `<tr><td class="l">${escapeHtml(p?pname(p):(r.product_name||r.product_code))}</td><td>${r.received||0}/${r.qty||0}</td>
+      <td style="font-weight:800;color:var(--red-fg)">${(r.qty||0)-(r.received||0)}</td></tr>`;}).join('')}
+    </tbody></table></div>`;
+  m_foot(`<button class="btn" onclick="closeModal()">Huỷ</button><button class="btn" style="background:var(--grn-fg);color:#fff;border-color:var(--grn-fg);font-weight:700" onclick="confirmFinishLot()">✓ Hoàn thành lô</button>`);
+  openModal();
+}
+async function confirmFinishLot(){
+  const po=_finishPo;if(!po){closeModal();return;}
+  const rows=supplierRows.filter(r=>r.po_code===po&&(r.qty||0)>(r.received||0));
+  showLoad(true);
+  try{
+    for(const r of rows){
+      const got=r.received||0;
+      const tag=`[Hoàn thành lô ${fmtDate(todayStr())}] đặt ${r.qty}, chốt ${got}`;
+      await PATCH(`supplier_orders?id=eq.${r.id}`,{qty:got,received:got,status:'Đã về',note:(r.note?r.note+' · ':'')+tag});
+    }
+    _finishPo=null;closeModal();
+    toast(`✓ Đã hoàn thành lô ${po} — bỏ ${rows.reduce((s,r)=>s+(r.qty||0)-(r.received||0),0)} cái còn thiếu khỏi Đang về`);
+    await loadSupplier();
+  }catch(e){toast('Lỗi: '+e.message,true);}
+  showLoad(false);
+}
 let orderView='lo'; // 'lo' theo lô | 'sp' theo sản phẩm
 let orderLotStatus='dangve'; // 'dangve' | 'daave' — chỉ áp dụng khi orderView==='lo'
 let orderNccFilter=null; // [MỚI] lọc "Theo lô hàng" theo 1 NCC cụ thể — null = xem tất cả NCC. '__NONE__' = riêng nhóm "Chưa gắn NCC".
@@ -4732,6 +4826,7 @@ function renderOrderByLot(){
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span style="background:${done?'var(--grn-bg)':'var(--honey)'};color:${done?'var(--grn-fg)':'var(--dark)'};padding:5px 14px;border-radius:7px;font-size:12px;font-weight:700">${done?'✓ Đã về đủ':'Đang về'}</span>
           <button class="btn btn-sm" style="background:var(--honey);color:var(--dark);border-color:var(--honey);font-weight:700" onclick="openGuiNCC('${jsq(po)}')">📤 Gửi đơn NCC</button>
+          ${!done?`<button class="btn btn-sm" style="background:var(--grn-bg);color:var(--grn-fg);border-color:#9FCB8F;font-weight:700" onclick="openFinishLot('${jsq(po)}')">✓ Hoàn thành lô</button>`:''}
           <button class="btn btn-sm" style="background:var(--red-bg);color:var(--red-fg);border-color:#E7A5A4" onclick="deleteSupplierOrderAsk('${jsq(po)}')">🗑 Xoá đơn</button>
         </div>
       </div>
@@ -4744,7 +4839,7 @@ function renderOrderByLot(){
   box.innerHTML=orderDateAggBoxHtml(poArr)+supKeys.map((sup,i)=>{
     const lots=bySupplier[sup];
     const label=sup===NONE_KEY?'❔ Chưa gắn NCC':'🏭 '+escapeHtml(sup);
-    const head=`<div style="background:#B5715C;color:#fff;padding:9px 16px;border-radius:9px;font-family:var(--f-head);font-weight:800;font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;margin:${i===0?'0':'20px'} 0 10px">${label} · ${lots.length} lô</div>`;
+    const head=`<div style="background:#B5715C;color:#fff;padding:9px 16px;border-radius:9px;font-family:var(--f-head);font-weight:800;font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;margin:${i===0?'0':'20px'} 0 10px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span>${label} · ${lots.length} lô</span>${sup!==NONE_KEY&&orderLotStatus==='dangve'?`<button class="btn btn-sm" style="background:var(--red-bg);color:var(--red-fg);border-color:#E7A5A4;font-family:inherit;letter-spacing:0;text-transform:none;font-weight:700" onclick="openStopSupplier('${jsq(sup)}')">⛔ Ngừng làm với xưởng này</button>`:''}</div>`;
     return head+lots.map(lotCardHtml).join('');
   }).join('');
 }
